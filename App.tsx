@@ -56,6 +56,8 @@ export default function App() {
   const [amt, setAmt] = useState('');
   const [quote, setQuote] = useState<any>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [showFromSearch, setShowFromSearch] = useState(false);
+  const [showToSearch, setShowToSearch] = useState(false);
   const [slippage, setSlippage] = useState('0.5');
   const [fromSearch, setFromSearch] = useState('');
   const [toSearch, setToSearch] = useState('');
