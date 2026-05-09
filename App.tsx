@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { generateWallet, getPublicKey, importWallet as deriveWallet } from './wallet';
+import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
+import nacl from 'tweetnacl';
 import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, TOKENS, DECIMALS } from './sendMsg';
 
 const C = {
@@ -16,7 +17,7 @@ const TABS = [
   { id: 'chat', label: 'Chat', icon: '◉' },
   { id: 'swap', label: 'Swap', icon: '⇄' },
   { id: 'portfolio', label: 'Portfolio', icon: '▦' },
-  { id: 'settings', label: 'Settings', icon: '◈' },
+  { id: 'settings', label: 'Settings', icon: '⚙️' },
 ];
 
 const TOKEN_LIST = ['SOL','USDC','JUP','BONK','WIF','USDT'];
@@ -55,6 +56,12 @@ export default function App() {
   const [quote, setQuote] = useState<any>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [slippage, setSlippage] = useState('0.5');
+  const [fromSearch, setFromSearch] = useState('');
+  const [toSearch, setToSearch] = useState('');
+  const [fromResults, setFromResults] = useState<any[]>([]);
+  const [toResults, setToResults] = useState<any[]>([]);
+  const [fromToken2, setFromToken2] = useState<{symbol:string,mint:string,logoURI?:string}>({symbol:'SOL',mint:'So11111111111111111111111111111111111111112'});
+  const [toToken2, setToToken2] = useState<{symbol:string,mint:string,logoURI?:string}>({symbol:'USDC',mint:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'});
 
   // Portfolio state
   const [solBalance, setSolBalance] = useState<number | null>(null);
@@ -148,6 +155,7 @@ export default function App() {
     if (!input.trim() || aiLoading) return;
     const q = input;
     setMsgs(p => [...p, { id: Date.now(), text: q, from: 'user' }]);
+    const msgText = text;
     setInput('');
     setAiLoading(true);
     try {
@@ -288,6 +296,15 @@ export default function App() {
     } catch (e) {
       Alert.alert('Swap Failed', e.message || 'Unknown error');
     }
+  };
+
+  const searchJupTokens = async (query: string, setResults: any) => {
+    if (!query || query.length < 1) { setResults([]); return; }
+    try {
+      const res = await fetch(\`https://api.jup.ag/tokens/v2/search?query=\${encodeURIComponent(query)}&limit=6\`);
+      const data = await res.json();
+      setResults(Array.isArray(data) ? data : (data.tokens || []));
+    } catch { setResults([]); }
   };
 
   const sendTokens = async () => {
@@ -492,7 +509,10 @@ export default function App() {
                   {portfolioLoading ? <ActivityIndicator color={C.green} style={{ marginVertical: 8 }} /> : (
                     <Text style={s.balValue}>{solBalance !== null ? `${solBalance.toFixed(4)} SOL` : '—'}</Text>
                   )}
-                  <Text style={s.walletAddress} numberOfLines={1}>{pubkey}</Text>
+                  <TouchableOpacity onPress={copyAddress}><Text style={s.walletAddress} numberOfLines={1}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={fetchPortfolio} style={{position:'absolute',top:12,right:12,padding:6}}>
+                    <Text style={{color:'#39FF82',fontSize:18}}>↻</Text>
+                  </TouchableOpacity>
                   <View style={s.portfolioActions}>
                     <TouchableOpacity style={s.portfolioAction} onPress={() => setShowSendModal(true)}>
                       <Text style={s.portfolioActionIcon}>↑</Text>
@@ -698,7 +718,7 @@ export default function App() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   flex: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 44, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: 'rgba(18,18,18,0.95)' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 44, borderBottomWidth: 1, borderBottomColor: 'rgba(57,255,130,0.2)', backgroundColor: '#0d1a12' },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.green },
   logoText: { color: C.text, fontSize: 20, fontWeight: 'bold' },
@@ -720,7 +740,7 @@ const s = StyleSheet.create({
   sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center' },
   sendBtnTxt: { color: C.bg, fontSize: 20, fontWeight: 'bold' },
   pageTitle: { color: C.text, fontSize: 22, fontWeight: 'bold', marginBottom: 18 },
-  card: { backgroundColor: C.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.border, marginBottom: 8 },
+  card: { backgroundColor: 'rgba(20,40,28,0.9)', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: 'rgba(57,255,130,0.2)', marginBottom: 8, shadowColor: '#39FF82', shadowOffset: {width:0,height:2}, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
   cardLabel: { color: C.muted, fontSize: 12, marginBottom: 8 },
   bigInput: { color: C.text, fontSize: 32, fontWeight: 'bold', paddingVertical: 4 },
   bigOutput: { color: C.muted, fontSize: 32, fontWeight: 'bold', paddingVertical: 4, marginBottom: 8 },
@@ -743,14 +763,14 @@ const s = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyTitle: { color: C.text, fontSize: 18, fontWeight: 'bold' },
   emptyText: { color: C.muted, fontSize: 14, textAlign: 'center' },
-  balanceCard: { backgroundColor: C.card, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: C.border, alignItems: 'center', marginBottom: 16 },
+  balanceCard: { backgroundColor: 'rgba(20,40,28,0.95)', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: 'rgba(57,255,130,0.3)', alignItems: 'center', marginBottom: 16, shadowColor: '#39FF82', shadowOffset: {width:0,height:4}, shadowOpacity: 0.15, shadowRadius: 20, elevation: 8 },
   balLabel: { color: C.muted, fontSize: 12 },
   balValue: { color: C.text, fontSize: 36, fontWeight: 'bold', marginVertical: 6 },
   walletAddress: { color: C.blue, fontSize: 11, marginBottom: 16 },
   portfolioActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   portfolioAction: { alignItems: 'center', backgroundColor: C.card2, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: C.border },
   portfolioActionIcon: { color: C.green, fontSize: 18, fontWeight: 'bold' },
-  portfolioActionTxt: { color: C.text, fontSize: 11, marginTop: 2 },
+  portfolioActionTxt: { color: C.text, fontSize: 10, marginTop: 2 },
   sectionLabel: { color: C.muted, fontSize: 11, fontWeight: '600', marginBottom: 8, letterSpacing: 1 },
   assetRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: C.border },
   assetIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
@@ -780,10 +800,10 @@ const s = StyleSheet.create({
   seedWordTxt: { color: C.text, fontSize: 13, fontWeight: '600' },
   addressBox: { backgroundColor: C.bg, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: C.border, marginBottom: 16 },
   addressTxt: { color: C.text, fontSize: 13, lineHeight: 20 },
-  tabBar: { flexDirection: 'row', backgroundColor: 'rgba(22,22,22,0.97)', borderTopWidth: 1, borderTopColor: 'rgba(57,255,130,0.15)', paddingTop: 10, paddingBottom: 24, paddingHorizontal: 4 },
+  tabBar: { flexDirection: 'row', backgroundColor: '#0d1a12', borderTopWidth: 1, borderTopColor: 'rgba(57,255,130,0.25)', paddingTop: 10, paddingBottom: 24, paddingHorizontal: 4 },
   tabItem: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 2 },
-  tabIcon: { fontSize: 20, color: C.muted },
-  tabIconActive: { color: C.green },
-  tabLabel: { color: C.muted, fontSize: 10 },
-  tabLabelActive: { color: C.green, fontWeight: '600' },
+  tabIcon: { fontSize: 22, color: 'rgba(255,255,255,0.4)' },
+  tabIconActive: { color: '#39FF82', textShadowColor: '#39FF82', textShadowOffset: {width:0,height:0}, textShadowRadius: 8 },
+  tabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 },
+  tabLabelActive: { color: '#39FF82', fontWeight: '600' },
 });
