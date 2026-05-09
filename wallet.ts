@@ -85,3 +85,5 @@ export const signAndSendTransaction = async (
   if (data.error) throw new Error(data.error.message);
   return data.result;
 };
+
+export const deriveWallet = importWallet;
