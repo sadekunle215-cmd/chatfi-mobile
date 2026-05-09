@@ -439,7 +439,7 @@ export default function App() {
             </View>
             {showFromSearch&&(
               <View style={s.tokenDropdown}>
-                <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{const r=q.length>1?await searchJupTokens(q):[];setFromResults(r);}} />
+                <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setFromResults); else setFromResults([]);}} />
                 {fromResults.slice(0,5).map(t=>(
                   <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setFromToken(t.symbol);TOKENS[t.symbol]=t.address;setShowFromSearch(false);setQuote(null);}}>
                     <Image source={{uri:'https://img.jup.ag/tokens/'+t.address}} style={s.tokenLogo} onError={()=>{}} />
@@ -469,7 +469,7 @@ export default function App() {
             </View>
             {showToSearch&&(
               <View style={s.tokenDropdown}>
-                <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{const r=q.length>1?await searchJupTokens(q):[];setToResults(r);}} />
+                <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setToResults); else setToResults([]);}} />
                 {toResults.slice(0,5).map(t=>(
                   <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setToToken(t.symbol);TOKENS[t.symbol]=t.address;setShowToSearch(false);setQuote(null);}}>
                     <Image source={{uri:'https://img.jup.ag/tokens/'+t.address}} style={s.tokenLogo} onError={()=>{}} />
