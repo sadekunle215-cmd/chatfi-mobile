@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet } from './wallet';
-import { askAI, getJupiterQuote } from './sendMsg';
+import { askAI, getJupiterQuote, getTokenBalances } from './sendMsg';
 
 const C = {
   bg: '#0d1117', card: '#161b22', card2: '#1c2128',
@@ -56,6 +56,7 @@ export default function App() {
 
   // Portfolio state
   const [solBalance, setSolBalance] = useState<number | null>(null);
+  const [tokenBalances, setTokenBalances] = useState<Array<{symbol: string, mint: string, amount: number}>>([]);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [portfolioRefreshing, setPortfolioRefreshing] = useState(false);
 
@@ -89,6 +90,8 @@ export default function App() {
       const data = await res.json();
       if (data.result?.value !== undefined) {
         setSolBalance(data.result.value / 1e9);
+      const tokens = await getTokenBalances(pubkey);
+      setTokenBalances(tokens);
       }
     } catch {}
     setPortfolioLoading(false);
@@ -324,14 +327,16 @@ export default function App() {
                   </View>
                 </View>
                 <Text style={s.sectionLabel}>ASSETS</Text>
-                <View style={s.assetRow}>
-                  <View style={s.assetIcon}><Text style={s.assetIconTxt}>S</Text></View>
-                  <View style={s.assetInfo}>
-                    <Text style={s.assetName}>Solana</Text>
-                    <Text style={s.assetPrice}>SOL</Text>
+                {tokenBalances.map((t, i) => (
+                  <View key={i} style={s.assetRow}>
+                    <View style={s.assetIcon}><Text style={s.assetIconTxt}>{t.symbol[0]}</Text></View>
+                    <View style={s.assetInfo}>
+                      <Text style={s.assetName}>{t.symbol}</Text>
+                      <Text style={s.assetPrice}>{t.mint.slice(0,6)}...</Text>
+                    </View>
+                    <Text style={s.assetBal}>{t.amount.toFixed(4)}</Text>
                   </View>
-                  <Text style={s.assetBal}>{solBalance !== null ? solBalance.toFixed(4) : '—'}</Text>
-                </View>
+                ))}
                 <TouchableOpacity style={[s.outlineBtn, { marginTop: 16 }]} onPress={fetchPortfolio}>
                   <Text style={s.outlineBtnTxt}>Refresh Balances</Text>
                 </TouchableOpacity>

@@ -92,3 +92,61 @@ export const askAI = async (question: string, walletAddress: string | null): Pro
     return 'Network error. Please try again.';
   }
 };
+
+export const getTokenBalances = async (publicKey: string): Promise<Array<{symbol: string, mint: string, amount: number, usdValue?: number}>> => {
+  try {
+    const RPC_URL = 'https://api.mainnet-beta.solana.com';
+
+    // Get SOL balance
+    const solRes = await fetch(RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'getBalance',
+        params: [publicKey]
+      })
+    });
+    const solData = await solRes.json();
+    const solAmount = (solData.result?.value || 0) / 1e9;
+
+    // Get SPL token accounts
+    const tokenRes = await fetch(RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 2,
+        method: 'getTokenAccountsByOwner',
+        params: [
+          publicKey,
+          { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
+          { encoding: 'jsonParsed' }
+        ]
+      })
+    });
+    const tokenData = await tokenRes.json();
+
+    const balances: Array<{symbol: string, mint: string, amount: number}> = [
+      { symbol: 'SOL', mint: TOKENS.SOL, amount: solAmount }
+    ];
+
+    // Map known mints to symbols
+    const mintToSymbol: Record<string, string> = {};
+    for (const [sym, mint] of Object.entries(TOKENS)) {
+      mintToSymbol[mint] = sym;
+    }
+
+    for (const account of (tokenData.result?.value || [])) {
+      const info = account.account.data.parsed.info;
+      const mint = info.mint;
+      const amount = info.tokenAmount.uiAmount;
+      if (amount > 0 && mintToSymbol[mint]) {
+        balances.push({ symbol: mintToSymbol[mint], mint, amount });
+      }
+    }
+
+    return balances;
+  } catch {
+    return [];
+  }
+};
