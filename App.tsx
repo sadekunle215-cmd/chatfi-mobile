@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet } from './wallet';
-import { askAI, getJupiterQuote, getTokenBalances } from './sendMsg';
+import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx } from './sendMsg';
 
 const C = {
   bg: '#0d1117', card: '#161b22', card2: '#1c2128',
@@ -155,9 +155,23 @@ export default function App() {
     setQuoteLoading(false);
   };
 
-  const executeSwap = () => {
+  const executeSwap = async () => {
     if (!wallet) { Alert.alert('No wallet', 'Create or connect a wallet first'); return; }
-    Alert.alert('Coming Soon', 'Swap execution requires transaction signing which is coming in the next update.');
+    if (!quote) { Alert.alert('No Quote', 'Get a quote first before swapping'); return; }
+    try {
+      const { mnemonic, publicKey: pk, secretKey } = deriveWallet(wallet);
+      const RPC = 'https://api.mainnet-beta.solana.com';
+      Alert.alert('Swapping', `Executing ${fromToken} → ${toToken} swap...`);
+      const txSig = await executeSwapTx(
+        TOKENS[fromToken], TOKENS[toToken],
+        parseFloat(swapAmt), DECIMALS[fromToken] || 6,
+        pk, secretKey, RPC
+      );
+      Alert.alert('Swap Done!', `Transaction: ${txSig.slice(0,20)}...`);
+      fetchPortfolio();
+    } catch (e) {
+      Alert.alert('Swap Failed', e.message || 'Unknown error');
+    }
   };
 
   const sendTokens = async () => {

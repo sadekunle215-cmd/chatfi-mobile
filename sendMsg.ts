@@ -150,3 +150,49 @@ export const getTokenBalances = async (publicKey: string): Promise<Array<{symbol
     return [];
   }
 };
+
+export const executeSwap = async (
+  fromMint: string,
+  toMint: string,
+  amount: number,
+  fromDecimals: number,
+  publicKey: string,
+  secretKey: Uint8Array,
+  rpcUrl: string
+): Promise<string> => {
+  const amountRaw = Math.floor(amount * Math.pow(10, fromDecimals));
+
+  // Step 1: Get order from Jupiter Ultra API
+  const orderRes = await fetch(
+    `https://lite-api.jup.ag/ultra/v1/order?inputMint=${fromMint}&outputMint=${toMint}&amount=${amountRaw}&taker=${publicKey}`,
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+  const orderData = await orderRes.json();
+  if (orderData.error) throw new Error(orderData.error);
+  if (!orderData.transaction) throw new Error('No transaction from Jupiter');
+
+  // Step 2: Deserialize and sign with nacl
+  const txBytes = Buffer.from(orderData.transaction, 'base64');
+  const sigCount = txBytes[0];
+  const messageOffset = 1 + sigCount * 64;
+  const message = txBytes.slice(messageOffset);
+  const signature = nacl.sign.detached(message, secretKey);
+  for (let i = 0; i < 64; i++) txBytes[1 + i] = signature[i];
+  const signedBase64 = txBytes.toString('base64');
+
+  // Step 3: Execute via Jupiter
+  const execRes = await fetch('https://lite-api.jup.ag/ultra/v1/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      signedTransaction: signedBase64,
+      requestId: orderData.requestId
+    })
+  });
+  const execData = await execRes.json();
+  if (execData.error) throw new Error(typeof execData.error === 'object' ? JSON.stringify(execData.error) : execData.error);
+
+  const txSignature = execData.signature || execData.txid;
+  if (!txSignature) throw new Error('No signature returned from execute');
+  return txSignature;
+};
