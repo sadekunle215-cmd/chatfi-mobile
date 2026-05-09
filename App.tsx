@@ -718,7 +718,7 @@ export default function App() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   flex: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 44, borderBottomWidth: 1, borderBottomColor: 'rgba(57,255,130,0.2)', backgroundColor: '#0d1a12' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 44, borderBottomWidth: 1, borderBottomColor: 'transparent', backgroundColor: '#080c0a' },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.green },
   logoText: { color: C.text, fontSize: 20, fontWeight: 'bold' },
@@ -800,7 +800,7 @@ const s = StyleSheet.create({
   seedWordTxt: { color: C.text, fontSize: 13, fontWeight: '600' },
   addressBox: { backgroundColor: C.bg, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: C.border, marginBottom: 16 },
   addressTxt: { color: C.text, fontSize: 13, lineHeight: 20 },
-  tabBar: { flexDirection: 'row', backgroundColor: '#0d1a12', borderTopWidth: 1, borderTopColor: 'rgba(57,255,130,0.25)', paddingTop: 10, paddingBottom: 24, paddingHorizontal: 4 },
+  tabBar: { flexDirection: 'row', backgroundColor: '#080c0a', borderTopWidth: 1, borderTopColor: 'transparent', paddingTop: 10, paddingBottom: 24, paddingHorizontal: 4 },
   tabItem: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 2 },
   tabIcon: { fontSize: 22, color: 'rgba(255,255,255,0.4)' },
   tabIconActive: { color: '#39FF82', textShadowColor: '#39FF82', textShadowOffset: {width:0,height:0}, textShadowRadius: 8 },
