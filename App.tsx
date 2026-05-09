@@ -290,7 +290,9 @@ export default function App() {
       const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
       const randBytes = new Uint8Array(13);
       crypto.getRandomValues(randBytes);
-      const inviteCode = bs58.encode(randBytes).slice(0, 12);
+      const b58chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+      let inviteCode = '';
+      for (let i = 0; i < 12; i++) inviteCode += b58chars[randBytes[i] % 58];
       const res = await fetch('https://chatfi.pro/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -298,33 +300,25 @@ export default function App() {
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      if (!data.partiallySignedTx) throw new Error('No transaction returned');
-      const txBytes = Uint8Array.from(Buffer.from(data.partiallySignedTx, 'base64'));
-      const tx = VersionedTransaction.deserialize(txBytes);
-      const msgBytes = tx.message.serialize();
-      const userPk = new PublicKey(pk);
-      const userIdx = tx.message.staticAccountKeys.findIndex((k: any) => k.equals(userPk));
-      if (userIdx < 0) throw new Error('User signer slot not found');
-      tx.signatures[userIdx] = nacl.sign.detached(msgBytes, secretKey);
-      // Derive invite seed via SHA-256('invite:' + code) using nacl hash
-      const encoder = new TextEncoder();
-      const inviteSeed = nacl.hash(encoder.encode('invite:' + inviteCode)).slice(0, 32);
-      const inviteKp = nacl.sign.keyPair.fromSeed(inviteSeed);
-      const invitePk = new PublicKey(inviteKp.publicKey);
-      const inviteIdx = tx.message.staticAccountKeys.findIndex((k: any) => k.equals(invitePk));
-      if (inviteIdx >= 0) tx.signatures[inviteIdx] = nacl.sign.detached(msgBytes, inviteKp.secretKey);
+      const txBytes = Uint8Array.from(atob(data.partiallySignedTx), (c: string) => c.charCodeAt(0));
+      const numSigs = txBytes[0];
+      const msgBytes = txBytes.slice(1 + numSigs * 64);
+      const userSig = nacl.sign.detached(msgBytes, secretKey);
+      txBytes.set(userSig, 1);
+      const txB64 = btoa(String.fromCharCode(...Array.from(txBytes)));
       const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jsonrpc: '2.0', id: 1, method: 'sendTransaction',
-          params: [Buffer.from(tx.serialize()).toString('base64'), { encoding: 'base64', preflightCommitment: 'confirmed' }],
+          params: [txB64, { encoding: 'base64', preflightCommitment: 'confirmed' }],
         }),
       });
       const rpcData = await rpcRes.json();
       if (rpcData.error) throw new Error(rpcData.error.message);
       const link = 'https://jup.ag/send?code=' + inviteCode;
-      Alert.alert('Sent!', 'Share this link to claim:\n' + link);
+      Alert.alert('Sent!', 'Share this link to claim:
+' + link);
       setShowSendModal(false);
     } catch (e: any) {
       Alert.alert('Send Failed', e.message || 'Unknown error');
