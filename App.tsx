@@ -568,6 +568,7 @@ export default function App() {
               <Text style={s.dangerBtnTxt}>Remove Wallet</Text>
             </TouchableOpacity>
           </>
+        )}
             </ScrollView>
         )}
       </View>
