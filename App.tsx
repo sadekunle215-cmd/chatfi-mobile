@@ -50,10 +50,7 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
 
   // Swap state
-  const [showFromSearch, setShowFromSearch] = React.useState(false);
-  const [showToSearch, setShowToSearch] = React.useState(false);
-  const [fromResults, setFromResults] = React.useState([]);
-  const [toResults, setToResults] = React.useState([]);
+
   const [fromToken, setFromToken] = useState('SOL');
   const [toToken, setToToken] = useState('USDC');
   const [amt, setAmt] = useState('');
