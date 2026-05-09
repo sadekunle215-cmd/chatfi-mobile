@@ -279,12 +279,57 @@ export default function App() {
   };
 
   const sendTokens = async () => {
-    if (!sendTo.trim() || !sendAmt) { Alert.alert('Fill all fields'); return; }
+    if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Invalid amount'); return; }
+    if (!wallet) { Alert.alert('No wallet', 'Create a wallet first'); return; }
     setSendLoading(true);
-    await new Promise(r => setTimeout(r, 1500));
-    setSendLoading(false);
-    Alert.alert('Coming Soon', 'Token sending requires transaction signing coming in next update.');
-    setShowSendModal(false);
+    try {
+      const { publicKey: pk, secretKey } = deriveWallet(wallet);
+      const mint = TOKENS[sendToken] || TOKENS['SOL'];
+      const decimals = DECIMALS[sendToken] ?? 9;
+      const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
+      const { default: bs58 } = await import('bs58');
+      const randBytes = new Uint8Array(13);
+      crypto.getRandomValues(randBytes);
+      const inviteCode = bs58.encode(randBytes).slice(0, 12);
+      const res = await fetch('https://chatfi.pro/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender: pk, amount: amountNum, mint, inviteCode }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      if (!data.partiallySignedTx) throw new Error('No transaction returned');
+      const txBytes = Uint8Array.from(Buffer.from(data.partiallySignedTx, 'base64'));
+      const tx = VersionedTransaction.deserialize(txBytes);
+      const msgBytes = tx.message.serialize();
+      const userPk = new PublicKey(pk);
+      const userIdx = tx.message.staticAccountKeys.findIndex((k: any) => k.equals(userPk));
+      if (userIdx < 0) throw new Error('User signer slot not found');
+      tx.signatures[userIdx] = nacl.sign.detached(msgBytes, secretKey);
+      const { createHash } = await import('crypto');
+      const inviteSeed = new Uint8Array(createHash('sha256').update('invite:' + inviteCode).digest());
+      const inviteKp = nacl.sign.keyPair.fromSeed(inviteSeed);
+      const invitePk = new PublicKey(inviteKp.publicKey);
+      const inviteIdx = tx.message.staticAccountKeys.findIndex((k: any) => k.equals(invitePk));
+      if (inviteIdx >= 0) tx.signatures[inviteIdx] = nacl.sign.detached(msgBytes, inviteKp.secretKey);
+      const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0', id: 1, method: 'sendTransaction',
+          params: [Buffer.from(tx.serialize()).toString('base64'), { encoding: 'base64', preflightCommitment: 'confirmed' }],
+        }),
+      });
+      const rpcData = await rpcRes.json();
+      if (rpcData.error) throw new Error(rpcData.error.message);
+      const link = 'https://jup.ag/send?code=' + inviteCode;
+      Alert.alert('Sent!', 'Share this link to claim:\n' + link);
+      setShowSendModal(false);
+    } catch (e: any) {
+      Alert.alert('Send Failed', e.message || 'Unknown error');
+    } finally {
+      setSendLoading(false);
+    }
   };
 
   const copyAddress = () => {
@@ -502,6 +547,14 @@ export default function App() {
               </View>
             ))}
             {wallet && (
+              <TouchableOpacity style={s.dangerBtn} onPress={() => {
+                Alert.alert('Seed Phrase', 'Only view in a private place. Anyone with this can access your wallet.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Show', onPress: () => Alert.alert('Your Seed Phrase', wallet || '') },
+                ]);
+              }}>
+                <Text style={s.dangerBtnTxt}>Show Seed Phrase</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={s.dangerBtn} onPress={() => {
                 Alert.alert('Remove Wallet', 'Make sure you have your seed phrase!', [
                   { text: 'Cancel', style: 'cancel' },
