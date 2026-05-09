@@ -570,7 +570,6 @@ export default function App() {
           </>
         )}
       </ScrollView>
-      </ScrollView>
       </View>
 
       {/* TAB BAR */}
