@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { generateWallet, getPublicKey } from './wallet';
+import { generateWallet, getPublicKey, importWallet as deriveWallet } from './wallet';
 import { askAI, getJupiterQuote } from './sendMsg';
 
 const C = {
@@ -97,7 +97,7 @@ export default function App() {
 
   const createWallet = () => {
     try {
-      const mnemonic = generateWallet();
+      const { mnemonic, publicKey: genPk } = generateWallet();
       setSeedPhrase(mnemonic);
       setShowSeedModal(true);
     } catch (e) {
@@ -121,7 +121,7 @@ export default function App() {
       return;
     }
     try {
-      const pk = getPublicKey(importSeed.trim());
+      const { publicKey: pk } = deriveWallet(importSeed.trim());
       await AsyncStorage.setItem('wallet_mnemonic', importSeed.trim());
       setWallet(importSeed.trim()); setPubkey(pk);
       setShowWalletModal(false); setImportSeed('');

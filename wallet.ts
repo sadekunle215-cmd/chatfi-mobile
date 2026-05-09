@@ -1,42 +1,84 @@
 import 'react-native-get-random-values';
+import * as bip39 from 'bip39';
+import { derivePath } from 'ed25519-hd-key';
+import nacl from 'tweetnacl';
+import bs58 from 'bs58';
 
-const WORDLIST = ['abandon','ability','able','about','above','absent','absorb','abstract','absurd','abuse','access','accident','account','accuse','achieve','acid','acoustic','acquire','across','act','action','actor','actress','actual','adapt','add','addict','address','adjust','admit','adult','advance','advice','aerobic','afford','afraid','again','agent','agree','ahead','aim','air','airport','aisle','alarm','album','alcohol','alert','alien','all','alley','allow','almost','alone','alpha','already','also','alter','always','amateur','amazing','among','amount','amused','analyst','anchor','ancient','anger','angle','angry','animal','ankle','announce','annual','another','answer','antenna','antique','anxiety','any','apart','apology','appear','apple','approve','april','arch','arctic','area','arena','argue','arm','armor','army','around','arrange','arrest','arrive','arrow','art','artefact','artist','artwork','ask','aspect','assault','asset','assist','assume','asthma','athlete','atom','attack','attend','attitude','attract','auction','audit','august','aunt','author','auto','autumn','average','avocado','avoid','awake','aware','away','awesome','awful','awkward','axis','baby','balance','bamboo','banana','banner','bar','barely','bargain','barrel','base','basic','basket','battle','beach','bean','beauty','because','become','beef','before','begin','behave','behind','believe','below','belt','bench','benefit','best','betray','better','between','beyond','bicycle','bid','bike','bind','biology','bird','birth','bitter','black','blade','blame','blanket','blast','bleak','bless','blind','blood','blossom','blouse','blue','blur','blush','board','boat','body','boil','bomb','bone','book','boost','border','boring','borrow','boss','bottom','bounce','box','boy','bracket','brain','brand','brave','breeze','brick','bridge','brief','bright','bring','brisk','broccoli','broken','bronze','broom','brother','brown','brush','bubble','buddy','budget','buffalo','build','bulb','bulk','bullet','bundle','bunker','burden','burger','burst','bus','business','busy','butter','buyer','buzz'];
-
-export const generateWallet = (): string => {
-  try {
-    const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
-    const words = Array.from(array).map(b => WORDLIST[b % WORDLIST.length]);
-    return words.join(' ');
-  } catch (e) {
-    const words = [];
-    for (let i = 0; i < 12; i++) {
-      words.push(WORDLIST[Math.floor(Math.random() * WORDLIST.length)]);
-    }
-    return words.join(' ');
-  }
+export type WalletKeys = {
+  mnemonic: string;
+  publicKey: string;
+  secretKey: Uint8Array;
 };
 
+// Generate a real BIP39 wallet
+export const generateWallet = (): WalletKeys => {
+  const mnemonic = bip39.generateMnemonic();
+  return deriveKeysFromMnemonic(mnemonic);
+};
+
+// Import existing wallet from seed phrase
+export const importWallet = (mnemonic: string): WalletKeys => {
+  if (!bip39.validateMnemonic(mnemonic)) {
+    throw new Error('Invalid mnemonic phrase');
+  }
+  return deriveKeysFromMnemonic(mnemonic);
+};
+
+// Derive real ed25519 keypair from mnemonic
+const deriveKeysFromMnemonic = (mnemonic: string): WalletKeys => {
+  const seed = bip39.mnemonicToSeedSync(mnemonic);
+  const path = "m/44'/501'/0'/0'";
+  const { key } = derivePath(path, seed.toString('hex'));
+  const keypair = nacl.sign.keyPair.fromSeed(key);
+  const publicKey = bs58.encode(keypair.publicKey);
+  return { mnemonic, publicKey, secretKey: keypair.secretKey };
+};
+
+// Get public key string from mnemonic
 export const getPublicKey = (mnemonic: string): string => {
   try {
-    const words = mnemonic.split(' ');
-    let hash = 5381;
-    for (const word of words) {
-      for (let i = 0; i < word.length; i++) {
-        hash = ((hash << 5) + hash) ^ word.charCodeAt(i);
-        hash = hash >>> 0;
-      }
-    }
-    const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-    let address = '';
-    let n = hash;
-    for (let i = 0; i < 32; i++) {
-      address += chars[n % chars.length];
-      n = Math.floor(n / chars.length) + (i * 7919) + hash;
-      n = n >>> 0;
-    }
-    return address;
+    const { publicKey } = deriveKeysFromMnemonic(mnemonic);
+    return publicKey;
   } catch {
     return 'ErrorGeneratingKey';
   }
+};
+
+// Sign and send a Jupiter swap transaction
+export const signAndSendTransaction = async (
+  serializedTx: string,
+  secretKey: Uint8Array,
+  rpcUrl: string
+): Promise<string> => {
+  const txBytes = Buffer.from(serializedTx, 'base64');
+
+  // Solana tx layout: [sigCount(1)] [sig slots(sigCount*64)] [message...]
+  const sigCount = txBytes[0];
+  const messageOffset = 1 + sigCount * 64;
+  const message = txBytes.slice(messageOffset);
+
+  const signature = nacl.sign.detached(message, secretKey);
+
+  // Write signature into slot 0
+  for (let i = 0; i < 64; i++) {
+    txBytes[1 + i] = signature[i];
+  }
+
+  const response = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'sendTransaction',
+      params: [
+        txBytes.toString('base64'),
+        { encoding: 'base64', preflightCommitment: 'confirmed' }
+      ]
+    })
+  });
+
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.result; // transaction signature
 };
