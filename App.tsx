@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { generateWallet, getPublicKey } from './wallet';
+import { generateWallet, getPublicKey, getKeypairFromSecret } from './wallet';
 
 const C = {
   bg: '#0d1117',

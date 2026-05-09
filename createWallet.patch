@@ -1,0 +1,7 @@
+const createWallet = () => {
+  const { mnemonic, keypair } = generateWallet();
+  const secretKey = bs58.encode(keypair.secretKey);
+  setSeedPhrase(mnemonic);
+  setShowSeedModal(true);
+  AsyncStorage.setItem('wallet_secret', secretKey);
+};
