@@ -18,7 +18,7 @@ export const generateWallet = (): WalletKeys => {
   crypto.getRandomValues(seed);
 
   // Generate 16 bytes for mnemonic words
-  const entropy = new Uint8Array(16);
+  const entropy = new Uint8Array(12);
   crypto.getRandomValues(entropy);
   const words = Array.from(entropy).map(b => WORDLIST[b % WORDLIST.length]);
   const mnemonic = words.join(' ');
