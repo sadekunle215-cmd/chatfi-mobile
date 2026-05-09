@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { generateWallet, getPublicKey, getKeypairFromSecret } from './wallet';
+import { generateWallet, getPublicKey } from './wallet';
+import { askAI } from './sendMsg';
 
 const C = {
   bg: '#0d1117',
@@ -23,13 +24,6 @@ const TABS = [
   { id: 'settings', label: 'Settings', icon: '◈' },
 ];
 
-const TOKENS = [
-  { symbol: 'SOL', name: 'Solana', price: '$143.20', change: '+2.4%', up: true, bal: '0.0021', usd: '$0.31' },
-  { symbol: 'USDC', name: 'USD Coin', price: '$1.00', change: '+0.01%', up: true, bal: '170.33', usd: '$170.33' },
-  { symbol: 'JUP', name: 'Jupiter', price: '$0.208', change: '+2.5%', up: true, bal: '1.52', usd: '$0.32' },
-  { symbol: 'BONK', name: 'Bonk', price: '$0.000069', change: '-1.2%', up: false, bal: '0.14', usd: '$0.01' },
-];
-
 export default function App() {
   const [tab, setTab] = useState('chat');
   const [wallet, setWallet] = useState<string | null>(null);
@@ -39,9 +33,10 @@ export default function App() {
   const [seedPhrase, setSeedPhrase] = useState('');
   const [importSeed, setImportSeed] = useState('');
   const [msgs, setMsgs] = useState([
-    { id: 1, text: 'Welcome to ChatFi! Your AI-powered DeFi assistant on Solana.\n\nCreate or import a wallet to get started.', from: 'bot' }
+    { id: 1, text: 'Welcome to ChatFi! Your AI-powered DeFi assistant on Solana.\n\nAsk me anything about swaps, prices, or DeFi strategies.', from: 'bot' }
   ]);
   const [input, setInput] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
   const [fromToken, setFromToken] = useState('SOL');
   const [toToken, setToToken] = useState('USDC');
   const [amt, setAmt] = useState('');
@@ -86,14 +81,15 @@ export default function App() {
     }
   };
 
-  const sendMsg = () => {
-    if (!input.trim()) return;
+  const sendMsg = async () => {
+    if (!input.trim() || aiLoading) return;
     const q = input;
     setMsgs(p => [...p, { id: Date.now(), text: q, from: 'user' }]);
     setInput('');
-    setTimeout(() => {
-      setMsgs(p => [...p, { id: Date.now() + 1, text: 'AI backend coming soon. Wallet: ' + (pubkey ? pubkey.slice(0, 8) + '...' : 'not connected'), from: 'bot' }]);
-    }, 400);
+    setAiLoading(true);
+    const reply = await askAI(q, pubkey);
+    setMsgs(p => [...p, { id: Date.now() + 1, text: reply, from: 'bot' }]);
+    setAiLoading(false);
   };
 
   const shortKey = pubkey ? pubkey.slice(0, 4) + '...' + pubkey.slice(-4) : null;
@@ -127,10 +123,19 @@ export default function App() {
                   <Text style={s.bubbleTxt}>{m.text}</Text>
                 </View>
               ))}
+              {aiLoading && (
+                <View style={s.botBubble}>
+                  <View style={s.botTag}>
+                    <View style={s.botDot} />
+                    <Text style={s.botTagTxt}>ChatFi AI</Text>
+                  </View>
+                  <ActivityIndicator color={C.green} size="small" />
+                </View>
+              )}
             </ScrollView>
             <View style={s.inputRow}>
-              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={sendMsg} />
-              <TouchableOpacity style={s.sendBtn} onPress={sendMsg}>
+              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={sendMsg} editable={!aiLoading} />
+              <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={sendMsg} disabled={aiLoading}>
                 <Text style={s.sendBtnTxt}>→</Text>
               </TouchableOpacity>
             </View>
@@ -184,13 +189,11 @@ export default function App() {
                 </TouchableOpacity>
               </View>
             ) : (
-              <View>
-                <View style={s.balanceCard}>
-                  <Text style={s.balLabel}>Wallet Address</Text>
-                  <Text style={s.walletAddress} numberOfLines={1}>{pubkey}</Text>
-                  <Text style={s.balValue}>$0.00</Text>
-                  <Text style={s.balSub}>Fetching balances...</Text>
-                </View>
+              <View style={s.balanceCard}>
+                <Text style={s.balLabel}>Wallet Address</Text>
+                <Text style={s.walletAddress} numberOfLines={1}>{pubkey}</Text>
+                <Text style={s.balValue}>$0.00</Text>
+                <Text style={s.balSub}>Fetching balances...</Text>
               </View>
             )}
           </ScrollView>
@@ -268,7 +271,7 @@ export default function App() {
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>Your Seed Phrase</Text>
-            <Text style={s.seedWarning}>Write these 12 words down. Never share them!</Text>
+            <Text style={s.seedWarning}>Write these 12 words down. Never share them with anyone!</Text>
             <View style={s.seedGrid}>
               {seedPhrase.split(' ').map((word, i) => (
                 <View key={i} style={s.seedWord}>
