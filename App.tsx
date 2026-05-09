@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
 import nacl from 'tweetnacl';
@@ -50,6 +50,10 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
 
   // Swap state
+  const [showFromSearch, setShowFromSearch] = React.useState(false);
+  const [showToSearch, setShowToSearch] = React.useState(false);
+  const [fromResults, setFromResults] = React.useState([]);
+  const [toResults, setToResults] = React.useState([]);
   const [fromToken, setFromToken] = useState('SOL');
   const [toToken, setToToken] = useState('USDC');
   const [amt, setAmt] = useState('');
@@ -424,73 +428,100 @@ export default function App() {
         )}
 
         {/* SWAP */}
-        {tab === 'swap' && (
-          <ScrollView style={s.pad}>
-            <Text style={s.pageTitle}>Swap</Text>
-            <View style={s.card}>
-              <Text style={s.cardLabel}>You Pay</Text>
-              <TextInput style={s.bigInput} value={amt} onChangeText={setAmt} placeholder="0" placeholderTextColor={C.border} keyboardType="numeric" />
-              <View style={s.tokenRow}>
-                {TOKEN_LIST.map(t => (
-                  <TouchableOpacity key={t} onPress={() => setFromToken(t)} style={[s.chip, fromToken === t && s.chipActive]}>
-                    <Text style={[s.chipTxt, fromToken === t && s.chipTxtActive]}>{t}</Text>
+              {tab === 'swap' && (
+        <ScrollView style={s.pad} keyboardShouldPersistTaps="handled">
+          <View style={s.swapCard}>
+            <Text style={s.swapCardLabel}>You Pay</Text>
+            <View style={s.swapCardRow}>
+              <TextInput style={s.swapAmtInput} value={amt} onChangeText={setAmt} placeholder="0" placeholderTextColor={C.border} keyboardType="numeric" />
+              <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowFromSearch(!showFromSearch);setShowToSearch(false);}}>
+                <Image source={{uri:'https://img.jup.ag/tokens/'+(TOKENS[fromToken]||'')}} style={s.tokenLogo} onError={()=>{}} />
+                <Text style={s.tokenSelTxt}>{fromToken}</Text>
+                <Text style={{color:C.muted,marginLeft:4,fontSize:12}}>▾</Text>
+              </TouchableOpacity>
+            </View>
+            {showFromSearch&&(
+              <View style={s.tokenDropdown}>
+                <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{const r=q.length>1?await searchJupTokens(q):[];setFromResults(r);}} />
+                {fromResults.slice(0,5).map(t=>(
+                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setFromToken(t.symbol);TOKENS[t.symbol]=t.address;setShowFromSearch(false);setQuote(null);}}>
+                    <Image source={{uri:'https://img.jup.ag/tokens/'+t.address}} style={s.tokenLogo} onError={()=>{}} />
+                    <View style={{flex:1,marginLeft:8}}>
+                      <Text style={s.tokenResTxt}>{t.symbol}</Text>
+                      <Text style={s.tokenResSub} numberOfLines={1}>{t.name}</Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
+            )}
+          </View>
+
+          <TouchableOpacity style={s.swapDirBtn} onPress={()=>{const tmp=fromToken;setFromToken(toToken);setToToken(tmp);setQuote(null);}}>
+            <Text style={{color:C.green,fontSize:20,fontWeight:'bold'}}>⇅</Text>
+          </TouchableOpacity>
+
+          <View style={s.swapCard}>
+            <Text style={s.swapCardLabel}>You Receive</Text>
+            <View style={s.swapCardRow}>
+              <Text style={s.swapAmtOut}>{quote?Number(quote.outAmount).toFixed(6):'—'}</Text>
+              <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowToSearch(!showToSearch);setShowFromSearch(false);}}>
+                <Image source={{uri:'https://img.jup.ag/tokens/'+(TOKENS[toToken]||'')}} style={s.tokenLogo} onError={()=>{}} />
+                <Text style={s.tokenSelTxt}>{toToken}</Text>
+                <Text style={{color:C.muted,marginLeft:4,fontSize:12}}>▾</Text>
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity style={s.arrowRow} onPress={() => { const tmp = fromToken; setFromToken(toToken); setToToken(tmp); setQuote(null); }}>
-              <Text style={{ color: C.green, fontSize: 24 }}>↕</Text>
-            </TouchableOpacity>
-
-            <View style={s.card}>
-              <Text style={s.cardLabel}>You Receive</Text>
-              <Text style={s.bigOutput}>{quote ? quote.outAmount.toFixed(6) : '—'}</Text>
-              <View style={s.tokenRow}>
-                {TOKEN_LIST.map(t => (
-                  <TouchableOpacity key={t} onPress={() => { setToToken(t); setQuote(null); }} style={[s.chip, toToken === t && s.chipActive]}>
-                    <Text style={[s.chipTxt, toToken === t && s.chipTxtActive]}>{t}</Text>
+            {showToSearch&&(
+              <View style={s.tokenDropdown}>
+                <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{const r=q.length>1?await searchJupTokens(q):[];setToResults(r);}} />
+                {toResults.slice(0,5).map(t=>(
+                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setToToken(t.symbol);TOKENS[t.symbol]=t.address;setShowToSearch(false);setQuote(null);}}>
+                    <Image source={{uri:'https://img.jup.ag/tokens/'+t.address}} style={s.tokenLogo} onError={()=>{}} />
+                    <View style={{flex:1,marginLeft:8}}>
+                      <Text style={s.tokenResTxt}>{t.symbol}</Text>
+                      <Text style={s.tokenResSub} numberOfLines={1}>{t.name}</Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
-
-            {quote && (
-              <View style={s.quoteBox}>
-                <Text style={s.quoteRow}>Price impact: <Text style={s.quoteVal}>{quote.priceImpact}%</Text></Text>
-                <Text style={s.quoteRow}>Route: <Text style={s.quoteVal}>{quote.route}</Text></Text>
-                <Text style={s.quoteRow}>Slippage: <Text style={s.quoteVal}>{slippage}%</Text></Text>
-              </View>
             )}
+          </View>
 
-            <TouchableOpacity style={s.greenBtn} onPress={fetchQuote}>
-              {quoteLoading ? <ActivityIndicator color={C.bg} /> : <Text style={s.greenBtnTxt}>Get Quote</Text>}
+          {quote&&(
+            <View style={s.quoteBox}>
+              <Text style={s.quoteRow}>Price impact: <Text style={s.quoteVal}>{quote.priceImpact}%</Text></Text>
+              <Text style={s.quoteRow}>Route: <Text style={s.quoteVal}>{quote.route}</Text></Text>
+              <Text style={s.quoteRow}>Slippage: <Text style={s.quoteVal}>{slippage}%</Text></Text>
+            </View>
+          )}
+
+          <View style={s.slippageRow}>
+            <Text style={s.cardLabel}>Slippage: </Text>
+            {['0.1','0.5','1.0'].map(v=>(
+              <TouchableOpacity key={v} onPress={()=>setSlippage(v)} style={[s.slippageChip,slippage===v&&s.chipActive]}>
+                <Text style={[s.chipTxt,slippage===v&&s.chipTxtActive]}>{v}%</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity style={s.greenBtn} onPress={fetchQuote}>
+            {quoteLoading?<ActivityIndicator color={C.bg} />:<Text style={s.greenBtnTxt}>Get Quote</Text>}
+          </TouchableOpacity>
+
+          {quote&&(
+            <TouchableOpacity style={[s.greenBtn,{marginTop:8}]} onPress={executeSwap}>
+              <Text style={s.greenBtnTxt}>Swap {fromToken} → {toToken}</Text>
             </TouchableOpacity>
+          )}
 
-            {quote && (
-              <TouchableOpacity style={s.swapExecBtn} onPress={executeSwap}>
-                <Text style={s.greenBtnTxt}>Swap {fromToken} → {toToken}</Text>
-              </TouchableOpacity>
-            )}
+          {!wallet&&(
+            <TouchableOpacity style={s.outlineBtn} onPress={()=>setShowWalletModal(true)}>
+              <Text style={s.outlineBtnTxt}>Connect Wallet to Swap</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      )}
 
-            {!wallet && (
-              <TouchableOpacity style={s.outlineBtn} onPress={() => setShowWalletModal(true)}>
-                <Text style={s.outlineBtnTxt}>Connect Wallet to Swap</Text>
-              </TouchableOpacity>
-            )}
-
-            <View style={s.slippageRow}>
-              <Text style={s.cardLabel}>Slippage: </Text>
-              {['0.1','0.5','1.0'].map(v => (
-                <TouchableOpacity key={v} onPress={() => setSlippage(v)} style={[s.slippageChip, slippage === v && s.chipActive]}>
-                  <Text style={[s.chipTxt, slippage === v && s.chipTxtActive]}>{v}%</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-        )}
-
-        {/* PORTFOLIO */}
+      {/* PORTFOLIO */}
         {tab === 'portfolio' && (
           <ScrollView style={s.pad} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={() => { setPortfolioRefreshing(true); fetchPortfolio(); }} tintColor={C.green} />}>
             <Text style={s.pageTitle}>Portfolio</Text>
@@ -806,4 +837,18 @@ const s = StyleSheet.create({
   tabIconActive: { color: '#39FF82', textShadowColor: '#39FF82', textShadowOffset: {width:0,height:0}, textShadowRadius: 8 },
   tabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 },
   tabLabelActive: { color: '#39FF82', fontWeight: '600' },
+  swapCard:{ backgroundColor:C.card, borderRadius:16, padding:16, marginBottom:4 },
+  swapCardLabel:{ color:C.muted, fontSize:13, marginBottom:10 },
+  swapCardRow:{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' },
+  swapAmtInput:{ flex:1, color:C.text, fontSize:34, fontWeight:'600', padding:0, minWidth:0 },
+  swapAmtOut:{ flex:1, color:C.text, fontSize:34, fontWeight:'600' },
+  tokenSelBtn:{ flexDirection:'row', alignItems:'center', backgroundColor:C.bg, borderRadius:20, paddingHorizontal:12, paddingVertical:8 },
+  tokenLogo:{ width:26, height:26, borderRadius:13, backgroundColor:C.border },
+  tokenSelTxt:{ color:C.text, fontSize:15, fontWeight:'700', marginLeft:6 },
+  tokenDropdown:{ marginTop:10, backgroundColor:C.bg, borderRadius:12, padding:8 },
+  tokenSearchIn:{ color:C.text, backgroundColor:C.card, borderRadius:8, paddingHorizontal:12, paddingVertical:9, marginBottom:6, fontSize:14 },
+  tokenResultRow:{ flexDirection:'row', alignItems:'center', paddingVertical:10, borderBottomWidth:1, borderBottomColor:C.border },
+  tokenResTxt:{ color:C.text, fontSize:14, fontWeight:'600' },
+  tokenResSub:{ color:C.muted, fontSize:12, marginTop:2 },
+  swapDirBtn:{ alignSelf:'center', backgroundColor:C.card, borderRadius:22, padding:12, marginVertical:6, borderWidth:3, borderColor:C.bg },
 });
