@@ -301,7 +301,7 @@ export default function App() {
   const searchJupTokens = async (query: string, setResults: any) => {
     if (!query || query.length < 1) { setResults([]); return; }
     try {
-      const res = await fetch(\`https://api.jup.ag/tokens/v2/search?query=\${encodeURIComponent(query)}&limit=6\`);
+      const res = await fetch('https://api.jup.ag/tokens/v2/search?query=' + encodeURIComponent(query) + '&limit=6');
       const data = await res.json();
       setResults(Array.isArray(data) ? data : (data.tokens || []));
     } catch { setResults([]); }
