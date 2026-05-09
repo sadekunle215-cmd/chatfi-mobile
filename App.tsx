@@ -546,28 +546,28 @@ export default function App() {
                 <Text style={s.settingVal}>{r.val}</Text>
               </View>
             ))}
-            {wallet && (
-              <TouchableOpacity style={s.dangerBtn} onPress={() => {
-                Alert.alert('Seed Phrase', 'Only view in a private place. Anyone with this can access your wallet.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Show', onPress: () => Alert.alert('Your Seed Phrase', wallet || '') },
-                ]);
-              }}>
-                <Text style={s.dangerBtnTxt}>Show Seed Phrase</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.dangerBtn} onPress={() => {
-                Alert.alert('Remove Wallet', 'Make sure you have your seed phrase!', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Remove', style: 'destructive', onPress: async () => {
-                    await AsyncStorage.removeItem('wallet_mnemonic');
-                    setWallet(null); setPubkey(null); setSolBalance(null);
-                  }}
-                ]);
-              }}>
-                <Text style={s.dangerBtnTxt}>Remove Wallet</Text>
-              </TouchableOpacity>
-            )}
-          </ScrollView>
+        {wallet && (
+          <>
+            <TouchableOpacity style={s.dangerBtn} onPress={() => {
+              Alert.alert('Seed Phrase', 'Only view in a private place.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Show', onPress: () => Alert.alert('Your Seed Phrase', wallet || '') },
+              ]);
+            }}>
+              <Text style={s.dangerBtnTxt}>Show Seed Phrase</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.dangerBtn} onPress={() => {
+              Alert.alert('Remove Wallet', 'Make sure you have your seed phrase!', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Remove', style: 'destructive', onPress: async () => {
+                  await AsyncStorage.removeItem('wallet_mnemonic');
+                  setWallet(null); setPubkey(null); setSolBalance(null);
+                }},
+              ]);
+            }}>
+              <Text style={s.dangerBtnTxt}>Remove Wallet</Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
 
