@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet } from './wallet';
-import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx } from './sendMsg';
+import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, TOKENS, DECIMALS } from './sendMsg';
 
 const C = {
   bg: '#0d1117', card: '#161b22', card2: '#1c2128',
@@ -138,9 +138,84 @@ export default function App() {
     setMsgs(p => [...p, { id: Date.now(), text: q, from: 'user' }]);
     setInput('');
     setAiLoading(true);
-    const reply = await askAI(q, pubkey);
-    setMsgs(p => [...p, { id: Date.now() + 1, text: reply, from: 'bot' }]);
+    try {
+      const response = await askAI(q, pubkey);
+      setMsgs(p => [...p, { id: Date.now() + 1, text: response.text, from: 'bot' }]);
+      await dispatchAction(response.action, response.actionData);
+    } catch (e) {
+      setMsgs(p => [...p, { id: Date.now() + 1, text: 'Error: ' + e.message, from: 'bot' }]);
+    }
     setAiLoading(false);
+  };
+
+  const dispatchAction = async (action: string | null, data: any) => {
+    if (!action) return;
+    if (!wallet && action !== 'FETCH_PRICE') {
+      setMsgs(p => [...p, { id: Date.now(), text: 'Please create or connect a wallet first.', from: 'bot' }]);
+      return;
+    }
+    try {
+      const { publicKey: pk, secretKey } = deriveWallet(wallet!);
+      const RPC_URL = 'https://api.mainnet-beta.solana.com';
+
+      switch (action) {
+        case 'SWAP': {
+          const { from, to, amount } = data;
+          if (!from || !to || !amount) { setMsgs(p => [...p, { id: Date.now(), text: 'Missing swap details.', from: 'bot' }]); break; }
+          setMsgs(p => [...p, { id: Date.now(), text: `Executing swap: ${amount} ${from} → ${to}...`, from: 'bot' }]);
+          const txSig = await executeSwapTx(TOKENS[from], TOKENS[to], parseFloat(amount), DECIMALS[from] || 6, pk, secretKey, RPC_URL);
+          setMsgs(p => [...p, { id: Date.now(), text: `✅ Swap done!\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
+          fetchPortfolio();
+          break;
+        }
+        case 'FETCH_PRICE': {
+          const price = await getTokenPrice(data.token);
+          setMsgs(p => [...p, { id: Date.now(), text: price, from: 'bot' }]);
+          break;
+        }
+        case 'FETCH_PORTFOLIO': {
+          setTab('portfolio');
+          fetchPortfolio();
+          break;
+        }
+        case 'SHOW_SWAP': {
+          setFromToken(data.from || 'SOL');
+          setToToken(data.to || 'USDC');
+          if (data.amount) setAmt(String(data.amount));
+          setTab('swap');
+          break;
+        }
+        case 'SHOW_TRIGGER': {
+          setMsgs(p => [...p, { id: Date.now(), text: `Setting limit order: ${data.direction === 'below' ? 'Buy' : 'Sell'} when ${data.to || data.from} hits $${data.targetPrice}\n\nPlease confirm in the Swap tab.`, from: 'bot' }]);
+          setTab('swap');
+          break;
+        }
+        case 'SHOW_RECURRING': {
+          setMsgs(p => [...p, { id: Date.now(), text: `DCA setup: ${data.amountPerCycle} ${data.from} → ${data.to} every ${data.intervalSecs === 86400 ? 'day' : data.intervalSecs + 's'} for ${data.numberOfOrders} orders.\n\nGo to Swap tab to confirm.`, from: 'bot' }]);
+          setTab('swap');
+          break;
+        }
+        case 'SHOW_SEND': {
+          setShowSendModal(true);
+          break;
+        }
+        case 'SHOW_EARN':
+        case 'SHOW_LOCK':
+        case 'SHOW_STUDIO': {
+          const labels: Record<string, string> = {
+            SHOW_EARN: 'Jupiter Earn',
+            SHOW_LOCK: 'Jupiter Lock',
+            SHOW_STUDIO: 'Jupiter Studio'
+          };
+          setMsgs(p => [...p, { id: Date.now(), text: `Opening ${labels[action]} — visit jup.ag for full access.`, from: 'bot' }]);
+          break;
+        }
+        default:
+          break;
+      }
+    } catch (e: any) {
+      setMsgs(p => [...p, { id: Date.now(), text: `❌ ${e.message || 'Action failed'}`, from: 'bot' }]);
+    }
   };
 
   const fetchQuote = async () => {
