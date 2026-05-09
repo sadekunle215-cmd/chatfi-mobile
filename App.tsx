@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet } from './wallet';
-import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, TOKENS, DECIMALS } from './sendMsg';
+import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, TOKENS, DECIMALS } from './sendMsg';
 
 const C = {
   bg: '#0d1117', card: '#161b22', card2: '#1c2128',
@@ -186,13 +186,42 @@ export default function App() {
           break;
         }
         case 'SHOW_TRIGGER': {
-          setMsgs(p => [...p, { id: Date.now(), text: `Setting limit order: ${data.direction === 'below' ? 'Buy' : 'Sell'} when ${data.to || data.from} hits $${data.targetPrice}\n\nPlease confirm in the Swap tab.`, from: 'bot' }]);
-          setTab('swap');
+          const { from, to, amount, targetPrice, direction } = data;
+          if (!from || !to || !amount || !targetPrice) {
+            setMsgs(p => [...p, { id: Date.now(), text: 'Please specify token, amount and target price for the limit order.', from: 'bot' }]);
+            break;
+          }
+          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Placing limit order: ${direction === 'below' ? 'Buy' : 'Sell'} ${amount} ${from} when ${to} hits $${targetPrice}...`, from: 'bot' }]);
+          const fromDec = DECIMALS[from] || 6;
+          const toDec   = DECIMALS[to]   || 6;
+          const txSig = await createTriggerOrder(
+            TOKENS[from], TOKENS[to],
+            fromDec, toDec,
+            parseFloat(amount), parseFloat(targetPrice),
+            direction || 'below',
+            pk, secretKey
+          );
+          setMsgs(p => [...p, { id: Date.now(), text: `✅ Limit order placed!\nWill ${direction === 'below' ? 'buy' : 'sell'} ${amount} ${from} when ${to} hits $${targetPrice}\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
           break;
         }
         case 'SHOW_RECURRING': {
-          setMsgs(p => [...p, { id: Date.now(), text: `DCA setup: ${data.amountPerCycle} ${data.from} → ${data.to} every ${data.intervalSecs === 86400 ? 'day' : data.intervalSecs + 's'} for ${data.numberOfOrders} orders.\n\nGo to Swap tab to confirm.`, from: 'bot' }]);
-          setTab('swap');
+          const { from, to, amountPerCycle, intervalSecs, numberOfOrders } = data;
+          if (!from || !to || !amountPerCycle) {
+            setMsgs(p => [...p, { id: Date.now(), text: 'Please specify from token, to token, and amount per cycle for DCA.', from: 'bot' }]);
+            break;
+          }
+          const interval = intervalSecs || 86400;
+          const orders   = numberOfOrders || 7;
+          const intervalLabel = interval === 86400 ? 'daily' : interval === 604800 ? 'weekly' : `every ${interval}s`;
+          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Setting up DCA: ${amountPerCycle} ${from} → ${to} ${intervalLabel} for ${orders} orders...`, from: 'bot' }]);
+          const txSig = await createRecurringOrder(
+            TOKENS[from], TOKENS[to],
+            DECIMALS[from] || 6,
+            parseFloat(amountPerCycle),
+            interval, orders,
+            pk, secretKey
+          );
+          setMsgs(p => [...p, { id: Date.now(), text: `✅ DCA order created!\n${amountPerCycle} ${from} → ${to} ${intervalLabel} × ${orders}\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
           break;
         }
         case 'SHOW_SEND': {
