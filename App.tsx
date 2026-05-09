@@ -296,7 +296,7 @@ export default function App() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   flex: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: C.border },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 44, borderBottomWidth: 1, borderBottomColor: C.border },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.green },
   logoText: { color: C.text, fontSize: 20, fontWeight: 'bold' },
