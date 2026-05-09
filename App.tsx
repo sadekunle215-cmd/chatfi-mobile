@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet } from './wallet';
 import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, TOKENS, DECIMALS } from './sendMsg';
@@ -32,6 +32,8 @@ const TOKEN_MINTS: Record<string, string> = {
 
 export default function App() {
   const [tab, setTab] = useState('chat');
+  const [splashDone, setSplashDone] = useState(false);
+  const letterAnims = 'CHATFI'.split('').map(() => new Animated.Value(0));
   const [wallet, setWallet] = useState<string | null>(null);
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -68,6 +70,15 @@ export default function App() {
 
   // Settings
   const [rpcEndpoint, setRpcEndpoint] = useState('mainnet-beta');
+
+  useEffect(() => {
+    const anims = letterAnims.map((anim, i) =>
+      Animated.timing(anim, { toValue: 1, duration: 200, delay: i * 120, useNativeDriver: true })
+    );
+    Animated.stagger(120, anims).start(() => {
+      setTimeout(() => setSplashDone(true), 400);
+    });
+  }, []);
 
   useEffect(() => {
     AsyncStorage.getItem('wallet_mnemonic').then(m => {
@@ -296,7 +307,7 @@ export default function App() {
       const res = await fetch('https://chatfi.pro/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: pk, amount: amountNum, mint, inviteCode }),
+        body: JSON.stringify({ sender: pk, amount: String(amountNum), mint, inviteCode }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -335,13 +346,31 @@ export default function App() {
 
   const shortKey = pubkey ? pubkey.slice(0, 4) + '...' + pubkey.slice(-4) : null;
 
+  if (!splashDone) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ flexDirection: 'row', gap: 4 }}>
+          {'CHATFI'.split('').map((letter, i) => (
+            <Animated.Text key={i} style={{
+              fontSize: 48, fontWeight: 'bold', color: '#39FF82',
+              opacity: letterAnims[i],
+              transform: [{ translateY: letterAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+              textShadowColor: '#39FF82', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12
+            }}>{letter}</Animated.Text>
+          ))}
+        </View>
+        <Text style={{ color: '#555', fontSize: 13, marginTop: 12, letterSpacing: 2 }}>DEFI ON SOLANA</Text>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
       <View style={s.header}>
         <View style={s.logoRow}>
-          <View style={s.logoDot} />
+          
           <Text style={s.logoText}>ChatFi</Text>
         </View>
         <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => setShowWalletModal(true)}>
@@ -349,7 +378,7 @@ export default function App() {
         </TouchableOpacity>
       </View>
 
-      <View style={s.content}>
+      <KeyboardAvoidingView style={s.content} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
 
         {/* CHAT */}
         {tab === 'chat' && (
@@ -565,7 +594,7 @@ export default function App() {
         )}
             </ScrollView>
         )}
-      </View>
+      </KeyboardAvoidingView>
 
       {/* TAB BAR */}
       <View style={s.tabBar}>
@@ -669,7 +698,7 @@ export default function App() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   flex: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 44, borderBottomWidth: 1, borderBottomColor: C.border },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 44, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: 'rgba(18,18,18,0.95)' },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.green },
   logoText: { color: C.text, fontSize: 20, fontWeight: 'bold' },
@@ -751,10 +780,10 @@ const s = StyleSheet.create({
   seedWordTxt: { color: C.text, fontSize: 13, fontWeight: '600' },
   addressBox: { backgroundColor: C.bg, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: C.border, marginBottom: 16 },
   addressTxt: { color: C.text, fontSize: 13, lineHeight: 20 },
-  tabBar: { flexDirection: 'row', backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 10, paddingBottom: 24 },
-  tabItem: { flex: 1, alignItems: 'center', gap: 4 },
+  tabBar: { flexDirection: 'row', backgroundColor: 'rgba(22,22,22,0.97)', borderTopWidth: 1, borderTopColor: 'rgba(57,255,130,0.15)', paddingTop: 10, paddingBottom: 24, paddingHorizontal: 4 },
+  tabItem: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 2 },
   tabIcon: { fontSize: 20, color: C.muted },
   tabIconActive: { color: C.green },
-  tabLabel: { color: C.muted, fontSize: 11 },
+  tabLabel: { color: C.muted, fontSize: 10 },
   tabLabelActive: { color: C.green, fontWeight: '600' },
 });
