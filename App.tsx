@@ -568,8 +568,8 @@ export default function App() {
               <Text style={s.dangerBtnTxt}>Remove Wallet</Text>
             </TouchableOpacity>
           </>
+            </ScrollView>
         )}
-      </ScrollView>
       </View>
 
       {/* TAB BAR */}
