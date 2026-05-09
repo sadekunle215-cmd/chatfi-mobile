@@ -317,8 +317,7 @@ export default function App() {
       const rpcData = await rpcRes.json();
       if (rpcData.error) throw new Error(rpcData.error.message);
       const link = 'https://jup.ag/send?code=' + inviteCode;
-      Alert.alert('Sent!', 'Share this link to claim:
-' + link);
+      Alert.alert('Sent!', 'Share this link to claim: ' + link);
       setShowSendModal(false);
     } catch (e: any) {
       Alert.alert('Send Failed', e.message || 'Unknown error');
