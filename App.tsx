@@ -584,69 +584,71 @@ export default function App() {
         </ScrollView>
       )}
 
-      {/* SETTINGS */}
-        {tab === 'settings' && (
-          <ScrollView style={s.pad}>
-            <Text style={s.pageTitle}>Settings</Text>
-            {wallet && (
-              <View style={s.card}>
-                <Text style={s.cardLabel}>Connected Wallet</Text>
-                <Text style={s.settingVal} numberOfLines={1}>{pubkey}</Text>
-                <TouchableOpacity onPress={copyAddress} style={{ marginTop: 8 }}>
-                  <Text style={{ color: C.blue, fontSize: 13 }}>Copy Address</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            <View style={s.card}>
-              <Text style={s.cardLabel}>RPC Endpoint</Text>
-              {['mainnet-beta', 'devnet', 'testnet'].map(r => (
-                <TouchableOpacity key={r} onPress={() => setRpcEndpoint(r)} style={s.rpcOption}>
-                  <Text style={[s.rpcTxt, rpcEndpoint === r && { color: C.green }]}>{r}</Text>
-                  {rpcEndpoint === r && <Text style={{ color: C.green }}>✓</Text>}
+            {/* SETTINGS */}
+      {tab === 'settings' && (
+        <ScrollView style={s.pad}>
+          {/* Wallet profile row */}
+          {wallet && (
+            <View style={s.stGroup}>
+              <TouchableOpacity style={s.stProfileRow} onPress={copyAddress}>
+                <View style={s.stAvatar}><Text style={s.stAvatarTxt}>◎</Text></View>
+                <View style={{flex:1,marginLeft:12}}>
+                  <Text style={s.stProfileAddr}>{pubkey?pubkey.slice(0,6)+'...'+pubkey.slice(-6):''}</Text>
+                  <Text style={s.stProfileSub}>Tap to copy</Text>
+                </View>
+                <Text style={{color:C.muted}}>›</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* RPC */}
+          <View style={s.stGroup}>
+            <Text style={s.stGroupLabel}>RPC Endpoint</Text>
+            {['mainnet-beta','devnet','testnet'].map(ep=>(
+              <TouchableOpacity key={ep} style={s.stRow} onPress={()=>setRpcEndpoint(ep)}>
+                <Text style={s.stRowTxt}>{ep}</Text>
+                {rpcEndpoint===ep&&<Text style={{color:C.green,fontSize:16}}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Slippage */}
+          <View style={s.stGroup}>
+            <Text style={s.stGroupLabel}>Slippage Tolerance</Text>
+            <View style={{flexDirection:'row',gap:8,padding:12}}>
+              {['0.1','0.5','1.0','2.0'].map(v=>(
+                <TouchableOpacity key={v} onPress={()=>setSlippage(v)} style={[s.slippageChip,slippage===v&&s.chipActive]}>
+                  <Text style={[s.chipTxt,slippage===v&&s.chipTxtActive]}>{v}%</Text>
                 </TouchableOpacity>
               ))}
             </View>
-            <View style={s.card}>
-              <Text style={s.cardLabel}>Slippage Tolerance</Text>
-              <View style={s.tokenRow}>
-                {['0.1','0.5','1.0','2.0'].map(v => (
-                  <TouchableOpacity key={v} onPress={() => setSlippage(v)} style={[s.chip, slippage === v && s.chipActive]}>
-                    <Text style={[s.chipTxt, slippage === v && s.chipTxtActive]}>{v}%</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+          </View>
+
+          {/* Info rows */}
+          <View style={s.stGroup}>
+            <View style={s.stRow}>
+              <Text style={s.stRowTxt}>Theme</Text>
+              <Text style={s.stRowVal}>Dark</Text>
             </View>
-            {[{ label: 'Theme', val: 'Dark' }, { label: 'Version', val: '1.0.0' }].map(r => (
-              <View key={r.label} style={s.settingRow}>
-                <Text style={s.settingLabel}>{r.label}</Text>
-                <Text style={s.settingVal}>{r.val}</Text>
-              </View>
-            ))}
-        {wallet && (
-          <>
-            <TouchableOpacity style={s.dangerBtn} onPress={() => {
-              Alert.alert('Seed Phrase', 'Only view in a private place.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Show', onPress: () => Alert.alert('Your Seed Phrase', wallet || '') },
-              ]);
-            }}>
-              <Text style={s.dangerBtnTxt}>Show Seed Phrase</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.dangerBtn} onPress={() => {
-              Alert.alert('Remove Wallet', 'Make sure you have your seed phrase!', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Remove', style: 'destructive', onPress: async () => {
-                  await AsyncStorage.removeItem('wallet_mnemonic');
-                  setWallet(null); setPubkey(null); setSolBalance(null);
-                }},
-              ]);
-            }}>
-              <Text style={s.dangerBtnTxt}>Remove Wallet</Text>
-            </TouchableOpacity>
-          </>
-        )}
-            </ScrollView>
-        )}
+            <View style={[s.stRow,{borderBottomWidth:0}]}>
+              <Text style={s.stRowTxt}>Version</Text>
+              <Text style={s.stRowVal}>1.0.0</Text>
+            </View>
+          </View>
+
+          {/* Danger */}
+          {wallet && (
+            <View style={{gap:12,marginTop:8}}>
+              <TouchableOpacity style={s.dangerBtn} onPress={()=>{Alert.alert('Seed Phrase','Only view in a private place.',[{text:'Cancel',style:'cancel'},{text:'Show',onPress:()=>Alert.alert('Your Seed Phrase',wallet||'')}]);}}>
+                <Text style={s.dangerBtnTxt}>Show Seed Phrase</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.dangerBtn} onPress={()=>{Alert.alert('Remove Wallet','Make sure you have your seed phrase!',[{text:'Cancel',style:'cancel'},{text:'Remove',style:'destructive',onPress:async()=>{await AsyncStorage.removeItem('wallet_mnemonic');setWallet(null);setPubkey(null);setSolBalance(null);}}]);}}>
+                <Text style={s.dangerBtnTxt}>Remove Wallet</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      )}
       </KeyboardAvoidingView>
 
       {/* TAB BAR */}
@@ -867,4 +869,14 @@ const s = StyleSheet.create({
   pfTokenName:{ color:C.text, fontSize:15, fontWeight:'600' },
   pfTokenAmt:{ color:C.muted, fontSize:13, marginTop:2 },
   pfTokenVal:{ color:C.text, fontSize:15, fontWeight:'500' },
+  stGroup:{ backgroundColor:C.card, borderRadius:16, marginBottom:12, overflow:'hidden' },
+  stGroupLabel:{ color:C.muted, fontSize:12, fontWeight:'600', paddingHorizontal:16, paddingTop:12, paddingBottom:4, textTransform:'uppercase', letterSpacing:0.5 },
+  stRow:{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:16, paddingVertical:14, borderBottomWidth:1, borderBottomColor:C.border },
+  stRowTxt:{ color:C.text, fontSize:15 },
+  stRowVal:{ color:C.green, fontSize:15 },
+  stProfileRow:{ flexDirection:'row', alignItems:'center', padding:16 },
+  stAvatar:{ width:44, height:44, borderRadius:22, backgroundColor:C.border, alignItems:'center', justifyContent:'center' },
+  stAvatarTxt:{ color:C.green, fontSize:20 },
+  stProfileAddr:{ color:C.text, fontSize:15, fontWeight:'600' },
+  stProfileSub:{ color:C.muted, fontSize:12, marginTop:2 },
 });
