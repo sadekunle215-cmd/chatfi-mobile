@@ -287,7 +287,6 @@ export default function App() {
       const mint = TOKENS[sendToken] || TOKENS['SOL'];
       const decimals = DECIMALS[sendToken] ?? 9;
       const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
-      const { default: bs58 } = await import('bs58');
       const randBytes = new Uint8Array(13);
       crypto.getRandomValues(randBytes);
       const inviteCode = bs58.encode(randBytes).slice(0, 12);
@@ -306,8 +305,9 @@ export default function App() {
       const userIdx = tx.message.staticAccountKeys.findIndex((k: any) => k.equals(userPk));
       if (userIdx < 0) throw new Error('User signer slot not found');
       tx.signatures[userIdx] = nacl.sign.detached(msgBytes, secretKey);
-      const { createHash } = await import('crypto');
-      const inviteSeed = new Uint8Array(createHash('sha256').update('invite:' + inviteCode).digest());
+      // Derive invite seed via SHA-256('invite:' + code) using nacl hash
+      const encoder = new TextEncoder();
+      const inviteSeed = nacl.hash(encoder.encode('invite:' + inviteCode)).slice(0, 32);
       const inviteKp = nacl.sign.keyPair.fromSeed(inviteSeed);
       const invitePk = new PublicKey(inviteKp.publicKey);
       const inviteIdx = tx.message.staticAccountKeys.findIndex((k: any) => k.equals(invitePk));
