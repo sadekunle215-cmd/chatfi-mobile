@@ -64,6 +64,7 @@ export default function App() {
   const [sendTo, setSendTo] = useState('');
   const [sendAmt, setSendAmt] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
+  const [sendToken, setSendToken] = useState('SOL');
 
   // Settings
   const [rpcEndpoint, setRpcEndpoint] = useState('mainnet-beta');
