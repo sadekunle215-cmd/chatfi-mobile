@@ -520,7 +520,7 @@ export default function App() {
         </ScrollView>
       )}
 
-            {/* PORTFOLIO */}
+                  {/* PORTFOLIO */}
       {tab === 'portfolio' && (
         <ScrollView style={s.pad} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
           {!wallet ? (
