@@ -520,68 +520,71 @@ export default function App() {
         </ScrollView>
       )}
 
-      {/* PORTFOLIO */}
-        {tab === 'portfolio' && (
-          <ScrollView style={s.pad} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={() => { setPortfolioRefreshing(true); fetchPortfolio(); }} tintColor={C.green} />}>
-            <Text style={s.pageTitle}>Portfolio</Text>
-            {!wallet ? (
-              <View style={s.emptyState}>
-                <Text style={s.emptyTitle}>No Wallet</Text>
-                <Text style={s.emptyText}>Create or import a wallet to view your portfolio</Text>
-                <TouchableOpacity style={s.greenBtn} onPress={() => setShowWalletModal(true)}>
-                  <Text style={s.greenBtnTxt}>Get Started</Text>
+            {/* PORTFOLIO */}
+      {tab === 'portfolio' && (
+        <ScrollView style={s.pad} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
+          {!wallet ? (
+            <View style={s.emptyState}>
+              <Text style={s.emptyTitle}>No Wallet</Text>
+              <Text style={s.emptyText}>Create or import a wallet to view your portfolio</Text>
+              <TouchableOpacity style={s.greenBtn} onPress={()=>setShowWalletModal(true)}>
+                <Text style={s.greenBtnTxt}>Get Started</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View>
+              {/* Big Balance */}
+              <View style={s.pfBalanceSection}>
+                <Text style={s.pfBalanceAmt}>
+                  {portfolioLoading ? '...' : solBalance !== null ? '$'+((solBalance||0)*135).toFixed(4) : '$0.00'}
+                </Text>
+                <TouchableOpacity onPress={copyAddress}>
+                  <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <View>
-                <View style={s.balanceCard}>
-                  <Text style={s.balLabel}>Total Balance</Text>
-                  {portfolioLoading ? <ActivityIndicator color={C.green} style={{ marginVertical: 8 }} /> : (
-                    <Text style={s.balValue}>{solBalance !== null ? `${solBalance.toFixed(4)} SOL` : '—'}</Text>
-                  )}
-                  <TouchableOpacity onPress={copyAddress}><Text style={s.walletAddress} numberOfLines={1}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={fetchPortfolio} style={{position:'absolute',top:12,right:12,padding:6}}>
-                    <Text style={{color:'#39FF82',fontSize:18}}>↻</Text>
-                  </TouchableOpacity>
-                  <View style={s.portfolioActions}>
-                    <TouchableOpacity style={s.portfolioAction} onPress={() => setShowSendModal(true)}>
-                      <Text style={s.portfolioActionIcon}>↑</Text>
-                      <Text style={s.portfolioActionTxt}>Send</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={s.portfolioAction} onPress={() => setShowReceiveModal(true)}>
-                      <Text style={s.portfolioActionIcon}>↓</Text>
-                      <Text style={s.portfolioActionTxt}>Receive</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={s.portfolioAction} onPress={() => setTab('swap')}>
-                      <Text style={s.portfolioActionIcon}>⇄</Text>
-                      <Text style={s.portfolioActionTxt}>Swap</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={s.portfolioAction} onPress={copyAddress}>
-                      <Text style={s.portfolioActionIcon}>⎘</Text>
-                      <Text style={s.portfolioActionTxt}>Copy</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <Text style={s.sectionLabel}>ASSETS</Text>
-                {tokenBalances.map((t, i) => (
-                  <View key={i} style={s.assetRow}>
-                    <View style={s.assetIcon}><Text style={s.assetIconTxt}>{t.symbol[0]}</Text></View>
-                    <View style={s.assetInfo}>
-                      <Text style={s.assetName}>{t.symbol}</Text>
-                      <Text style={s.assetPrice}>{t.mint.slice(0,6)}...</Text>
-                    </View>
-                    <Text style={s.assetBal}>{t.amount.toFixed(4)}</Text>
-                  </View>
-                ))}
-                <TouchableOpacity style={[s.outlineBtn, { marginTop: 16 }]} onPress={fetchPortfolio}>
-                  <Text style={s.outlineBtnTxt}>Refresh Balances</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </ScrollView>
-        )}
 
-        {/* SETTINGS */}
+              {/* 4 Action Buttons */}
+              <View style={s.pfActions}>
+                <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowSendModal(true)}>
+                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↑</Text></View>
+                  <Text style={s.pfActionLbl}>Send</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.pfActionBtn} onPress={()=>setTab('swap')}>
+                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⇄</Text></View>
+                  <Text style={s.pfActionLbl}>Swap</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowReceiveModal(true)}>
+                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↓</Text></View>
+                  <Text style={s.pfActionLbl}>Receive</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.pfActionBtn} onPress={copyAddress}>
+                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⧉</Text></View>
+                  <Text style={s.pfActionLbl}>Copy</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Token List */}
+              <Text style={s.pfSectionLbl}>Tokens</Text>
+              {tokenBalances.length===0&&!portfolioLoading&&(
+                <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
+              )}
+              {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
+              {tokenBalances.map((t,i)=>(
+                <View key={i} style={s.pfTokenRow}>
+                  <Image source={{uri:'https://img.jup.ag/tokens/'+t.mint}} style={s.pfTokenLogo} onError={()=>{}} />
+                  <View style={{flex:1,marginLeft:12}}>
+                    <Text style={s.pfTokenName}>{t.symbol}</Text>
+                    <Text style={s.pfTokenAmt}>{t.amount.toFixed(4)} {t.symbol}</Text>
+                  </View>
+                  <Text style={s.pfTokenVal}>—</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      )}
+
+      {/* SETTINGS */}
         {tab === 'settings' && (
           <ScrollView style={s.pad}>
             <Text style={s.pageTitle}>Settings</Text>
@@ -850,4 +853,18 @@ const s = StyleSheet.create({
   tokenResTxt:{ color:C.text, fontSize:14, fontWeight:'600' },
   tokenResSub:{ color:C.muted, fontSize:12, marginTop:2 },
   swapDirBtn:{ alignSelf:'center', backgroundColor:C.card, borderRadius:22, padding:12, marginVertical:6, borderWidth:3, borderColor:C.bg },
+  pfBalanceSection:{ alignItems:'center', paddingVertical:24 },
+  pfBalanceAmt:{ color:C.text, fontSize:40, fontWeight:'700', letterSpacing:-1 },
+  pfAddressTxt:{ color:C.muted, fontSize:13, marginTop:6 },
+  pfActions:{ flexDirection:'row', justifyContent:'space-around', marginBottom:24 },
+  pfActionBtn:{ alignItems:'center', gap:6 },
+  pfActionIcon:{ width:52, height:52, borderRadius:14, backgroundColor:C.card, alignItems:'center', justifyContent:'center' },
+  pfActionIconTxt:{ color:C.text, fontSize:20 },
+  pfActionLbl:{ color:C.text, fontSize:12, fontWeight:'500' },
+  pfSectionLbl:{ color:C.text, fontSize:18, fontWeight:'700', marginBottom:12 },
+  pfTokenRow:{ flexDirection:'row', alignItems:'center', paddingVertical:14, borderBottomWidth:1, borderBottomColor:C.border },
+  pfTokenLogo:{ width:40, height:40, borderRadius:20, backgroundColor:C.border },
+  pfTokenName:{ color:C.text, fontSize:15, fontWeight:'600' },
+  pfTokenAmt:{ color:C.muted, fontSize:13, marginTop:2 },
+  pfTokenVal:{ color:C.text, fontSize:15, fontWeight:'500' },
 });
