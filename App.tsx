@@ -569,6 +569,8 @@ export default function App() {
             </TouchableOpacity>
           </>
         )}
+      </ScrollView>
+      </ScrollView>
       </View>
 
       {/* TAB BAR */}
