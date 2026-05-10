@@ -1,8 +1,11 @@
 import 'react-native-get-random-values';
+import * as bip39 from 'bip39';
+import { derivePath } from 'ed25519-hd-key';
 import { PublicKey, Transaction, SystemProgram, Keypair, sendAndConfirmTransaction, Connection } from '@solana/web3.js';
 
 const RPC = 'https://api.mainnet-beta.solana.com';
-export const conn = new Connection(RPC, 'confirmed');
+const conn = new Connection(RPC, 'confirmed');
+const SOLANA_PATH = "m/44'/501'/0'/0'";
 
 export const TOKENS: Record<string, string> = {
   SOL:  'So11111111111111111111111111111111111111112',
@@ -17,7 +20,30 @@ export const DECIMALS: Record<string, number> = {
   SOL: 9, USDC: 6, USDT: 6, JUP: 6, BONK: 5, WIF: 6,
 };
 
-// ── Logos (Solflare UTL API) ─────────────────────────────────
+// ── Wallet Generation ────────────────────────────────────────
+export function deriveWallet(mnemonic: string): { mnemonic: string; publicKey: string; secretKey: Uint8Array } {
+  const seed = bip39.mnemonicToSeedSync(mnemonic);
+  const { key } = derivePath(SOLANA_PATH, seed.toString('hex'));
+  const keypair = Keypair.fromSeed(key);
+  return { mnemonic, publicKey: keypair.publicKey.toBase58(), secretKey: keypair.secretKey };
+}
+
+export function generateWallet(): { mnemonic: string; publicKey: string; secretKey: Uint8Array } {
+  const mnemonic = bip39.generateMnemonic();
+  return deriveWallet(mnemonic);
+}
+
+export function getPublicKey(mnemonic: string): string {
+  return deriveWallet(mnemonic).publicKey;
+}
+
+export function importWallet(mnemonic: string): { mnemonic: string; publicKey: string; secretKey: Uint8Array } {
+  return deriveWallet(mnemonic);
+}
+
+export function signAndSendTransaction() {}
+
+// ── Logos ────────────────────────────────────────────────────
 const logoCache: Record<string, string> = {};
 
 export async function fetchTokenLogos(mints: string[]): Promise<Record<string, string>> {
@@ -40,12 +66,11 @@ export async function fetchTokenLogos(mints: string[]): Promise<Record<string, s
   return result;
 }
 
-// ── Balances (raw RPC) ───────────────────────────────────────
+// ── Balances ─────────────────────────────────────────────────
 export async function getWalletBalances(pubkey: string): Promise<{
   solBalance: number;
   tokens: { symbol: string; mint: string; amount: number; logoURI: string }[];
 }> {
-  // SOL
   const solRes = await fetch(RPC, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -54,7 +79,6 @@ export async function getWalletBalances(pubkey: string): Promise<{
   const solData = await solRes.json();
   const solBalance = (solData.result?.value || 0) / 1e9;
 
-  // SPL tokens
   const tokenRes = await fetch(RPC, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -87,7 +111,7 @@ export async function getWalletBalances(pubkey: string): Promise<{
   return { solBalance, tokens };
 }
 
-// ── Prices (Jupiter) ─────────────────────────────────────────
+// ── Prices ────────────────────────────────────────────────────
 export async function getTokenPrices(mints: string[]): Promise<Record<string, number>> {
   try {
     const res = await fetch(`https://lite-api.jup.ag/price/v2?ids=${mints.join(',')}`);
@@ -100,7 +124,7 @@ export async function getTokenPrices(mints: string[]): Promise<Record<string, nu
   } catch { return {}; }
 }
 
-// ── Send SOL ─────────────────────────────────────────────────
+// ── Send SOL ──────────────────────────────────────────────────
 export async function sendSOL(secretKey: Uint8Array, recipient: string, lamports: number): Promise<string> {
   const keypair = Keypair.fromSecretKey(secretKey);
   const tx = new Transaction().add(
@@ -108,37 +132,3 @@ export async function sendSOL(secretKey: Uint8Array, recipient: string, lamports
   );
   return await sendAndConfirmTransaction(conn, tx, [keypair]);
 }
-
-
-
-// ── Wallet Generation & Import ───────────────────────────────
-import * as bip39 from 'bip39';
-import { derivePath } from 'ed25519-hd-key';
-
-const SOLANA_PATH = "m/44'/501'/0'/0'";
-
-export function generateWallet(): { mnemonic: string; publicKey: string; secretKey: Uint8Array } {
-  const mnemonic = bip39.generateMnemonic();
-  return deriveWallet(mnemonic);
-}
-
-export function getPublicKey(mnemonic: string): string {
-  return deriveWallet(mnemonic).publicKey;
-}
-
-export function importWallet(mnemonic: string): { mnemonic: string; publicKey: string; secretKey: Uint8Array } {
-  return deriveWallet(mnemonic);
-}
-
-export function deriveWallet(mnemonic: string): { mnemonic: string; publicKey: string; secretKey: Uint8Array } {
-  const seed = bip39.mnemonicToSeedSync(mnemonic);
-  const { key } = derivePath(SOLANA_PATH, seed.toString('hex'));
-  const keypair = Keypair.fromSeed(key);
-  return {
-    mnemonic,
-    publicKey: keypair.publicKey.toBase58(),
-    secretKey: keypair.secretKey,
-  };
-}
-
-export function signAndSendTransaction() {}
