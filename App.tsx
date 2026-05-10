@@ -279,18 +279,35 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
                 </TouchableOpacity>
               </View>
-              <View style={{ margin:16, backgroundColor:'#1c2128', borderRadius:14, overflow:'hidden' }}>
-                <TouchableOpacity onPress={() => Alert.alert('Seed Phrase', wallet || '', [{text:'OK'}])}
+            <View style={{ margin:16, backgroundColor:'#1c2128', borderRadius:14, overflow:'hidden' }}>
+              {accounts.map((acc,idx)=>(
+                <TouchableOpacity key={acc.id} onPress={()=>switchAccount(idx)}
                   style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
-                  <Text style={{ color:C.text, flex:1, fontSize:15 }}>View Seed Phrase</Text>
-                  <Text style={{ color:C.muted }}>›</Text>
+                  <View style={{ width:36,height:36,borderRadius:18,backgroundColor:C.green,alignItems:'center',justifyContent:'center',marginRight:12 }}>
+                    <Text style={{ color:'#0d1117',fontWeight:'bold',fontSize:14 }}>{acc.name[0]}</Text>
+                  </View>
+                  <View style={{ flex:1 }}>
+                    <Text style={{ color:C.text,fontSize:15,fontWeight:'600' }}>{acc.name}</Text>
+                    <Text style={{ color:C.muted,fontSize:12 }}>{acc.pubkey.slice(0,6)+'...'+acc.pubkey.slice(-4)}</Text>
+                  </View>
+                  {idx===activeAccIdx && <Text style={{ color:C.green,fontSize:18 }}>✓</Text>}
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => { Alert.alert('Remove Wallet','Are you sure?',[{text:'Cancel'},{text:'Remove',style:'destructive',onPress:onRemoveWallet}]); }}
-                  style={{ flexDirection:'row', alignItems:'center', padding:16 }}>
-                  <Text style={{ color:C.red, flex:1, fontSize:15 }}>Remove Wallet</Text>
-                  <Text style={{ color:C.muted }}>›</Text>
-                </TouchableOpacity>
-              </View>
+              ))}
+              <TouchableOpacity onPress={addAccount}
+                style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                <Text style={{ color:C.green,flex:1,fontSize:15,fontWeight:'600' }}>+ Add Account</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={()=>Alert.alert('Seed Phrase', wallet||'', [{text:'OK'}])}
+                style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                <Text style={{ color:C.text,flex:1,fontSize:15 }}>View Seed Phrase</Text>
+                <Text style={{ color:C.muted }}>›</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={()=>{ Alert.alert('Remove Wallet','Are you sure?',[{text:'Cancel'},{text:'Remove',style:'destructive',onPress:onRemoveWallet}]); }}
+                style={{ flexDirection:'row', alignItems:'center', padding:16 }}>
+                <Text style={{ color:C.red,flex:1,fontSize:15 }}>Remove Wallet</Text>
+                <Text style={{ color:C.muted }}>›</Text>
+              </TouchableOpacity>
+            </View>
             </ScrollView>
           )}
 
@@ -423,6 +440,7 @@ function DappBrowser({ walletAddress }) {
 export default function App() {
   const [tab, setTab] = useState('chat');
   const [splashDone, setSplashDone] = useState(false);
+  const [subtitleText, setSubtitleText] = useState('');
   const letterAnims = 'CHATFI'.split('').map(() => new Animated.Value(0));
   const [wallet, setWallet] = useState<string | null>(null);
   const [pubkey, setPubkey] = useState<string | null>(null);
@@ -484,6 +502,13 @@ export default function App() {
     );
     Animated.stagger(120, anims).start(() => {
       setTimeout(() => setSplashDone(true), 400);
+    const full = 'DeFi, but conversational...';
+    let idx = 0;
+    const typer = setInterval(() => {
+      idx++;
+      setSubtitleText(full.slice(0, idx));
+      if(idx >= full.length) clearInterval(typer);
+    }, 60);
     });
   }, []);
 
@@ -808,7 +833,7 @@ export default function App() {
             }}>{letter}</Animated.Text>
           ))}
         </View>
-        <Text style={{ color: '#888', fontSize: 14, marginTop: 12, letterSpacing: 1 }}>DeFi, but conversational...</Text>
+        <Text style={{ color: '#888', fontSize: 14, marginTop: 12, letterSpacing: 1 }}>{subtitleText}</Text>
       </View>
     );
   }
