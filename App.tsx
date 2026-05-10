@@ -5,7 +5,7 @@ import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
 import nacl from 'tweetnacl';
-import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, TOKENS, DECIMALS } from './sendMsg';
+import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, TOKENS, DECIMALS , sendSolana } from './sendMsg';
 
 const C = {
   bg: '#0d1117', card: '#161b22', card2: '#1c2128',
@@ -766,36 +766,16 @@ export default function App() {
   };
 
   const sendTokens = async () => {
-    if (!sendTo || !sendTo.trim()) { Alert.alert('Missing address', 'Enter a recipient address'); return; }
-    if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Invalid amount', 'Enter a valid amount'); return; }
+    if (!sendTo || !sendTo.trim()) { Alert.alert('Missing address', 'Enter recipient address'); return; }
+    if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Invalid amount'); return; }
     setSendLoading(true);
     try {
-      const mint = TOKENS[sendToken] || TOKENS['SOL'];
       const decimals = DECIMALS[sendToken] ?? 9;
       const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
-      const res = await fetch('https://chatfi.pro/api/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: pubkey, recipient: sendTo.trim(), amount: String(amountNum), mint }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.tx) throw new Error(data.error || 'Failed to build transaction');
-      const txBytes = Uint8Array.from(Buffer.from(data.tx, 'base64'));
-      const numSigs = txBytes[0];
-      const msgBytes = txBytes.slice(1 + numSigs * 64);
-      const userSig = nacl.sign.detached(msgBytes, secretKey);
-      txBytes.set(userSig, 1);
-      const txB64 = Buffer.from(txBytes).toString('base64');
-      const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [txB64, { encoding: 'base64', preflightCommitment: 'confirmed' }] }),
-      });
-      const rpcData = await rpcRes.json();
-      if (rpcData.error) throw new Error(rpcData.error.message);
+      await sendSolana(pubkey!, secretKey, sendTo.trim(), amountNum);
       Alert.alert('Sent!', `Sent ${sendAmt} ${sendToken} to ${sendTo.slice(0,8)}...`);
       setShowSendModal(false); setSendAmt(''); setSendTo('');
-    } catch (e) {
+    } catch (e: any) {
       Alert.alert('Send Failed', e.message || 'Unknown error');
     } finally { setSendLoading(false); }
   };

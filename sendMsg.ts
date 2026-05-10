@@ -271,3 +271,44 @@ Return ONLY the JSON. No markdown, no explanation, no code blocks.`;
     return { action: null, actionData: {}, text: 'Network error. Please try again.' };
   }
 };
+
+export async function sendSolana(
+  pubkey: string,
+  secretKey: Uint8Array,
+  recipient: string,
+  amountNum: number
+): Promise<string> {
+  const senderPk = new PublicKey(pubkey);
+  const recipientPk = new PublicKey(recipient);
+
+  // Get latest blockhash
+  const bhRes = await fetch(RPC, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getLatestBlockhash', params: [{ commitment: 'confirmed' }] }),
+  });
+  const bhData = await bhRes.json();
+  const blockhash = bhData.result.value.blockhash;
+
+  // Build transaction
+  const tx = new Transaction();
+  tx.add(SystemProgram.transfer({ fromPubkey: senderPk, toPubkey: recipientPk, lamports: amountNum }));
+  tx.feePayer = senderPk;
+  tx.recentBlockhash = blockhash;
+
+  // Sign
+  const msgBytes = tx.serializeMessage();
+  const sig = nacl.sign.detached(msgBytes, secretKey);
+  tx.addSignature(senderPk, Buffer.from(sig));
+
+  // Submit
+  const raw = tx.serialize().toString('base64');
+  const sendRes = await fetch(RPC, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [raw, { encoding: 'base64', preflightCommitment: 'confirmed' }] }),
+  });
+  const sendData = await sendRes.json();
+  if (sendData.error) throw new Error(sendData.error.message);
+  return sendData.result;
+}
