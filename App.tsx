@@ -435,6 +435,7 @@ export default function App() {
     { id: 1, text: 'Welcome to ChatFi! Your AI DeFi assistant on Solana.\n\nTry:\n• "swap 1 SOL to USDC"\n• "price of JUP"\n• "what is yield farming?"', from: 'bot' }
   ]);
   const [input, setInput] = useState('');
+  const inputRef = React.useRef('');
   const [aiLoading, setAiLoading] = useState(false);
 
   // Swap state
@@ -543,7 +544,7 @@ export default function App() {
   };
 
   const sendMsg = async (overrideText?: string) => {
-    const q = (overrideText || input).trim();
+    const q = (overrideText || inputRef.current || input).trim();
     if (!q || aiLoading) return;
     setMsgs(p => [...p, { id: Date.now(), text: q, from: 'user' }]);
     const msgText = q;
@@ -819,7 +820,7 @@ export default function App() {
               )}
             </ScrollView>
             <View style={s.inputRow}>
-              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={(e) => sendMsg(e.nativeEvent.text)} editable={!aiLoading} />
+              <TextInput style={s.input} value={input} onChangeText={(t) => { setInput(t); inputRef.current = t; }} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={(e) => sendMsg(e.nativeEvent.text.trim())} editable={!aiLoading} />
               <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(input)} disabled={aiLoading || !input.trim()}>
                 <Ionicons name="send" size={20} color="#0d1117" />
               </TouchableOpacity>
