@@ -1,41 +1,122 @@
 import 'react-native-get-random-values';
-import nacl from 'tweetnacl';
-import bs58 from 'bs58';
-import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english';
-import { derivePath } from 'ed25519-hd-key';
+import { PublicKey, Transaction, SystemProgram, Keypair, sendAndConfirmTransaction, Connection } from '@solana/web3.js';
+import { getOrCreateAssociatedTokenAccount, transfer, getMint } from '@solana/spl-token';
 
-export type WalletKeys = {
-  mnemonic: string;
-  publicKey: string;
-  secretKey: Uint8Array;
+const RPC = 'https://api.mainnet-beta.solana.com';
+export const conn = new Connection(RPC, 'confirmed');
+
+export const TOKENS: Record<string, string> = {
+  SOL:  'So11111111111111111111111111111111111111112',
+  USDC: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  USDT: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+  JUP:  'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+  BONK: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+  WIF:  'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
 };
 
-const DERIVATION_PATH = "m/44'/501'/0'/0'";
-
-export const generateWallet = (): WalletKeys => {
-  const mnemonic = generateMnemonic(wordlist);
-  return importWallet(mnemonic);
+export const DECIMALS: Record<string, number> = {
+  SOL: 9, USDC: 6, USDT: 6, JUP: 6, BONK: 5, WIF: 6,
 };
 
-export const importWallet = (mnemonic: string): WalletKeys => {
-  const trimmed = mnemonic.trim();
-  if (!validateMnemonic(trimmed, wordlist)) {
-    throw new Error('Invalid mnemonic phrase');
+// ── Logos (Solflare UTL API) ─────────────────────────────────
+const logoCache: Record<string, string> = {};
+
+export async function fetchTokenLogos(mints: string[]): Promise<Record<string, string>> {
+  const needed = mints.filter(m => m && !logoCache[m]);
+  if (needed.length > 0) {
+    try {
+      const res = await fetch('https://token-list-api.solana.com/v1/mints?chainId=101', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ addresses: needed }),
+      });
+      const data = await res.json();
+      (data.content || []).forEach((t: any) => {
+        if (t.address && t.logoURI) logoCache[t.address] = t.logoURI;
+      });
+    } catch {}
   }
-  const seed = mnemonicToSeedSync(trimmed);
-  const { key } = derivePath(DERIVATION_PATH, Array.from(seed as Uint8Array).map(b => b.toString(16).padStart(2, '0')).join(''));
-  const keypair = nacl.sign.keyPair.fromSeed(key);
-  return {
-    mnemonic: trimmed,
-    publicKey: bs58.encode(keypair.publicKey),
-    secretKey: keypair.secretKey,
-  };
-};
+  const result: Record<string, string> = {};
+  mints.forEach(m => { if (logoCache[m]) result[m] = logoCache[m]; });
+  return result;
+}
 
-export const getPublicKey = (mnemonic: string): string => {
-  try { return importWallet(mnemonic).publicKey; }
-  catch { return 'ErrorGeneratingKey'; }
-};
+// ── Balances (raw RPC) ───────────────────────────────────────
+export async function getWalletBalances(pubkey: string): Promise<{
+  solBalance: number;
+  tokens: { symbol: string; mint: string; amount: number; logoURI: string }[];
+}> {
+  // SOL
+  const solRes = await fetch(RPC, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [pubkey] }),
+  });
+  const solData = await solRes.json();
+  const solBalance = (solData.result?.value || 0) / 1e9;
 
-export const deriveWallet = importWallet;
+  // SPL tokens
+  const tokenRes = await fetch(RPC, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0', id: 2,
+      method: 'getTokenAccountsByOwner',
+      params: [pubkey, { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }, { encoding: 'jsonParsed' }],
+    }),
+  });
+  const tokenData = await tokenRes.json();
+  const accounts = tokenData.result?.value || [];
+
+  const tokens: { symbol: string; mint: string; amount: number; logoURI: string }[] = [];
+  const mints: string[] = [];
+
+  for (const { account } of accounts) {
+    const info = account.data.parsed.info;
+    const mint: string = info.mint;
+    const amount: number = info.tokenAmount.uiAmount;
+    if (!amount || amount === 0) continue;
+    const knownSymbol = Object.keys(TOKENS).find(k => TOKENS[k] === mint);
+    const symbol = knownSymbol || mint.slice(0, 4).toUpperCase();
+    tokens.push({ symbol, mint, amount, logoURI: '' });
+    mints.push(mint);
+  }
+
+  const logos = await fetchTokenLogos(mints);
+  tokens.forEach(t => { t.logoURI = logos[t.mint] || ''; });
+
+  return { solBalance, tokens };
+}
+
+// ── Prices (Jupiter) ─────────────────────────────────────────
+export async function getTokenPrices(mints: string[]): Promise<Record<string, number>> {
+  try {
+    const res = await fetch(`https://lite-api.jup.ag/price/v2?ids=${mints.join(',')}`);
+    const data = await res.json();
+    const prices: Record<string, number> = {};
+    Object.entries(data.data || {}).forEach(([mint, val]: any) => {
+      prices[mint] = parseFloat(val.price) || 0;
+    });
+    return prices;
+  } catch { return {}; }
+}
+
+// ── Send SOL ─────────────────────────────────────────────────
+export async function sendSOL(secretKey: Uint8Array, recipient: string, lamports: number): Promise<string> {
+  const keypair = Keypair.fromSecretKey(secretKey);
+  const tx = new Transaction().add(
+    SystemProgram.transfer({ fromPubkey: keypair.publicKey, toPubkey: new PublicKey(recipient), lamports })
+  );
+  return await sendAndConfirmTransaction(conn, tx, [keypair]);
+}
+
+// ── Send SPL Token ────────────────────────────────────────────
+export async function sendSPLToken(secretKey: Uint8Array, recipient: string, mintAddress: string, amount: number): Promise<string> {
+  const keypair = Keypair.fromSecretKey(secretKey);
+  const mintPubkey = new PublicKey(mintAddress);
+  const toPubkey = new PublicKey(recipient);
+  const fromATA = await getOrCreateAssociatedTokenAccount(conn, keypair, mintPubkey, keypair.publicKey);
+  const toATA = await getOrCreateAssociatedTokenAccount(conn, keypair, mintPubkey, toPubkey);
+  const sig = await transfer(conn, keypair, fromATA.address, toATA.address, keypair.publicKey, BigInt(amount));
+  return sig.toString();
+}
