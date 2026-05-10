@@ -495,6 +495,7 @@ export default function App() {
 
   // Portfolio state
   const [solBalance, setSolBalance] = useState<number | null>(null);
+  const [solPrice, setSolPrice] = useState<number>(0);
   const [tokenBalances, setTokenBalances] = useState<Array<{symbol: string, mint: string, amount: number}>>([]);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [portfolioRefreshing, setPortfolioRefreshing] = useState(false);
