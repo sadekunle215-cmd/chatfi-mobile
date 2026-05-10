@@ -27,11 +27,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "extra": {
-      "eas": {
-        "projectId": "63d06b85-f918-4893-94d2-8894e98dae31"
-      }
-    },
-    "owner": "samuel006"
+    "extra": {},
+    "owner": "Samuel43"
   }
 }
