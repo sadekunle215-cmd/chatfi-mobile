@@ -46,6 +46,95 @@ const POPULAR_DAPPS = [
 ];
 
 
+
+function TokenModal({ token, pubkey, onClose }) {
+  const [view, setView] = React.useState('main');
+  const [sendAddr, setSendAddr] = React.useState('');
+  const [sendAmt, setSendAmt] = React.useState('');
+  if (!token) return null;
+
+  return (
+    <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }}>
+        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, padding:24, maxHeight:'85%' }}>
+
+          {/* Header */}
+          <View style={{ flexDirection:'row', alignItems:'center', marginBottom:20 }}>
+            <Image source={{ uri: token.logoURI || 'https://img.jup.ag/tokens/'+token.mint }}
+              style={{ width:44, height:44, borderRadius:22, backgroundColor:C.card2, marginRight:12 }} />
+            <View style={{ flex:1 }}>
+              <Text style={{ color:C.text, fontWeight:'bold', fontSize:18 }}>{token.symbol}</Text>
+              <Text style={{ color:C.muted, fontSize:13 }}>{token.amount?.toFixed(4)} {token.symbol}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {view === 'main' && (
+            <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
+              <TouchableOpacity onPress={() => setView('receive')}
+                style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                <Text style={{ fontSize:24 }}>⬇️</Text>
+                <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setView('send')}
+                style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                <Text style={{ fontSize:24 }}>⬆️</Text>
+                <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {view === 'receive' && (
+            <ScrollView>
+              <TouchableOpacity onPress={() => setView('main')} style={{ marginBottom:16 }}>
+                <Text style={{ color:C.text, fontSize:16 }}>‹ Back</Text>
+              </TouchableOpacity>
+              <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16, textAlign:'center' }}>
+                Receive {token.symbol}
+              </Text>
+              <View style={{ backgroundColor:C.card, borderRadius:16, padding:20, alignItems:'center', marginBottom:16 }}>
+                <Image source={{ uri: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + (pubkey||'') }}
+                  style={{ width:200, height:200, borderRadius:8 }} />
+              </View>
+              <Text style={{ color:C.muted, fontSize:12, textAlign:'center', marginBottom:8 }}>Your wallet address</Text>
+              <TouchableOpacity onPress={() => Alert.alert('Copied', pubkey||'')}
+                style={{ backgroundColor:C.card, borderRadius:12, padding:14 }}>
+                <Text style={{ color:C.green, fontSize:12, fontFamily:'monospace', textAlign:'center' }}>{pubkey}</Text>
+              </TouchableOpacity>
+              <Text style={{ color:C.muted, fontSize:11, textAlign:'center', marginTop:8 }}>Tap address to copy</Text>
+            </ScrollView>
+          )}
+
+          {view === 'send' && (
+            <ScrollView>
+              <TouchableOpacity onPress={() => setView('main')} style={{ marginBottom:16 }}>
+                <Text style={{ color:C.text, fontSize:16 }}>‹ Back</Text>
+              </TouchableOpacity>
+              <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16 }}>Send {token.symbol}</Text>
+              <Text style={{ color:C.muted, fontSize:13, marginBottom:6 }}>Recipient Address</Text>
+              <TextInput value={sendAddr} onChangeText={setSendAddr}
+                placeholder="Enter Solana address..." placeholderTextColor={C.muted}
+                style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:13, marginBottom:16 }}
+                autoCapitalize="none" />
+              <Text style={{ color:C.muted, fontSize:13, marginBottom:6 }}>Amount ({token.symbol})</Text>
+              <TextInput value={sendAmt} onChangeText={setSendAmt}
+                placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric"
+                style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:20, fontWeight:'bold', marginBottom:24 }} />
+              <TouchableOpacity style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}
+                onPress={() => Alert.alert('Send', `Send ${sendAmt} ${token.symbol} to ${sendAddr.slice(0,8)}...?`)}>
+                <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Send {token.symbol}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet }) {
   const [view, setView] = React.useState('main');
   const short = pubkey ? pubkey.slice(0,6)+'...'+pubkey.slice(-4) : '';
@@ -299,6 +388,7 @@ export default function App() {
   const [showSeedModal, setShowSeedModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [selectedToken, setSelectedToken] = useState<any>(null);
   const [accountView, setAccountView] = useState('main');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [seedPhrase, setSeedPhrase] = useState('');
@@ -646,6 +736,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={s.root}>
+      <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)} />
       <AccountModal
         visible={showAccountModal}
         onClose={() => setShowAccountModal(false)}
@@ -842,8 +933,8 @@ export default function App() {
               )}
               {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
               {tokenBalances.map((t,i)=>(
-                <View key={i} style={s.pfTokenRow}>
-                  <Image source={{uri:'https://img.jup.ag/tokens/'+t.mint}} style={s.pfTokenLogo} onError={()=>{}} />
+                <TouchableOpacity key={i} style={s.pfTokenRow} onPress={() => setSelectedToken(t)}>
+                  <Image source={{uri: t.logoURI || 'https://img.jup.ag/tokens/'+t.mint}} style={s.pfTokenLogo} onError={()=>{}} />
                   <View style={{flex:1,marginLeft:12}}>
                     <Text style={s.pfTokenName}>{t.symbol}</Text>
                     <Text style={s.pfTokenAmt}>{t.amount.toFixed(4)} {t.symbol}</Text>
