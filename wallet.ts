@@ -1,7 +1,8 @@
 import 'react-native-get-random-values';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
-import * as bip39 from 'bip39';
+import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english';
 import { derivePath } from 'ed25519-hd-key';
 
 export type WalletKeys = {
@@ -13,17 +14,17 @@ export type WalletKeys = {
 const DERIVATION_PATH = "m/44'/501'/0'/0'";
 
 export const generateWallet = (): WalletKeys => {
-  const mnemonic = bip39.generateMnemonic();
+  const mnemonic = generateMnemonic(wordlist);
   return importWallet(mnemonic);
 };
 
 export const importWallet = (mnemonic: string): WalletKeys => {
   const trimmed = mnemonic.trim();
-  if (!bip39.validateMnemonic(trimmed)) {
+  if (!validateMnemonic(trimmed, wordlist)) {
     throw new Error('Invalid mnemonic phrase');
   }
-  const seed = bip39.mnemonicToSeedSync(trimmed);
-  const { key } = derivePath(DERIVATION_PATH, seed.toString('hex'));
+  const seed = mnemonicToSeedSync(trimmed);
+  const { key } = derivePath(DERIVATION_PATH, Buffer.from(seed).toString('hex'));
   const keypair = nacl.sign.keyPair.fromSeed(key);
   return {
     mnemonic: trimmed,
@@ -33,11 +34,8 @@ export const importWallet = (mnemonic: string): WalletKeys => {
 };
 
 export const getPublicKey = (mnemonic: string): string => {
-  try {
-    return importWallet(mnemonic).publicKey;
-  } catch {
-    return 'ErrorGeneratingKey';
-  }
+  try { return importWallet(mnemonic).publicKey; }
+  catch { return 'ErrorGeneratingKey'; }
 };
 
 export const deriveWallet = importWallet;
