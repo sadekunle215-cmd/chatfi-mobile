@@ -120,3 +120,35 @@ export async function sendSPLToken(secretKey: Uint8Array, recipient: string, min
   const sig = await transfer(conn, keypair, fromATA.address, toATA.address, keypair.publicKey, BigInt(amount));
   return sig.toString();
 }
+
+// ── Wallet Generation & Import ───────────────────────────────
+import * as bip39 from 'bip39';
+import { derivePath } from 'ed25519-hd-key';
+
+const SOLANA_PATH = "m/44'/501'/0'/0'";
+
+export function generateWallet(): { mnemonic: string; publicKey: string; secretKey: Uint8Array } {
+  const mnemonic = bip39.generateMnemonic();
+  return deriveWallet(mnemonic);
+}
+
+export function getPublicKey(mnemonic: string): string {
+  return deriveWallet(mnemonic).publicKey;
+}
+
+export function importWallet(mnemonic: string): { mnemonic: string; publicKey: string; secretKey: Uint8Array } {
+  return deriveWallet(mnemonic);
+}
+
+export function deriveWallet(mnemonic: string): { mnemonic: string; publicKey: string; secretKey: Uint8Array } {
+  const seed = bip39.mnemonicToSeedSync(mnemonic);
+  const { key } = derivePath(SOLANA_PATH, seed.toString('hex'));
+  const keypair = Keypair.fromSeed(key);
+  return {
+    mnemonic,
+    publicKey: keypair.publicKey.toBase58(),
+    secretKey: keypair.secretKey,
+  };
+}
+
+export function signAndSendTransaction() {}
