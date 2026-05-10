@@ -940,7 +940,7 @@ export default function App() {
                     <Text style={s.pfTokenAmt}>{t.amount.toFixed(4)} {t.symbol}</Text>
                   </View>
                   <Text style={s.pfTokenVal}>—</Text>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
