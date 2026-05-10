@@ -776,7 +776,7 @@ export default function App() {
       const res = await fetch('https://chatfi.pro/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: pk, recipient: sendTo.trim(), amount: String(amountNum), mint }),
+        body: JSON.stringify({ sender: pubkey, recipient: sendTo.trim(), amount: String(amountNum), mint }),
       });
       const data = await res.json();
       if (!res.ok || !data.tx) throw new Error(data.error || 'Failed to build transaction');
