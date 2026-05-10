@@ -135,8 +135,9 @@ function TokenModal({ token, pubkey, onClose }) {
   );
 }
 
-function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet }) {
+function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName }) {
   const [view, setView] = React.useState('main');
+  const [nameInput, setNameInput] = React.useState(userName || '');
   const short = pubkey ? pubkey.slice(0,6)+'...'+pubkey.slice(-4) : '';
 
   return (
@@ -163,11 +164,11 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet }) {
               {/* Profile & Settings buttons */}
               <View style={{ flexDirection:'row', gap:12, padding:16 }}>
                 <TouchableOpacity style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                  <Text style={{ fontSize:22 }}>👤</Text>
+                  <Ionicons name='person-outline' size={24} color={C.text} />
                   <Text style={{ color:C.text, fontSize:13 }}>Profile</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setView('settings')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                  <Text style={{ fontSize:22 }}>⚙️</Text>
+                  <Ionicons name='settings-outline' size={24} color={C.text} />
                   <Text style={{ color:C.text, fontSize:13 }}>Settings</Text>
                 </TouchableOpacity>
               </View>
@@ -191,6 +192,41 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet }) {
                   </View>
                   <Text style={{ color:C.green, fontSize:16 }}>✓</Text>
                 </View>
+              </View>
+            </ScrollView>
+          )}
+
+          {view === 'profile' && (
+            <ScrollView>
+              <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                <TouchableOpacity onPress={() => setView('main')} style={{ marginRight:12 }}>
+                  <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
+                </TouchableOpacity>
+                <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>Profile</Text>
+                <TouchableOpacity onPress={onClose}>
+                  <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ padding:20 }}>
+                <View style={{ alignItems:'center', marginBottom:24 }}>
+                  <View style={{ width:72, height:72, borderRadius:36, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginBottom:12 }}>
+                    <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:28 }}>{nameInput ? nameInput[0].toUpperCase() : 'CF'}</Text>
+                  </View>
+                  <Text style={{ color:C.muted, fontSize:12 }}>{pubkey ? pubkey.slice(0,6)+'...'+pubkey.slice(-4) : ''}</Text>
+                </View>
+                <Text style={{ color:C.muted, fontSize:13, marginBottom:8 }}>Display Name</Text>
+                <TextInput
+                  value={nameInput}
+                  onChangeText={setNameInput}
+                  placeholder="Enter your name..."
+                  placeholderTextColor={C.muted}
+                  style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:15, marginBottom:16 }}
+                />
+                <TouchableOpacity
+                  onPress={() => { setUserName(nameInput); setView('main'); }}
+                  style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
+                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:15 }}>Save Name</Text>
+                </TouchableOpacity>
               </View>
             </ScrollView>
           )}
@@ -389,6 +425,8 @@ export default function App() {
   const [showSendModal, setShowSendModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [selectedToken, setSelectedToken] = useState<any>(null);
+  const [userName, setUserName] = useState('');
+  const [showNameEdit, setShowNameEdit] = useState(false);
   const [accountView, setAccountView] = useState('main');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [seedPhrase, setSeedPhrase] = useState('');
@@ -754,7 +792,7 @@ export default function App() {
       <View style={s.header}>
         <View style={s.logoRow}>
           
-          <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />
+          <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />{userName ? <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{userName}</Text> : null}</TouchableOpacity>
         </View>
         <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => setShowWalletModal(true)}>
           <Text style={[s.walletBtnTxt, wallet ? { color: C.green } : null]}>{wallet ? shortKey : 'Connect Wallet'}</Text>
