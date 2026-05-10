@@ -782,8 +782,8 @@ export default function App() {
             </ScrollView>
             <View style={s.inputRow}>
               <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={(e) => sendMsg(e.nativeEvent.text)} editable={!aiLoading} />
-              <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={sendMsg} disabled={aiLoading}>
-                <Text style={s.sendBtnTxt}>→</Text>
+              <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(input)} disabled={aiLoading || !input.trim()}>
+                <Ionicons name="send" size={20} color="#0d1117" />
               </TouchableOpacity>
             </View>
           </View>
