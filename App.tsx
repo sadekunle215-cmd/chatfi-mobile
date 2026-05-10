@@ -391,7 +391,7 @@ export default function App() {
       <View style={s.header}>
         <View style={s.logoRow}>
           
-          <Text style={s.logoText}>ChatFi</Text>
+          <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />
         </View>
         <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => setShowWalletModal(true)}>
           <Text style={[s.walletBtnTxt, wallet ? { color: C.green } : null]}>{wallet ? shortKey : 'Connect Wallet'}</Text>
