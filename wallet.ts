@@ -1,6 +1,5 @@
 import 'react-native-get-random-values';
 import { PublicKey, Transaction, SystemProgram, Keypair, sendAndConfirmTransaction, Connection } from '@solana/web3.js';
-import { getOrCreateAssociatedTokenAccount, transfer, getMint } from '@solana/spl-token';
 
 const RPC = 'https://api.mainnet-beta.solana.com';
 export const conn = new Connection(RPC, 'confirmed');
@@ -110,16 +109,7 @@ export async function sendSOL(secretKey: Uint8Array, recipient: string, lamports
   return await sendAndConfirmTransaction(conn, tx, [keypair]);
 }
 
-// ── Send SPL Token ────────────────────────────────────────────
-export async function sendSPLToken(secretKey: Uint8Array, recipient: string, mintAddress: string, amount: number): Promise<string> {
-  const keypair = Keypair.fromSecretKey(secretKey);
-  const mintPubkey = new PublicKey(mintAddress);
-  const toPubkey = new PublicKey(recipient);
-  const fromATA = await getOrCreateAssociatedTokenAccount(conn, keypair, mintPubkey, keypair.publicKey);
-  const toATA = await getOrCreateAssociatedTokenAccount(conn, keypair, mintPubkey, toPubkey);
-  const sig = await transfer(conn, keypair, fromATA.address, toATA.address, keypair.publicKey, BigInt(amount));
-  return sig.toString();
-}
+
 
 // ── Wallet Generation & Import ───────────────────────────────
 import * as bip39 from 'bip39';
