@@ -55,7 +55,7 @@ function TokenModal({ token, pubkey, onClose }) {
 
   return (
     <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none"}}>
+      <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
         <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%' }}>
 
           {/* Header */}
@@ -149,7 +149,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none"}}>
+      <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
         <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:'90%' }}>
 
           {view === 'main' && (
