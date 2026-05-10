@@ -289,7 +289,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   </View>
                   <View style={{ flex:1 }}>
                     <Text style={{ color:C.text,fontSize:15,fontWeight:'600' }}>{acc.name}</Text>
-                    <Text style={{ color:C.muted,fontSize:12 }}>{acc.pubkey.slice(0,6)+'...'+acc.pubkey.slice(-4)}</Text>
+                    <Text style={{ color:C.muted,fontSize:12 }}>{(acc.pubkey||"").slice(0,6)+'...'+(acc.pubkey||"").slice(-4)}</Text>
                   </View>
                   {idx===activeAccIdx && <Text style={{ color:C.green,fontSize:18 }}>✓</Text>}
                 </TouchableOpacity>
@@ -298,7 +298,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <Text style={{ color:C.green,flex:1,fontSize:15,fontWeight:'600' }}>+ Add Account</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={()=>Alert.alert('Seed Phrase', wallet||'', [{text:'OK'}])}
+              <TouchableOpacity onPress={()=>Alert.alert('Seed Phrase', wallet||'No seed phrase found', [{text:'OK'}])}
                 style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <Text style={{ color:C.text,flex:1,fontSize:15 }}>View Seed Phrase</Text>
                 <Text style={{ color:C.muted }}>›</Text>
