@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { WebView } from 'react-native-webview';
+import { Ionicons } from '@expo/vector-icons';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
@@ -16,8 +17,8 @@ const RPC = 'https://api.mainnet-beta.solana.com';
 
 const TABS = [
   { id: 'chat', label: 'Chat', icon: '◉' },
-  { id: 'swap', label: 'Swap', icon: '⇄' },
-  { id: 'portfolio', label: 'Portfolio', icon: '▦' },
+  { id: 'swap', label: 'Swap', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
+  { id: 'portfolio', label: 'Portfolio', icon: 'time-outline', iconActive: 'time' },
   { id: 'dapp', label: 'Dapp', icon: '⚙️' },
 ];
 
@@ -43,6 +44,130 @@ const POPULAR_DAPPS = [
   { name: 'Magic Eden', url: 'https://magiceden.io', domain: 'magiceden.io', desc: 'NFT marketplace' },
   { name: 'Tensor', url: 'https://tensor.trade', domain: 'tensor.trade', desc: 'NFT trading' },
 ];
+
+
+function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet }) {
+  const [view, setView] = React.useState('main');
+  const short = pubkey ? pubkey.slice(0,6)+'...'+pubkey.slice(-4) : '';
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }}>
+        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:'90%' }}>
+
+          {view === 'main' && (
+            <ScrollView>
+              {/* Header */}
+              <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                <View style={{ width:48, height:48, borderRadius:24, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
+                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:18 }}>CF</Text>
+                </View>
+                <View style={{ flex:1 }}>
+                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:16 }}>ChatFi Wallet</Text>
+                  <Text style={{ color:C.muted, fontSize:12 }}>{short || 'No wallet connected'}</Text>
+                </View>
+                <TouchableOpacity onPress={onClose}>
+                  <Text style={{ color:C.muted, fontSize:22, paddingLeft:12 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Profile & Settings buttons */}
+              <View style={{ flexDirection:'row', gap:12, padding:16 }}>
+                <TouchableOpacity style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                  <Text style={{ fontSize:22 }}>👤</Text>
+                  <Text style={{ color:C.text, fontSize:13 }}>Profile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setView('settings')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                  <Text style={{ fontSize:22 }}>⚙️</Text>
+                  <Text style={{ color:C.text, fontSize:13 }}>Settings</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Wallet balance */}
+              <View style={{ margin:16, backgroundColor:'#1c2128', borderRadius:14, padding:20 }}>
+                <Text style={{ color:C.muted, fontSize:13 }}>Wallet Address</Text>
+                <Text style={{ color:C.green, fontSize:12, marginTop:4, fontFamily:'monospace' }}>{pubkey || 'Not connected'}</Text>
+              </View>
+
+              {/* Accounts */}
+              <Text style={{ color:C.muted, fontSize:11, fontWeight:'600', paddingHorizontal:16, marginBottom:8, letterSpacing:1 }}>YOUR ACCOUNTS</Text>
+              <View style={{ marginHorizontal:16, backgroundColor:'#1c2128', borderRadius:14, marginBottom:16 }}>
+                <View style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                  <View style={{ width:40, height:40, borderRadius:20, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
+                    <Text style={{ color:'#0d1117', fontWeight:'bold' }}>CF</Text>
+                  </View>
+                  <View style={{ flex:1 }}>
+                    <Text style={{ color:C.text, fontWeight:'600' }}>Account 1</Text>
+                    <Text style={{ color:C.muted, fontSize:12 }}>{short}</Text>
+                  </View>
+                  <Text style={{ color:C.green, fontSize:16 }}>✓</Text>
+                </View>
+              </View>
+            </ScrollView>
+          )}
+
+          {view === 'settings' && (
+            <ScrollView>
+              <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                <TouchableOpacity onPress={() => setView('main')} style={{ marginRight:12 }}>
+                  <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
+                </TouchableOpacity>
+                <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>Settings</Text>
+                <TouchableOpacity onPress={onClose}>
+                  <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {[
+                { label:'Manage Accounts', sub:'View seed phrase, remove wallet', onPress: () => setView('manageAccounts') },
+                { label:'Security & Privacy', sub:'Backup & security options', onPress: () => {} },
+                { label:'Connected Apps', sub:'DApps connected to your wallet', onPress: () => {} },
+                { label:'About ChatFi', sub:'Version 1.0.0', onPress: () => {} },
+              ].map((item, i, arr) => (
+                <TouchableOpacity key={i} onPress={item.onPress}
+                  style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:20, paddingVertical:16,
+                    borderBottomWidth: i < arr.length-1 ? 1 : 0, borderBottomColor:'#30363d' }}>
+                  <View style={{ flex:1 }}>
+                    <Text style={{ color:C.text, fontSize:15 }}>{item.label}</Text>
+                    <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{item.sub}</Text>
+                  </View>
+                  <Text style={{ color:C.muted, fontSize:18 }}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
+          {view === 'manageAccounts' && (
+            <ScrollView>
+              <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                <TouchableOpacity onPress={() => setView('settings')} style={{ marginRight:12 }}>
+                  <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
+                </TouchableOpacity>
+                <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>Manage Accounts</Text>
+                <TouchableOpacity onPress={onClose}>
+                  <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ margin:16, backgroundColor:'#1c2128', borderRadius:14, overflow:'hidden' }}>
+                <TouchableOpacity onPress={() => Alert.alert('Seed Phrase', wallet || '', [{text:'OK'}])}
+                  style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                  <Text style={{ color:C.text, flex:1, fontSize:15 }}>View Seed Phrase</Text>
+                  <Text style={{ color:C.muted }}>›</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { Alert.alert('Remove Wallet','Are you sure?',[{text:'Cancel'},{text:'Remove',style:'destructive',onPress:onRemoveWallet}]); }}
+                  style={{ flexDirection:'row', alignItems:'center', padding:16 }}>
+                  <Text style={{ color:C.red, flex:1, fontSize:15 }}>Remove Wallet</Text>
+                  <Text style={{ color:C.muted }}>›</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          )}
+
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 function DappBrowser({ walletAddress }) {
   const [url, setUrl] = React.useState('');
@@ -173,6 +298,8 @@ export default function App() {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showSeedModal, setShowSeedModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountView, setAccountView] = useState('main');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [seedPhrase, setSeedPhrase] = useState('');
   const [importSeed, setImportSeed] = useState('');
@@ -287,11 +414,11 @@ export default function App() {
     } catch { Alert.alert('Error', 'Invalid seed phrase'); }
   };
 
-  const sendMsg = async () => {
-    if (!input.trim() || aiLoading) return;
-    const q = input;
+  const sendMsg = async (overrideText?: string) => {
+    const q = (overrideText || input).trim();
+    if (!q || aiLoading) return;
     setMsgs(p => [...p, { id: Date.now(), text: q, from: 'user' }]);
-    const msgText = text;
+    const msgText = q;
     setInput('');
     setAiLoading(true);
     try {
@@ -519,12 +646,24 @@ export default function App() {
 
   return (
     <SafeAreaView style={s.root}>
+      <AccountModal
+        visible={showAccountModal}
+        onClose={() => setShowAccountModal(false)}
+        pubkey={pubkey}
+        wallet={wallet}
+        onRemoveWallet={async () => {
+          await AsyncStorage.removeItem('wallet_mnemonic');
+          setWallet(null);
+          setPubkey(null);
+          setShowAccountModal(false);
+        }}
+      />
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
       <View style={s.header}>
         <View style={s.logoRow}>
           
-          <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />
+          <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />
         </View>
         <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => setShowWalletModal(true)}>
           <Text style={[s.walletBtnTxt, wallet ? { color: C.green } : null]}>{wallet ? shortKey : 'Connect Wallet'}</Text>
@@ -551,7 +690,7 @@ export default function App() {
               )}
             </ScrollView>
             <View style={s.inputRow}>
-              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={sendMsg} editable={!aiLoading} />
+              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={(e) => sendMsg(e.nativeEvent.text)} editable={!aiLoading} />
               <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={sendMsg} disabled={aiLoading}>
                 <Text style={s.sendBtnTxt}>→</Text>
               </TouchableOpacity>
@@ -790,11 +929,11 @@ export default function App() {
 
       {/* TAB BAR */}
       <View style={s.tabBar}>
-        {TABS.map(({ id, label, icon }) => {
+        {TABS.map((t) => { const { id, label, icon } = t;
           const active = tab === id;
           return (
             <TouchableOpacity key={id} style={s.tabItem} onPress={() => setTab(id)}>
-              <Text style={[s.tabIcon, active && s.tabIconActive]}>{icon}</Text>
+              <Ionicons name={active ? (t.iconActive || t.icon) : t.icon} size={22} color={active ? '#39FF82' : 'rgba(255,255,255,0.4)'} />
               <Text style={[s.tabLabel, active && s.tabLabelActive]}>{label}</Text>
             </TouchableOpacity>
           );
