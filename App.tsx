@@ -472,7 +472,7 @@ export default function App() {
 
   useEffect(() => {
     const anims = letterAnims.map((anim, i) =>
-      Animated.timing(anim, { toValue: 1, duration: 200, delay: i * 120, useNativeDriver: true })
+      Animated.timing(anim, { toValue: 1, duration: 300, delay: i * 80, useNativeDriver: true })
     );
     Animated.stagger(120, anims).start(() => {
       setTimeout(() => setSplashDone(true), 400);
@@ -768,7 +768,7 @@ export default function App() {
             }}>{letter}</Animated.Text>
           ))}
         </View>
-        <Text style={{ color: '#555', fontSize: 13, marginTop: 12, letterSpacing: 2 }}>DEFI ON SOLANA</Text>
+        <Text style={{ color: '#888', fontSize: 14, marginTop: 12, letterSpacing: 1 }}>DeFi, but conversational...</Text>
       </View>
     );
   }
