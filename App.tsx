@@ -153,7 +153,7 @@ function TokLogo({uri, symbol, mint, style}: {uri?:string, symbol:string, mint?:
   return <Image source={{uri: logo}} style={style} onError={()=>setErr(true)} />;
 }
 function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName }) {
-  const [view, setView] = React.useState('main');
+  const [view, setView] = React.useState('manageAccounts');
   const [nameInput, setNameInput] = React.useState(userName || '');
   React.useEffect(() => { setNameInput(userName || ''); }, [userName]);
   const short = pubkey ? pubkey.slice(0,6)+'...'+pubkey.slice(-4) : '';
