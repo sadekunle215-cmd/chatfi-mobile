@@ -135,6 +135,12 @@ function TokenModal({ token, pubkey, onClose }) {
   );
 }
 
+
+function TokLogo({uri, symbol, style}: {uri:string, symbol:string, style:any}) {
+  const [err, setErr] = React.useState(false);
+  if(err) return <View style={[style,{alignItems:'center',justifyContent:'center'}]}><Text style={{color:'#fff',fontSize:12,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
+  return <Image source={{uri}} style={style} onError={()=>setErr(true)} />;
+}
 function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName }) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
@@ -837,7 +843,7 @@ export default function App() {
             <View style={s.swapCardRow}>
               <TextInput style={s.swapAmtInput} value={amt} onChangeText={setAmt} placeholder="0" placeholderTextColor={C.border} keyboardType="numeric" />
               <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowFromSearch(!showFromSearch);setShowToSearch(false);}}>
-                <Image source={{uri:'https://img.jup.ag/tokens/'+(TOKENS[fromToken]||'')}} style={s.tokenLogo} onError={()=>{}} />
+                <TokLogo uri={'https://img.jup.ag/tokens/'+(TOKENS[fromToken]||'')} symbol={fromToken} style={s.tokenLogo} />
                 <Text style={s.tokenSelTxt}>{fromToken}</Text>
                 <Text style={{color:C.muted,marginLeft:4,fontSize:12}}>▾</Text>
               </TouchableOpacity>
@@ -847,7 +853,7 @@ export default function App() {
                 <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setFromResults); else setFromResults([]);}} />
                 {fromResults.slice(0,5).map(t=>(
                   <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setFromToken(t.symbol);TOKENS[t.symbol]=t.address;setShowFromSearch(false);setQuote(null);}}>
-                    <Image source={{uri:'https://img.jup.ag/tokens/'+t.address}} style={s.tokenLogo} onError={()=>{}} />
+                    <TokLogo uri={'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
                     <View style={{flex:1,marginLeft:8}}>
                       <Text style={s.tokenResTxt}>{t.symbol}</Text>
                       <Text style={s.tokenResSub} numberOfLines={1}>{t.name}</Text>
@@ -867,7 +873,7 @@ export default function App() {
             <View style={s.swapCardRow}>
               <Text style={s.swapAmtOut}>{quote?Number(quote.outAmount).toFixed(6):'—'}</Text>
               <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowToSearch(!showToSearch);setShowFromSearch(false);}}>
-                <Image source={{uri:'https://img.jup.ag/tokens/'+(TOKENS[toToken]||'')}} style={s.tokenLogo} onError={()=>{}} />
+                <TokLogo uri={'https://img.jup.ag/tokens/'+(TOKENS[toToken]||'')} symbol={toToken} style={s.tokenLogo} />
                 <Text style={s.tokenSelTxt}>{toToken}</Text>
                 <Text style={{color:C.muted,marginLeft:4,fontSize:12}}>▾</Text>
               </TouchableOpacity>
@@ -877,7 +883,7 @@ export default function App() {
                 <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setToResults); else setToResults([]);}} />
                 {toResults.slice(0,5).map(t=>(
                   <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setToToken(t.symbol);TOKENS[t.symbol]=t.address;setShowToSearch(false);setQuote(null);}}>
-                    <Image source={{uri:'https://img.jup.ag/tokens/'+t.address}} style={s.tokenLogo} onError={()=>{}} />
+                    <TokLogo uri={'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
                     <View style={{flex:1,marginLeft:8}}>
                       <Text style={s.tokenResTxt}>{t.symbol}</Text>
                       <Text style={s.tokenResSub} numberOfLines={1}>{t.name}</Text>
