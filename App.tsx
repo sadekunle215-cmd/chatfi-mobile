@@ -581,7 +581,7 @@ export default function App() {
       setSeedPhrase(mnemonic);
       setShowSeedModal(true);
     } catch (e) {
-      Alert.alert('Error', 'Failed to generate wallet. Please try again.');
+      Alert.alert('Error', 'Failed to generate wallet: ' + (e?.message || String(e)) + '');
     }
   };
 

@@ -24,7 +24,7 @@ export const importWallet = (mnemonic: string): WalletKeys => {
     throw new Error('Invalid mnemonic phrase');
   }
   const seed = mnemonicToSeedSync(trimmed);
-  const { key } = derivePath(DERIVATION_PATH, Buffer.from(seed).toString('hex'));
+  const { key } = derivePath(DERIVATION_PATH, Array.from(seed as Uint8Array).map(b => b.toString(16).padStart(2, '0')).join(''));
   const keypair = nacl.sign.keyPair.fromSeed(key);
   return {
     mnemonic: trimmed,
