@@ -56,7 +56,7 @@ function TokenModal({ token, pubkey, onClose }) {
   return (
     <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none"}}>
-        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, padding:24, maxHeight:'85%' }}>
+        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%' }}>
 
           {/* Header */}
           <View style={{ flexDirection:'row', alignItems:'center', marginBottom:20 }}>
@@ -610,7 +610,7 @@ export default function App() {
   };
 
   const sendMsg = async (overrideText?: string) => {
-    const q = (overrideText || input || inputRef.current).trim();
+    const q = (overrideText || inputRef.current || input).trim();
     if (!q || aiLoading) return;
     setMsgs(p => [...p, { id: Date.now(), text: q, from: 'user' }]);
     const msgText = q;
