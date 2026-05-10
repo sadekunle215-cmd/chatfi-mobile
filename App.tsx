@@ -16,10 +16,10 @@ const C = {
 const RPC = 'https://api.mainnet-beta.solana.com';
 
 const TABS = [
-  { id: 'chat', label: 'Chat', icon: '◉' },
+  { id: 'chat', label: 'Chat', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
   { id: 'swap', label: 'Swap', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
   { id: 'portfolio', label: 'Portfolio', icon: 'time-outline', iconActive: 'time' },
-  { id: 'dapp', label: 'Dapp', icon: '⚙️' },
+  { id: 'dapp', label: 'Dapp', icon: 'compass-outline', iconActive: 'compass-sharp' },
 ];
 
 const TOKEN_LIST = ['SOL','USDC','JUP','BONK','WIF','USDT'];
