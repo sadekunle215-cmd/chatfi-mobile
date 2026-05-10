@@ -169,7 +169,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
 
               {/* Profile & Settings buttons */}
               <View style={{ flexDirection:'row', gap:12, padding:16 }}>
-                <TouchableOpacity style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                <TouchableOpacity onPress={() => setView('profile')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
                   <Ionicons name='person-outline' size={24} color={C.text} />
                   <Text style={{ color:C.text, fontSize:13 }}>Profile</Text>
                 </TouchableOpacity>
