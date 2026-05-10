@@ -766,50 +766,38 @@ export default function App() {
   };
 
   const sendTokens = async () => {
-    if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Invalid amount'); return; }
-    if (!wallet) { Alert.alert('No wallet', 'Create a wallet first'); return; }
+    if (!sendTo || !sendTo.trim()) { Alert.alert('Missing address', 'Enter a recipient address'); return; }
+    if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Invalid amount', 'Enter a valid amount'); return; }
     setSendLoading(true);
     try {
-      const { publicKey: pk, secretKey } = deriveWallet(wallet);
       const mint = TOKENS[sendToken] || TOKENS['SOL'];
       const decimals = DECIMALS[sendToken] ?? 9;
       const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
-      const randBytes = new Uint8Array(13);
-      crypto.getRandomValues(randBytes);
-      const b58chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-      let inviteCode = '';
-      for (let i = 0; i < 12; i++) inviteCode += b58chars[randBytes[i] % 58];
       const res = await fetch('https://chatfi.pro/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: pk, amount: String(amountNum), mint, inviteCode }),
+        body: JSON.stringify({ sender: pk, recipient: sendTo.trim(), amount: String(amountNum), mint }),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      const txBytes = Uint8Array.from(atob(data.partiallySignedTx), (c: string) => c.charCodeAt(0));
+      if (!res.ok || !data.tx) throw new Error(data.error || 'Failed to build transaction');
+      const txBytes = Uint8Array.from(Buffer.from(data.tx, 'base64'));
       const numSigs = txBytes[0];
       const msgBytes = txBytes.slice(1 + numSigs * 64);
       const userSig = nacl.sign.detached(msgBytes, secretKey);
       txBytes.set(userSig, 1);
-      const txB64 = btoa(String.fromCharCode(...Array.from(txBytes)));
+      const txB64 = Buffer.from(txBytes).toString('base64');
       const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0', id: 1, method: 'sendTransaction',
-          params: [txB64, { encoding: 'base64', preflightCommitment: 'confirmed' }],
-        }),
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [txB64, { encoding: 'base64', preflightCommitment: 'confirmed' }] }),
       });
       const rpcData = await rpcRes.json();
       if (rpcData.error) throw new Error(rpcData.error.message);
-      const link = 'https://jup.ag/send?code=' + inviteCode;
-      Alert.alert('Sent!', 'Share this link to claim: ' + link);
-      setShowSendModal(false);
-    } catch (e: any) {
+      Alert.alert('Sent!', `Sent ${sendAmt} ${sendToken} to ${sendTo.slice(0,8)}...`);
+      setShowSendModal(false); setSendAmt(''); setSendTo('');
+    } catch (e) {
       Alert.alert('Send Failed', e.message || 'Unknown error');
-    } finally {
-      setSendLoading(false);
-    }
+    } finally { setSendLoading(false); }
   };
 
   const copyAddress = () => {
