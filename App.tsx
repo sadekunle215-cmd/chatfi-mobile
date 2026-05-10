@@ -426,6 +426,8 @@ export default function App() {
   const letterAnims = 'CHATFI'.split('').map(() => new Animated.Value(0));
   const [wallet, setWallet] = useState<string | null>(null);
   const [pubkey, setPubkey] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<{id:number,name:string,mnemonic:string,pubkey:string}[]>([]);
+  const [activeAccIdx, setActiveAccIdx] = useState(0);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showSeedModal, setShowSeedModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
@@ -487,8 +489,24 @@ export default function App() {
 
   useEffect(() => {
     AsyncStorage.getItem('user_name').then(n => { if(n) setUserName(n); });
-    AsyncStorage.getItem('wallet_mnemonic').then(m => {
-      if (m) { setWallet(m); setPubkey(getPublicKey(m)); }
+    AsyncStorage.getItem('accounts').then(async raw => {
+      if(raw) {
+        const accs = JSON.parse(raw);
+        const idxRaw = await AsyncStorage.getItem('active_acc');
+        const idx = idxRaw ? parseInt(idxRaw) : 0;
+        setAccounts(accs); setActiveAccIdx(idx);
+        if(accs[idx]){ setWallet(accs[idx].mnemonic); setPubkey(accs[idx].pubkey); }
+      } else {
+        AsyncStorage.getItem('wallet_mnemonic').then(m => {
+          if(m){
+            const acc = [{id:1,name:'Account 1',mnemonic:m,pubkey:getPublicKey(m)}];
+            setAccounts(acc);
+            AsyncStorage.setItem('accounts', JSON.stringify(acc));
+            AsyncStorage.setItem('active_acc','0');
+            setWallet(m); setPubkey(getPublicKey(m));
+          }
+        });
+      }
     });
   }, []);
 
@@ -496,6 +514,21 @@ export default function App() {
     if (pubkey && tab === 'portfolio') fetchPortfolio();
   }, [pubkey, tab]);
 
+  const addAccount = async () => {
+    const mnemonic = generateWallet();
+    const pk = getPublicKey(mnemonic);
+    const newAcc = {id:accounts.length+1,name:'Account '+(accounts.length+1),mnemonic,pubkey:pk};
+    const updated = [...accounts, newAcc];
+    setAccounts(updated);
+    await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+    Alert.alert('Account Added','Account '+(accounts.length+1)+' created!');
+  };
+  const switchAccount = async (idx:number) => {
+    const acc = accounts[idx];
+    setActiveAccIdx(idx); setWallet(acc.mnemonic); setPubkey(acc.pubkey);
+    await AsyncStorage.setItem('active_acc', String(idx));
+    await AsyncStorage.setItem('wallet_mnemonic', acc.mnemonic);
+  };
   const fetchPortfolio = async () => {
     if (!pubkey) return;
     setPortfolioLoading(true);
