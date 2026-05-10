@@ -609,7 +609,7 @@ export default function App() {
   };
 
   const sendMsg = async (overrideText?: string) => {
-    const q = (overrideText || inputRef.current || input).trim();
+    const q = (overrideText || input || inputRef.current).trim();
     if (!q || aiLoading) return;
     setMsgs(p => [...p, { id: Date.now(), text: q, from: 'user' }]);
     const msgText = q;
@@ -885,7 +885,7 @@ export default function App() {
               )}
             </ScrollView>
             <View style={s.inputRow}>
-              <TextInput style={s.input} value={input} onChangeText={(t) => { setInput(t); inputRef.current = t; }} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={(e) => sendMsg(e.nativeEvent.text.trim())} editable={!aiLoading} />
+              <TextInput style={s.input} value={input} onChangeText={(t) => { setInput(t); inputRef.current = t; }} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current || input)} editable={!aiLoading} />
               <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(input)} disabled={aiLoading || !input.trim()}>
                 <Ionicons name="send" size={20} color="#0d1117" />
               </TouchableOpacity>
