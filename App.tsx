@@ -144,6 +144,7 @@ function TokLogo({uri, symbol, style}: {uri:string, symbol:string, style:any}) {
 function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName }) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
+  React.useEffect(() => { setNameInput(userName || ''); }, [userName]);
   const short = pubkey ? pubkey.slice(0,6)+'...'+pubkey.slice(-4) : '';
 
   return (
@@ -280,7 +281,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 </TouchableOpacity>
               </View>
             <View style={{ margin:16, backgroundColor:'#1c2128', borderRadius:14, overflow:'hidden' }}>
-              {accounts.map((acc,idx)=>(
+              {(accounts||[]).map((acc,idx)=>(
                 <TouchableOpacity key={acc.id} onPress={()=>switchAccount(idx)}
                   style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                   <View style={{ width:36,height:36,borderRadius:18,backgroundColor:C.green,alignItems:'center',justifyContent:'center',marginRight:12 }}>
