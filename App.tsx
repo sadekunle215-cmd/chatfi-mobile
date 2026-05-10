@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { WebView } from 'react-native-webview';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
@@ -17,7 +18,7 @@ const TABS = [
   { id: 'chat', label: 'Chat', icon: '◉' },
   { id: 'swap', label: 'Swap', icon: '⇄' },
   { id: 'portfolio', label: 'Portfolio', icon: '▦' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' },
+  { id: 'dapp', label: 'Dapp', icon: '⚙️' },
 ];
 
 const TOKEN_LIST = ['SOL','USDC','JUP','BONK','WIF','USDT'];
@@ -30,6 +31,138 @@ const TOKEN_MINTS: Record<string, string> = {
   BONK: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
   WIF: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
 };
+
+
+const POPULAR_DAPPS = [
+  { name: 'Jupiter', url: 'https://jup.ag', domain: 'jup.ag', desc: 'Best swap aggregator' },
+  { name: 'Raydium', url: 'https://raydium.io', domain: 'raydium.io', desc: 'AMM & liquidity' },
+  { name: 'Orca', url: 'https://orca.so', domain: 'orca.so', desc: 'User-friendly DEX' },
+  { name: 'Kamino', url: 'https://kamino.finance', domain: 'kamino.finance', desc: 'Yield & lending' },
+  { name: 'Drift', url: 'https://drift.trade', domain: 'drift.trade', desc: 'Perp trading' },
+  { name: 'Marinade', url: 'https://marinade.finance', domain: 'marinade.finance', desc: 'Liquid staking' },
+  { name: 'Magic Eden', url: 'https://magiceden.io', domain: 'magiceden.io', desc: 'NFT marketplace' },
+  { name: 'Tensor', url: 'https://tensor.trade', domain: 'tensor.trade', desc: 'NFT trading' },
+];
+
+function DappBrowser({ walletAddress }) {
+  const [url, setUrl] = React.useState('');
+  const [activeUrl, setActiveUrl] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [canGoBack, setCanGoBack] = React.useState(false);
+  const [canGoForward, setCanGoForward] = React.useState(false);
+  const [bookmarks, setBookmarks] = React.useState([]);
+  const [showBookmarks, setShowBookmarks] = React.useState(false);
+  const [pageTitle, setPageTitle] = React.useState('');
+  const webRef = React.useRef(null);
+
+  const navigate = (u) => {
+    let target = u.trim();
+    if (!target.startsWith('http')) target = 'https://' + target;
+    setActiveUrl(target);
+    setUrl(target);
+    setShowBookmarks(false);
+  };
+
+  const addBookmark = () => {
+    if (!activeUrl) return;
+    if (!bookmarks.find(b => b.url === activeUrl)) {
+      setBookmarks([...bookmarks, { url: activeUrl, title: pageTitle || activeUrl }]);
+    }
+  };
+
+  const removeBookmark = (u) => setBookmarks(bookmarks.filter(b => b.url !== u));
+  const isBookmarked = bookmarks.find(b => b.url === activeUrl);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      {/* URL Bar */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 8, gap: 6, backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border }}>
+        <TouchableOpacity onPress={() => webRef.current?.goBack()} disabled={!canGoBack}>
+          <Text style={{ color: canGoBack ? C.text : C.muted, fontSize: 18, paddingHorizontal: 4 }}>‹</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => webRef.current?.goForward()} disabled={!canGoForward}>
+          <Text style={{ color: canGoForward ? C.text : C.muted, fontSize: 18, paddingHorizontal: 4 }}>›</Text>
+        </TouchableOpacity>
+        <TextInput
+          style={{ flex: 1, backgroundColor: C.bg, color: C.text, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, fontSize: 13 }}
+          value={url}
+          onChangeText={setUrl}
+          onSubmitEditing={() => navigate(url)}
+          placeholder="Search or enter DApp URL..."
+          placeholderTextColor={C.muted}
+          autoCapitalize="none"
+          keyboardType="url"
+        />
+        <TouchableOpacity onPress={() => webRef.current?.reload()}>
+          <Text style={{ color: C.text, fontSize: 16, paddingHorizontal: 4 }}>↺</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={addBookmark}>
+          <Text style={{ fontSize: 16, paddingHorizontal: 4, color: isBookmarked ? C.green : C.muted }}>★</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setShowBookmarks(!showBookmarks)}>
+          <Text style={{ color: C.muted, fontSize: 13, paddingHorizontal: 4 }}>☰</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Bookmarks dropdown */}
+      {showBookmarks && (
+        <View style={{ backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border, maxHeight: 180 }}>
+          <Text style={{ color: C.muted, fontSize: 11, paddingHorizontal: 16, paddingTop: 8, fontWeight: '600' }}>BOOKMARKS</Text>
+          <ScrollView>
+            {bookmarks.length === 0 && <Text style={{ color: C.muted, padding: 16, fontSize: 13 }}>No bookmarks yet</Text>}
+            {bookmarks.map((b, i) => (
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
+                <Image source={{ uri: 'https://www.google.com/s2/favicons?domain=' + new URL(b.url).hostname + '&sz=32' }} style={{ width: 18, height: 18, borderRadius: 4, marginRight: 10 }} />
+                <TouchableOpacity style={{ flex: 1 }} onPress={() => { navigate(b.url); setShowBookmarks(false); }}>
+                  <Text style={{ color: C.text, fontSize: 13 }} numberOfLines={1}>{b.title}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => removeBookmark(b.url)}>
+                  <Text style={{ color: C.red, fontSize: 16, paddingLeft: 12 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Main content */}
+      {!activeUrl ? (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+          <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 12 }}>POPULAR DAPPS</Text>
+          {POPULAR_DAPPS.map((d, i) => (
+            <TouchableOpacity key={i} onPress={() => navigate(d.url)}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border }}>
+              <Image source={{ uri: 'https://www.google.com/s2/favicons?domain=' + d.domain + '&sz=64' }}
+                style={{ width: 36, height: 36, borderRadius: 8, marginRight: 14, backgroundColor: C.card }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 15, fontWeight: '600' }}>{d.name}</Text>
+                <Text style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>{d.desc}</Text>
+              </View>
+              <Text style={{ color: C.muted, fontSize: 18 }}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={{ flex: 1 }}>
+          {loading && <ActivityIndicator style={{ position: 'absolute', top: 20, alignSelf: 'center', zIndex: 10 }} color={C.green} />}
+          <WebView
+            ref={webRef}
+            source={{ uri: activeUrl }}
+            onLoadStart={() => setLoading(true)}
+            onLoadEnd={() => setLoading(false)}
+            onNavigationStateChange={s => {
+              setCanGoBack(s.canGoBack);
+              setCanGoForward(s.canGoForward);
+              setUrl(s.url);
+              setPageTitle(s.title);
+            }}
+            style={{ flex: 1 }}
+          />
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function App() {
   const [tab, setTab] = useState('chat');
@@ -584,7 +717,11 @@ export default function App() {
         </ScrollView>
       )}
 
-            {/* SETTINGS */}
+            {/* DAPP BROWSER */}
+        {tab === 'dapp' && (
+          <DappBrowser walletAddress={pubkey} />
+        )}
+        {/* SETTINGS */}
       {tab === 'settings' && (
         <ScrollView style={s.pad}>
           {/* Wallet profile row */}
