@@ -5,7 +5,7 @@ import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
 import nacl from 'tweetnacl';
-import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, TOKENS, DECIMALS , sendSolana } from './sendMsg';
+import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, TOKENS, DECIMALS , sendSolana, getTokenLogo } from './sendMsg';
 
 const C = {
   bg: '#0d1117', card: '#161b22', card2: '#1c2128',
@@ -136,10 +136,20 @@ function TokenModal({ token, pubkey, onClose }) {
 }
 
 
-function TokLogo({uri, symbol, style}: {uri:string, symbol:string, style:any}) {
+function TokLogo({uri, symbol, mint, style}: {uri?:string, symbol:string, mint?:string, style:any}) {
+  const [logo, setLogo] = React.useState(uri || '');
   const [err, setErr] = React.useState(false);
-  if(err) return <View style={[style,{alignItems:'center',justifyContent:'center'}]}><Text style={{color:'#fff',fontSize:12,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
-  return <Image source={{uri}} style={style} onError={()=>setErr(true)} />;
+  React.useEffect(() => {
+    if (uri) { setLogo(uri); return; }
+    if (!mint) return;
+    getTokenLogo(mint).then(l => { if(l) setLogo(l); else setErr(true); }).catch(()=>setErr(true));
+  }, [mint, uri]);
+  if (err || !logo) return (
+    <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2332'}]}>
+      <Text style={{color:'#39F882',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text>
+    </View>
+  );
+  return <Image source={{uri: logo}} style={style} onError={()=>setErr(true)} />;
 }
 function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName }) {
   const [view, setView] = React.useState('main');

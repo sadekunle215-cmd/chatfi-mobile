@@ -312,3 +312,57 @@ export async function sendSolana(
   if (sendData.error) throw new Error(sendData.error.message);
   return sendData.result;
 }
+
+const TOKEN_METADATA_PROGRAM_ID = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s';
+const logoCache: Record<string, string> = {};
+
+export async function getTokenLogo(mint: string): Promise<string> {
+  if (logoCache[mint]) return logoCache[mint];
+  try {
+    // Step 1: Derive metadata PDA
+    const { PublicKey } = require('@solana/web3.js');
+    const [metadataPDA] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('metadata'),
+        new PublicKey(TOKEN_METADATA_PROGRAM_ID).toBuffer(),
+        new PublicKey(mint).toBuffer(),
+      ],
+      new PublicKey(TOKEN_METADATA_PROGRAM_ID)
+    );
+
+    // Step 2: Fetch on-chain account data
+    const res = await fetch(RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'getAccountInfo',
+        params: [metadataPDA.toBase58(), { encoding: 'base64' }],
+      }),
+    });
+    const data = await res.json();
+    const raw = Buffer.from(data.result.value.data[0], 'base64');
+
+    // Step 3: Decode metadata layout
+    // key(1) + update_authority(32) + mint(32) = 65
+    let offset = 1 + 32 + 32;
+    // name: u32 length + data (max 32 bytes, null padded)
+    const nameLen = raw.readUInt32LE(offset); offset += 4 + nameLen;
+    // symbol: u32 length + data (max 10 bytes, null padded)
+    const symbolLen = raw.readUInt32LE(offset); offset += 4 + symbolLen;
+    // uri: u32 length + data (max 200 bytes, null padded)
+    const uriLen = raw.readUInt32LE(offset); offset += 4;
+    const uri = raw.slice(offset, offset + uriLen).toString('utf8').replace(/ /g, '').trim();
+
+    if (!uri) return '';
+
+    // Step 4: Fetch off-chain JSON and get image
+    const metaRes = await fetch(uri);
+    const meta = await metaRes.json();
+    const logo = meta.image || '';
+    logoCache[mint] = logo;
+    return logo;
+  } catch {
+    return '';
+  }
+}
