@@ -1038,7 +1038,7 @@ export default function App() {
               {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
               {tokenBalances.map((t,i)=>(
                 <TouchableOpacity key={i} style={s.pfTokenRow} onPress={() => setSelectedToken(t)}>
-                  <Image source={{uri: t.logoURI || 'https://img.jup.ag/tokens/'+t.mint}} style={s.pfTokenLogo} onError={()=>{}} />
+                  <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} symbol={t.symbol} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
                     <Text style={s.pfTokenName}>{t.symbol}</Text>
                     <Text style={s.pfTokenAmt}>{t.amount.toFixed(4)} {t.symbol}</Text>
