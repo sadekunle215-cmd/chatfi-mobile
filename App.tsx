@@ -223,7 +223,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:15, marginBottom:16 }}
                 />
                 <TouchableOpacity
-                  onPress={() => { setUserName(nameInput); setView('main'); }}
+                  onPress={async () => { setUserName(nameInput); await AsyncStorage.setItem('user_name', nameInput); setView('main'); }}
                   style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
                   <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:15 }}>Save Name</Text>
                 </TouchableOpacity>
@@ -480,6 +480,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    AsyncStorage.getItem('user_name').then(n => { if(n) setUserName(n); });
     AsyncStorage.getItem('wallet_mnemonic').then(m => {
       if (m) { setWallet(m); setPubkey(getPublicKey(m)); }
     });
