@@ -608,10 +608,16 @@ export default function App() {
     }
     try {
       const { publicKey: pk } = deriveWallet(importSeed.trim());
-      await AsyncStorage.setItem('wallet_mnemonic', importSeed.trim());
+      const newAcc = {id: accounts.length+1, name: 'Account '+(accounts.length+1), mnemonic: importSeed.trim(), pubkey: pk};
+      const updated = [...accounts, newAcc];
+      const newIdx = updated.length - 1;
+      setAccounts(updated);
+      await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+      await AsyncStorage.setItem('active_acc', String(newIdx));
+      setActiveAccIdx(newIdx);
       setWallet(importSeed.trim()); setPubkey(pk);
       setShowWalletModal(false); setImportSeed('');
-      Alert.alert('Wallet Imported!', 'Your wallet is ready.');
+      Alert.alert('Wallet Imported!', 'Added to your accounts!');
     } catch { Alert.alert('Error', 'Invalid seed phrase'); }
   };
 
@@ -855,7 +861,7 @@ export default function App() {
           
           <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />{userName ? <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{userName}</Text> : null}</TouchableOpacity>
         </View>
-        <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => setShowWalletModal(true)}>
+        <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => setShowAccountModal(true)}>
           <Text style={[s.walletBtnTxt, wallet ? { color: C.green } : null]}>{wallet ? shortKey : 'Connect Wallet'}</Text>
         </TouchableOpacity>
       </View>
