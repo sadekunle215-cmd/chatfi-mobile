@@ -219,12 +219,14 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
               <View style={{ padding:20, gap:12 }}>
                 <TouchableOpacity onPress={() => { addAccount(); setView('manageAccounts'); }}
                   style={{ backgroundColor:C.green, borderRadius:14, padding:18, alignItems:'center' }}>
-                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>🔑 Create New Account</Text>
+                  <Ionicons name="add-circle-outline" size={24} color="#0d1117" />
+                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Create New Account</Text>
                   <Text style={{ color:'#0d1117', fontSize:12, marginTop:4 }}>Generate a new wallet</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setView('importAccount')}
                   style={{ backgroundColor:'#1c2128', borderRadius:14, padding:18, alignItems:'center', borderWidth:1, borderColor:C.green }}>
-                  <Text style={{ color:C.green, fontWeight:'bold', fontSize:16 }}>📥 Import Account</Text>
+                  <Ionicons name="download-outline" size={24} color={C.green} />
+                  <Text style={{ color:C.green, fontWeight:'bold', fontSize:16 }}>Import Account</Text>
                   <Text style={{ color:C.muted, fontSize:12, marginTop:4 }}>Use existing seed phrase</Text>
                 </TouchableOpacity>
               </View>
@@ -261,8 +263,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                       return;
                     }
                     try {
-                      const { deriveWallet: dw } = require('./wallet');
-                      const { publicKey: pk } = dw(importSeedInput.trim());
+                      const { publicKey: pk } = deriveWallet(importSeedInput.trim());
                       const raw = await AsyncStorage.getItem('accounts');
                       const existing = raw ? JSON.parse(raw) : [];
                       const newAcc = {id: existing.length+1, name:'Account '+(existing.length+1), mnemonic:importSeedInput.trim(), pubkey:pk};
