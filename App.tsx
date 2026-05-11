@@ -93,7 +93,7 @@ const POPULAR_DAPPS = [
 
 
 function TokenModal({ token, pubkey, onClose }) {
-  const [view, setView] = React.useState('manageAccounts');
+  const [view, setView] = React.useState('main');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
   if (!token) return null;
