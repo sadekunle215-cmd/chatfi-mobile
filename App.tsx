@@ -41,7 +41,6 @@ function Identicon({ address, size = 48 }: { address: string, size?: number }) {
     }
   }
   
-  const { Svg, Rect } = require('react-native-svg');
   return (
     <Svg width={size} height={size} style={{ borderRadius: size / 2, overflow: 'hidden' }}>
       <Rect width={size} height={size} fill={colors.bg} />
