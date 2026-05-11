@@ -158,10 +158,10 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
               {/* Header */}
               <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <View style={{ width:48, height:48, borderRadius:24, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:18 }}>CF</Text>
+                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:18 }}>{(accounts?.[activeAccIdx]?.name || userName || "CF")[0].toUpperCase()}</Text>
                 </View>
                 <View style={{ flex:1 }}>
-                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:16 }}>ChatFi Wallet</Text>
+                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:16 }}>{accounts?.[activeAccIdx]?.name || userName || 'My Wallet'}</Text>
                   <Text style={{ color:C.muted, fontSize:12 }}>{short || 'No wallet connected'}</Text>
                 </View>
                 <TouchableOpacity onPress={onClose}>
@@ -195,7 +195,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                     <Text style={{ color:'#0d1117', fontWeight:'bold' }}>CF</Text>
                   </View>
                   <View style={{ flex:1 }}>
-                    <Text style={{ color:C.text, fontWeight:'600' }}>Account 1</Text>
+                    <Text style={{ color:C.text, fontWeight:'600' }}>{accounts?.[activeAccIdx]?.name || 'Account 1'}</Text>
                     <Text style={{ color:C.muted, fontSize:12 }}>{short}</Text>
                   </View>
                   <Text style={{ color:C.green, fontSize:16 }}>✓</Text>
