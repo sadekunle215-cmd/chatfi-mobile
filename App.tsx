@@ -5,8 +5,7 @@ import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
 import nacl from 'tweetnacl';
-import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
-import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices, sendSOL } from './wallet';
+import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, TOKENS, DECIMALS } from './sendMsg';
 
 const C = {
   bg: '#0d1117', card: '#161b22', card2: '#1c2128',
@@ -137,23 +136,13 @@ function TokenModal({ token, pubkey, onClose }) {
 }
 
 
-function TokLogo({uri, symbol, mint, style}: {uri?:string, symbol:string, mint?:string, style:any}) {
-  const [logo, setLogo] = React.useState(uri || '');
+function TokLogo({uri, symbol, style}: {uri:string, symbol:string, style:any}) {
   const [err, setErr] = React.useState(false);
-  React.useEffect(() => {
-    if (uri) { setLogo(uri); return; }
-    if (!mint) return;
-    getTokenLogo(mint).then(l => { if(l) setLogo(l); else setErr(true); }).catch(()=>setErr(true));
-  }, [mint, uri]);
-  if (err || !logo) return (
-    <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2332'}]}>
-      <Text style={{color:'#39F882',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text>
-    </View>
-  );
-  return <Image source={{uri: logo}} style={style} onError={()=>setErr(true)} />;
+  if(err) return <View style={[style,{alignItems:'center',justifyContent:'center'}]}><Text style={{color:'#fff',fontSize:12,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
+  return <Image source={{uri}} style={style} onError={()=>setErr(true)} />;
 }
 function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName }) {
-  const [view, setView] = React.useState('manageAccounts');
+  const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
   React.useEffect(() => { setNameInput(userName || ''); }, [userName]);
   const short = pubkey ? pubkey.slice(0,6)+'...'+pubkey.slice(-4) : '';
@@ -495,7 +484,6 @@ export default function App() {
 
   // Portfolio state
   const [solBalance, setSolBalance] = useState<number | null>(null);
-  const [solPrice, setSolPrice] = useState<number>(0);
   const [tokenBalances, setTokenBalances] = useState<Array<{symbol: string, mint: string, amount: number}>>([]);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [portfolioRefreshing, setPortfolioRefreshing] = useState(false);
@@ -579,12 +567,7 @@ export default function App() {
       const data = await res.json();
       if (data.result?.value !== undefined) {
         setSolBalance(data.result.value / 1e9);
-      const walletData = await getWalletBalances(pubkey!);
-      setSolBalance(walletData.solBalance);
-      const allMints = [TOKENS.SOL, ...walletData.tokens.map(t => t.mint)];
-      const prices = await getTokenPrices(allMints);
-      setSolPrice(prices[TOKENS.SOL] || 0);
-      const tokens = walletData.tokens.map(t => ({...t, price: prices[t.mint] || 0}));
+      const tokens = await getTokenBalances(pubkey);
       setTokenBalances(tokens);
       }
     } catch {}
@@ -783,16 +766,36 @@ export default function App() {
   };
 
   const sendTokens = async () => {
-    if (!sendTo || !sendTo.trim()) { Alert.alert('Missing address', 'Enter recipient address'); return; }
-    if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Invalid amount'); return; }
+    if (!sendTo || !sendTo.trim()) { Alert.alert('Missing address', 'Enter a recipient address'); return; }
+    if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Invalid amount', 'Enter a valid amount'); return; }
     setSendLoading(true);
     try {
+      const mint = TOKENS[sendToken] || TOKENS['SOL'];
       const decimals = DECIMALS[sendToken] ?? 9;
       const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
-      await sendSolana(pubkey!, secretKey, sendTo.trim(), amountNum);
+      const res = await fetch('https://chatfi.pro/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender: pk, recipient: sendTo.trim(), amount: String(amountNum), mint }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.tx) throw new Error(data.error || 'Failed to build transaction');
+      const txBytes = Uint8Array.from(Buffer.from(data.tx, 'base64'));
+      const numSigs = txBytes[0];
+      const msgBytes = txBytes.slice(1 + numSigs * 64);
+      const userSig = nacl.sign.detached(msgBytes, secretKey);
+      txBytes.set(userSig, 1);
+      const txB64 = Buffer.from(txBytes).toString('base64');
+      const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [txB64, { encoding: 'base64', preflightCommitment: 'confirmed' }] }),
+      });
+      const rpcData = await rpcRes.json();
+      if (rpcData.error) throw new Error(rpcData.error.message);
       Alert.alert('Sent!', `Sent ${sendAmt} ${sendToken} to ${sendTo.slice(0,8)}...`);
       setShowSendModal(false); setSendAmt(''); setSendTo('');
-    } catch (e: any) {
+    } catch (e) {
       Alert.alert('Send Failed', e.message || 'Unknown error');
     } finally { setSendLoading(false); }
   };
@@ -989,7 +992,7 @@ export default function App() {
               {/* Big Balance */}
               <View style={s.pfBalanceSection}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : solBalance !== null ? '$'+((solBalance||0)*(solPrice||0)).toFixed(4) : '$0.00'}
+                  {portfolioLoading ? '...' : solBalance !== null ? '$'+((solBalance||0)*135).toFixed(4) : '$0.00'}
                 </Text>
                 <TouchableOpacity onPress={copyAddress}>
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
