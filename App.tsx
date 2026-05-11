@@ -187,27 +187,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 <Text style={{ color:C.green, fontSize:12, marginTop:4, fontFamily:'monospace' }}>{pubkey || 'Not connected'}</Text>
               </View>
 
-              {/* Accounts */}
-              <Text style={{ color:C.muted, fontSize:11, fontWeight:'600', paddingHorizontal:16, marginBottom:8, letterSpacing:1 }}>YOUR ACCOUNTS</Text>
-              <View style={{ marginHorizontal:16, backgroundColor:'#1c2128', borderRadius:14, marginBottom:8 }}>
-                {(accounts||[]).map((acc: any, idx: number) => (
-                  <TouchableOpacity key={acc.id} onPress={() => { switchAccount(idx); onClose(); }}
-                    style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth: idx < (accounts||[]).length-1 ? 1 : 0, borderBottomColor:'#30363d' }}>
-                    <View style={{ width:40, height:40, borderRadius:20, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-                      <Text style={{ color:'#0d1117', fontWeight:'bold' }}>{(acc.name||'A')[0].toUpperCase()}</Text>
-                    </View>
-                    <View style={{ flex:1 }}>
-                      <Text style={{ color:C.text, fontWeight:'600' }}>{acc.name}</Text>
-                      <Text style={{ color:C.muted, fontSize:12 }}>{(acc.pubkey||'').slice(0,6)+'...'+(acc.pubkey||'').slice(-4)}</Text>
-                    </View>
-                    {idx === activeAccIdx && <Text style={{ color:C.green, fontSize:16 }}>✓</Text>}
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <TouchableOpacity onPress={addAccount}
-                style={{ marginHorizontal:16, backgroundColor:'#1c2128', borderRadius:14, padding:16, flexDirection:'row', alignItems:'center', marginBottom:16 }}>
-                <Text style={{ color:C.green, flex:1, fontWeight:'600', fontSize:15 }}>+ Add Account</Text>
-              </TouchableOpacity>
+
             </ScrollView>
           )}
 
@@ -866,7 +846,7 @@ export default function App() {
       <View style={s.header}>
         <View style={s.logoRow}>
           
-          <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />{userName ? <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{userName}</Text> : null}</TouchableOpacity>
+
         </View>
         <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => setShowAccountModal(true)}>
           <Text style={[s.walletBtnTxt, wallet ? { color: C.green } : null]}>{wallet ? shortKey : 'Connect Wallet'}</Text>
