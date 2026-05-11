@@ -45,6 +45,9 @@ export function signAndSendTransaction() {}
 
 const logoCache: Record<string, string> = {};
 
+const symbolCache: Record<string, string> = {};
+const nameCache: Record<string, string> = {};
+
 export async function fetchTokenLogos(mints: string[]): Promise<Record<string, string>> {
   const needed = mints.filter(m => m && !logoCache[m]);
   if (needed.length > 0) {
@@ -56,13 +59,21 @@ export async function fetchTokenLogos(mints: string[]): Promise<Record<string, s
       });
       const data = await res.json();
       (data.content || []).forEach((t: any) => {
-        if (t.address && t.logoURI) logoCache[t.address] = t.logoURI;
+        if (t.address) {
+          if (t.logoURI) logoCache[t.address] = t.logoURI;
+          if (t.symbol) symbolCache[t.address] = t.symbol;
+          if (t.name) nameCache[t.address] = t.name;
+        }
       });
     } catch {}
   }
   const result: Record<string, string> = {};
   mints.forEach(m => { if (logoCache[m]) result[m] = logoCache[m]; });
   return result;
+}
+
+export function getTokenSymbol(mint: string): string {
+  return symbolCache[mint] || Object.keys(TOKENS).find(k => TOKENS[k] === mint) || mint.slice(0,4).toUpperCase();
 }
 
 export async function getWalletBalances(pubkey: string) {
@@ -88,7 +99,7 @@ export async function getWalletBalances(pubkey: string) {
     const mint: string = info.mint;
     const amount: number = info.tokenAmount.uiAmount;
     if (!amount || amount === 0) continue;
-    const symbol = Object.keys(TOKENS).find(k => TOKENS[k] === mint) || mint.slice(0, 4).toUpperCase();
+    const symbol = symbolCache[mint] || Object.keys(TOKENS).find(k => TOKENS[k] === mint) || mint.slice(0,4).toUpperCase();
     tokens.push({ symbol, mint, amount, logoURI: '' });
     mints.push(mint);
   }
