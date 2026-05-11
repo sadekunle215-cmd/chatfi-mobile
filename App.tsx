@@ -853,6 +853,8 @@ export default function App() {
         onClose={() => setShowAccountModal(false)}
         pubkey={pubkey}
         wallet={wallet}
+        userName={userName}
+        setUserName={setUserName}
         onRemoveWallet={async () => {
           await AsyncStorage.removeItem('wallet_mnemonic');
           setWallet(null);
