@@ -158,10 +158,10 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
               {/* Header */}
               <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <View style={{ width:48, height:48, borderRadius:24, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:18 }}>CF</Text>
+                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:18 }}>{userName ? userName[0].toUpperCase() : 'CF'}</Text>
                 </View>
                 <View style={{ flex:1 }}>
-                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:16 }}>ChatFi Wallet</Text>
+                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:16 }}>{userName || 'ChatFi Wallet'}</Text>
                   <Text style={{ color:C.muted, fontSize:12 }}>{short || 'No wallet connected'}</Text>
                 </View>
                 <TouchableOpacity onPress={onClose}>
