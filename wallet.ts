@@ -1,3 +1,5 @@
+import { Buffer } from 'buffer';
+global.Buffer = global.Buffer || Buffer;
 import 'react-native-get-random-values';
 import * as bip39 from 'bip39';
 import { derivePath } from 'ed25519-hd-key';
