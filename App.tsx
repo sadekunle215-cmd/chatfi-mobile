@@ -543,9 +543,8 @@ export default function App() {
   }, [pubkey, tab]);
 
   const addAccount = async () => {
-    const mnemonic = generateWallet();
-    const pk = getPublicKey(mnemonic);
-    const newAcc = {id:accounts.length+1,name:'Account '+(accounts.length+1),mnemonic,pubkey:pk};
+    const wallet = generateWallet();
+    const newAcc = {id:accounts.length+1,name:'Account '+(accounts.length+1),mnemonic:wallet.mnemonic,pubkey:wallet.publicKey};
     const updated = [...accounts, newAcc];
     setAccounts(updated);
     await AsyncStorage.setItem('accounts', JSON.stringify(updated));
