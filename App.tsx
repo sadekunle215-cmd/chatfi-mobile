@@ -663,7 +663,13 @@ export default function App() {
       const { publicKey: pk } = deriveWallet(importSeed.trim());
       await AsyncStorage.setItem('wallet_mnemonic', importSeed.trim());
       setWallet(importSeed.trim()); setPubkey(pk);
-      setShowWalletModal(false); setImportSeed('');
+      const newAcc = {id: accounts.length+1, name:'Account '+(accounts.length+1), mnemonic:importSeed.trim(), pubkey:pk};
+      const updated = [...accounts, newAcc];
+      setAccounts(updated);
+      setActiveAccIdx(updated.length-1);
+      await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+      await AsyncStorage.setItem('active_acc', String(updated.length-1));
+      setShowWalletModal(false); setImportSeed(''); setShowAddOptions(false);
       Alert.alert('Wallet Imported!', 'Your wallet is ready.');
     } catch { Alert.alert('Error', 'Invalid seed phrase'); }
   };
