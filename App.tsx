@@ -5,15 +5,143 @@ import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
 import nacl from 'tweetnacl';
-import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
-import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices, sendSOL } from './wallet';
+import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, TOKENS, DECIMALS } from './sendMsg';
+
+const C = {
+  bg: '#0d1117', card: '#161b22', card2: '#1c2128',
+  border: '#30363d', green: '#3fb950', blue: '#58a6ff',
+  text: '#e6edf3', muted: '#8b949e', red: '#f85149', orange: '#d29922',
+};
+
+const RPC = 'https://api.mainnet-beta.solana.com';
+
+const TABS = [
+  { id: 'chat', label: 'Chat', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
+  { id: 'swap', label: 'Swap', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
+  { id: 'portfolio', label: 'Portfolio', icon: 'time-outline', iconActive: 'time' },
+  { id: 'dapp', label: 'Dapp', icon: 'compass-outline', iconActive: 'compass-sharp' },
+];
+
+const TOKEN_LIST = ['SOL','USDC','JUP','BONK','WIF','USDT'];
+
+const TOKEN_MINTS: Record<string, string> = {
+  SOL: 'So11111111111111111111111111111111111111112',
+  USDC: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  USDT: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+  JUP: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+  BONK: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+  WIF: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
+};
+
+
+const POPULAR_DAPPS = [
+  { name: 'Jupiter', url: 'https://jup.ag', domain: 'jup.ag', desc: 'Best swap aggregator' },
+  { name: 'Raydium', url: 'https://raydium.io', domain: 'raydium.io', desc: 'AMM & liquidity' },
+  { name: 'Orca', url: 'https://orca.so', domain: 'orca.so', desc: 'User-friendly DEX' },
+  { name: 'Kamino', url: 'https://kamino.finance', domain: 'kamino.finance', desc: 'Yield & lending' },
+  { name: 'Drift', url: 'https://drift.trade', domain: 'drift.trade', desc: 'Perp trading' },
+  { name: 'Marinade', url: 'https://marinade.finance', domain: 'marinade.finance', desc: 'Liquid staking' },
+  { name: 'Magic Eden', url: 'https://magiceden.io', domain: 'magiceden.io', desc: 'NFT marketplace' },
+  { name: 'Tensor', url: 'https://tensor.trade', domain: 'tensor.trade', desc: 'NFT trading' },
+];
+
+
+
+function TokenModal({ token, pubkey, onClose }) {
+  const [view, setView] = React.useState('main');
+  const [sendAddr, setSendAddr] = React.useState('');
+  const [sendAmt, setSendAmt] = React.useState('');
+  if (!token) return null;
+
+  return (
+    <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
+        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%' }}>
+
+          {/* Header */}
+          <View style={{ flexDirection:'row', alignItems:'center', marginBottom:20 }}>
+            <Image source={{ uri: token.logoURI || 'https://img.jup.ag/tokens/'+token.mint }}
+              style={{ width:44, height:44, borderRadius:22, backgroundColor:C.card2, marginRight:12 }} />
+            <View style={{ flex:1 }}>
+              <Text style={{ color:C.text, fontWeight:'bold', fontSize:18 }}>{token.symbol}</Text>
+              <Text style={{ color:C.muted, fontSize:13 }}>{token.amount?.toFixed(4)} {token.symbol}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {view === 'main' && (
+            <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
+              <TouchableOpacity onPress={() => setView('receive')}
+                style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                <Text style={{ fontSize:24 }}>⬇️</Text>
+                <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setView('send')}
+                style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                <Text style={{ fontSize:24 }}>⬆️</Text>
+                <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {view === 'receive' && (
+            <ScrollView>
+              <TouchableOpacity onPress={() => setView('main')} style={{ marginBottom:16 }}>
+                <Text style={{ color:C.text, fontSize:16 }}>‹ Back</Text>
+              </TouchableOpacity>
+              <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16, textAlign:'center' }}>
+                Receive {token.symbol}
+              </Text>
+              <View style={{ backgroundColor:C.card, borderRadius:16, padding:20, alignItems:'center', marginBottom:16 }}>
+                <Image source={{ uri: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + (pubkey||'') }}
+                  style={{ width:200, height:200, borderRadius:8 }} />
+              </View>
+              <Text style={{ color:C.muted, fontSize:12, textAlign:'center', marginBottom:8 }}>Your wallet address</Text>
+              <TouchableOpacity onPress={() => Alert.alert('Copied', pubkey||'')}
+                style={{ backgroundColor:C.card, borderRadius:12, padding:14 }}>
+                <Text style={{ color:C.green, fontSize:12, fontFamily:'monospace', textAlign:'center' }}>{pubkey}</Text>
+              </TouchableOpacity>
+              <Text style={{ color:C.muted, fontSize:11, textAlign:'center', marginTop:8 }}>Tap address to copy</Text>
+            </ScrollView>
+          )}
+
+          {view === 'send' && (
+            <ScrollView>
+              <TouchableOpacity onPress={() => setView('main')} style={{ marginBottom:16 }}>
+                <Text style={{ color:C.text, fontSize:16 }}>‹ Back</Text>
+              </TouchableOpacity>
+              <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16 }}>Send {token.symbol}</Text>
+              <Text style={{ color:C.muted, fontSize:13, marginBottom:6 }}>Recipient Address</Text>
+              <TextInput value={sendAddr} onChangeText={setSendAddr}
+                placeholder="Enter Solana address..." placeholderTextColor={C.muted}
+                style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:13, marginBottom:16 }}
+                autoCapitalize="none" />
+              <Text style={{ color:C.muted, fontSize:13, marginBottom:6 }}>Amount ({token.symbol})</Text>
+              <TextInput value={sendAmt} onChangeText={setSendAmt}
+                placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric"
+                style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:20, fontWeight:'bold', marginBottom:24 }} />
+              <TouchableOpacity style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}
+                onPress={() => Alert.alert('Send', `Send ${sendAmt} ${token.symbol} to ${sendAddr.slice(0,8)}...?`)}>
+                <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Send {token.symbol}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 
 function TokLogo({uri, symbol, style}: {uri:string, symbol:string, style:any}) {
   const [err, setErr] = React.useState(false);
   if(err) return <View style={[style,{alignItems:'center',justifyContent:'center'}]}><Text style={{color:'#fff',fontSize:12,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
   return <Image source={{uri}} style={style} onError={()=>setErr(true)} />;
 }
-function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount }) {
+function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName }) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
   React.useEffect(() => { setNameInput(userName || ''); }, [userName]);
@@ -28,12 +156,11 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
             <ScrollView>
               {/* Header */}
               <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
-              <View style={{ width:48, height:48, borderRadius:24, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-                <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:18 }}>{(accounts?.[activeAccIdx]?.name || userName || "A")[0].toUpperCase()}</Text>
-              </View>
+                <View style={{ width:48, height:48, borderRadius:24, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
+                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:18 }}>CF</Text>
                 </View>
                 <View style={{ flex:1 }}>
-                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:16 }}>{accounts?.[activeAccIdx]?.name || userName || 'My Wallet'}</Text>
+                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:16 }}>ChatFi Wallet</Text>
                   <Text style={{ color:C.muted, fontSize:12 }}>{short || 'No wallet connected'}</Text>
                 </View>
                 <TouchableOpacity onPress={onClose}>
@@ -43,9 +170,9 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
 
               {/* Profile & Settings buttons */}
               <View style={{ flexDirection:'row', gap:12, padding:16 }}>
-                <TouchableOpacity onPress={() => setView('profile')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:12, alignItems:'center', gap:4 }}>
-                  <Ionicons name='person-outline' size={22} color={C.text} />
-                  <Text style={{ color:C.text, fontSize:12 }}>Profile</Text>
+                <TouchableOpacity onPress={() => setView('profile')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                  <Ionicons name='person-outline' size={24} color={C.text} />
+                  <Text style={{ color:C.text, fontSize:13 }}>Profile</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setView('settings')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
                   <Ionicons name='settings-outline' size={24} color={C.text} />
@@ -63,11 +190,11 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
               <Text style={{ color:C.muted, fontSize:11, fontWeight:'600', paddingHorizontal:16, marginBottom:8, letterSpacing:1 }}>YOUR ACCOUNTS</Text>
               <View style={{ marginHorizontal:16, backgroundColor:'#1c2128', borderRadius:14, marginBottom:16 }}>
                 <View style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
-              <View style={{ width:40, height:40, borderRadius:20, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-              <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>{(accounts?.[activeAccIdx]?.name || "A")[0].toUpperCase()}</Text>
-            </View>
+                  <View style={{ width:40, height:40, borderRadius:20, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
+                    <Text style={{ color:'#0d1117', fontWeight:'bold' }}>CF</Text>
+                  </View>
                   <View style={{ flex:1 }}>
-                    <Text style={{ color:C.text, fontWeight:'600' }}>{accounts?.[activeAccIdx]?.name || 'Account 1'}</Text>
+                    <Text style={{ color:C.text, fontWeight:'600' }}>Account 1</Text>
                     <Text style={{ color:C.muted, fontSize:12 }}>{short}</Text>
                   </View>
                   <Text style={{ color:C.green, fontSize:16 }}>✓</Text>
@@ -103,7 +230,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:15, marginBottom:16 }}
                 />
                 <TouchableOpacity
-                  onPress={async () => { if(!nameInput.trim()) return; setUserName(nameInput.trim()); await AsyncStorage.setItem('user_name', nameInput.trim()); Alert.alert('Saved!', 'Name saved successfully.'); setView('main'); }}
+                  onPress={async () => { setUserName(nameInput); await AsyncStorage.setItem('user_name', nameInput); Alert.alert('Saved!', 'Name saved successfully.'); setView('main'); }}
                   style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
                   <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:15 }}>Save Name</Text>
                 </TouchableOpacity>
@@ -171,7 +298,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <Text style={{ color:C.green,flex:1,fontSize:15,fontWeight:'600' }}>+ Add Account</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={()=>{ const m = accounts[activeAccIdx]?.mnemonic || wallet; Alert.alert('Seed Phrase', m||'No seed phrase found', [{text:'OK'}]); }}
+              <TouchableOpacity onPress={()=>Alert.alert('Seed Phrase', wallet||'No seed phrase found', [{text:'OK'}])}
                 style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <Text style={{ color:C.text,flex:1,fontSize:15 }}>View Seed Phrase</Text>
                 <Text style={{ color:C.muted }}>›</Text>
@@ -321,7 +448,6 @@ export default function App() {
   const [accounts, setAccounts] = useState<{id:number,name:string,mnemonic:string,pubkey:string}[]>([]);
   const [activeAccIdx, setActiveAccIdx] = useState(0);
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const [showAddOptions, setShowAddOptions] = useState(false);
   const [showSeedModal, setShowSeedModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
@@ -358,7 +484,6 @@ export default function App() {
 
   // Portfolio state
   const [solBalance, setSolBalance] = useState<number | null>(null);
-  const [solPrice, setSolPrice] = useState<number>(0);
   const [tokenBalances, setTokenBalances] = useState<Array<{symbol: string, mint: string, amount: number}>>([]);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [portfolioRefreshing, setPortfolioRefreshing] = useState(false);
@@ -405,17 +530,6 @@ export default function App() {
             AsyncStorage.setItem('accounts', JSON.stringify(acc));
             AsyncStorage.setItem('active_acc','0');
             setWallet(m); setPubkey(getPublicKey(m));
-          } else {
-            try {
-              const w = generateWallet();
-              const acc = [{id:1,name:'Account 1',mnemonic:w.mnemonic,pubkey:w.publicKey}];
-              setAccounts(acc);
-              setWallet(w.mnemonic);
-              setPubkey(w.publicKey);
-              AsyncStorage.setItem('accounts', JSON.stringify(acc));
-              AsyncStorage.setItem('active_acc','0');
-              AsyncStorage.setItem('wallet_mnemonic', w.mnemonic);
-            } catch(e) { console.error('generateWallet failed:', e); }
           }
         });
       }
@@ -427,8 +541,9 @@ export default function App() {
   }, [pubkey, tab]);
 
   const addAccount = async () => {
-    const wallet = generateWallet();
-    const newAcc = {id:accounts.length+1,name:'Account '+(accounts.length+1),mnemonic:wallet.mnemonic,pubkey:wallet.publicKey};
+    const mnemonic = generateWallet();
+    const pk = getPublicKey(mnemonic);
+    const newAcc = {id:accounts.length+1,name:'Account '+(accounts.length+1),mnemonic,pubkey:pk};
     const updated = [...accounts, newAcc];
     setAccounts(updated);
     await AsyncStorage.setItem('accounts', JSON.stringify(updated));
@@ -452,12 +567,7 @@ export default function App() {
       const data = await res.json();
       if (data.result?.value !== undefined) {
         setSolBalance(data.result.value / 1e9);
-      const walletData = await getWalletBalances(pubkey!);
-      setSolBalance(walletData.solBalance);
-      const allMints = [TOKENS.SOL, ...walletData.tokens.map((t: any) => t.mint)];
-      const prices = await getTokenPrices(allMints);
-      setSolPrice(prices[TOKENS.SOL] || 0);
-      const tokens = walletData.tokens.map((t: any) => ({...t, price: prices[t.mint] || 0}));
+      const tokens = await getTokenBalances(pubkey);
       setTokenBalances(tokens);
       }
     } catch {}
@@ -494,13 +604,7 @@ export default function App() {
       const { publicKey: pk } = deriveWallet(importSeed.trim());
       await AsyncStorage.setItem('wallet_mnemonic', importSeed.trim());
       setWallet(importSeed.trim()); setPubkey(pk);
-      const newAcc = {id: accounts.length+1, name:'Account '+(accounts.length+1), mnemonic:importSeed.trim(), pubkey:pk};
-      const updated = [...accounts, newAcc];
-      setAccounts(updated);
-      setActiveAccIdx(updated.length-1);
-      await AsyncStorage.setItem('accounts', JSON.stringify(updated));
-      await AsyncStorage.setItem('active_acc', String(updated.length-1));
-      setShowWalletModal(false); setImportSeed(''); setShowAddOptions(false);
+      setShowWalletModal(false); setImportSeed('');
       Alert.alert('Wallet Imported!', 'Your wallet is ready.');
     } catch { Alert.alert('Error', 'Invalid seed phrase'); }
   };
@@ -731,12 +835,6 @@ export default function App() {
         onClose={() => setShowAccountModal(false)}
         pubkey={pubkey}
         wallet={wallet}
-        userName={userName}
-        setUserName={setUserName}
-        accounts={accounts}
-        activeAccIdx={activeAccIdx}
-        switchAccount={switchAccount}
-        addAccount={addAccount}
         onRemoveWallet={async () => {
           await AsyncStorage.removeItem('wallet_mnemonic');
           setWallet(null);
@@ -894,7 +992,7 @@ export default function App() {
               {/* Big Balance */}
               <View style={s.pfBalanceSection}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : solBalance !== null ? '$'+((solBalance||0)*(solPrice||0)).toFixed(4) : '$0.00'}
+                  {portfolioLoading ? '...' : solBalance !== null ? '$'+((solBalance||0)*135).toFixed(4) : '$0.00'}
                 </Text>
                 <TouchableOpacity onPress={copyAddress}>
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
@@ -1026,55 +1124,25 @@ export default function App() {
         })}
       </View>
 
-        {/* WALLET MODAL */}
-        <Modal visible={showWalletModal} animationType="slide" transparent>
-          <View style={s.modalOverlay}>
-            <View style={[s.modalCard, {maxHeight:'85%'}]}>
-              <Text style={s.modalTitle}>Accounts</Text>
-              {accounts.length > 0 && (
-                <ScrollView style={{width:'100%', maxHeight:300, marginBottom:12}} showsVerticalScrollIndicator={false}>
-                  {accounts.map((acc, idx) => (
-                    <TouchableOpacity key={acc.id} onPress={() => { switchAccount(idx); setShowWalletModal(false); }}
-                      style={{flexDirection:'row', alignItems:'center', padding:12, marginBottom:6, borderRadius:12,
-                        backgroundColor: idx === activeAccIdx ? '#1a2a1a' : '#161b22',
-                        borderWidth:1, borderColor: idx === activeAccIdx ? '#39FF82' : '#30363d'}}>
-                      <View style={{width:36, height:36, borderRadius:18, backgroundColor:'#39FF82', alignItems:'center', justifyContent:'center', marginRight:12}}>
-                        <Text style={{color:'#0d1117', fontWeight:'bold', fontSize:14}}>{(acc.name||'A').charAt(0)}</Text>
-                      </View>
-                      <View style={{flex:1}}>
-                        <Text style={{color:'#e6edf3', fontWeight:'600', fontSize:14}}>{acc.name}</Text>
-                        <Text style={{color:'#8b949e', fontSize:11}}>{acc.pubkey ? acc.pubkey.slice(0,4)+'...'+acc.pubkey.slice(-4) : ''}</Text>
-                      </View>
-                      {idx === activeAccIdx && <Text style={{color:'#39FF82', fontSize:18}}>✓</Text>}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-              {!showAddOptions ? (
-                <TouchableOpacity style={s.greenBtn} onPress={() => setShowAddOptions(true)}>
-                  <Text style={s.greenBtnTxt}>+ Add Account</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={{width:'100%'}}>
-                  <TouchableOpacity style={s.greenBtn} onPress={async () => { await addAccount(); setShowAddOptions(false); }}>
-                    <Text style={s.greenBtnTxt}>Create New Wallet</Text>
-                  </TouchableOpacity>
-                  <Text style={s.orText}>— or import existing —</Text>
-                  <TextInput style={s.seedInput} value={importSeed} onChangeText={setImportSeed} placeholder="Enter 12 or 24 word seed phrase..." placeholderTextColor={C.muted} multiline numberOfLines={3} />
-                  <TouchableOpacity style={s.outlineBtn} onPress={importWallet}>
-                    <Text style={s.outlineBtnTxt}>Import Wallet</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[s.closeBtn, {marginTop:8}]} onPress={() => setShowAddOptions(false)}>
-                    <Text style={s.closeBtnTxt}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-              <TouchableOpacity style={[s.closeBtn, {marginTop:8}]} onPress={() => { setShowWalletModal(false); setShowAddOptions(false); }}>
-                <Text style={s.closeBtnTxt}>Close</Text>
-              </TouchableOpacity>
-            </View>
+      {/* WALLET MODAL */}
+      <Modal visible={showWalletModal} animationType="slide" transparent>
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Wallet</Text>
+            <TouchableOpacity style={s.greenBtn} onPress={createWallet}>
+              <Text style={s.greenBtnTxt}>Create New Wallet</Text>
+            </TouchableOpacity>
+            <Text style={s.orText}>— or import existing —</Text>
+            <TextInput style={s.seedInput} value={importSeed} onChangeText={setImportSeed} placeholder="Enter 12 or 24 word seed phrase..." placeholderTextColor={C.muted} multiline numberOfLines={3} />
+            <TouchableOpacity style={s.outlineBtn} onPress={importWallet}>
+              <Text style={s.outlineBtnTxt}>Import Wallet</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.closeBtn} onPress={() => setShowWalletModal(false)}>
+              <Text style={s.closeBtnTxt}>Close</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
+        </View>
+      </Modal>
 
       {/* SEED MODAL */}
       <Modal visible={showSeedModal} animationType="slide" transparent>
