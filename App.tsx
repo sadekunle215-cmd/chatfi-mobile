@@ -1,3 +1,4 @@
+import Svg, { Rect } from 'react-native-svg';
 import React, { useState, useEffect, useCallback } from 'react';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +8,50 @@ import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSend
 import nacl from 'tweetnacl';
 import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices, sendSOL } from './wallet';
+
+// Deterministic identicon from wallet address
+function Identicon({ address, size = 48 }: { address: string, size?: number }) {
+  const seed = address || 'default';
+  const hash = Array.from(seed).reduce((acc, c) => ((acc << 5) - acc + c.charCodeAt(0)) | 0, 0);
+  const absHash = Math.abs(hash);
+  
+  const hue = absHash % 360;
+  const colors = {
+    bg: `hsl(${hue}, 30%, 12%)`,
+    c1: `hsl(${hue}, 80%, 55%)`,
+    c2: `hsl(${(hue + 120) % 360}, 70%, 45%)`,
+    c3: `hsl(${(hue + 240) % 360}, 60%, 50%)`,
+  };
+  
+  const grid = 5;
+  const cell = size / grid;
+  const cells: {x:number,y:number,color:string}[] = [];
+  
+  for (let row = 0; row < grid; row++) {
+    for (let col = 0; col < Math.ceil(grid / 2); col++) {
+      const idx = row * 3 + col;
+      const on = (absHash >> (idx % 32)) & 1;
+      if (on) {
+        const color = [colors.c1, colors.c2, colors.c3][idx % 3];
+        cells.push({ x: col * cell, y: row * cell, color });
+        if (col < Math.floor(grid / 2)) {
+          cells.push({ x: (grid - 1 - col) * cell, y: row * cell, color });
+        }
+      }
+    }
+  }
+  
+  const { Svg, Rect } = require('react-native-svg');
+  return (
+    <Svg width={size} height={size} style={{ borderRadius: size / 2, overflow: 'hidden' }}>
+      <Rect width={size} height={size} fill={colors.bg} />
+      {cells.map((c, i) => (
+        <Rect key={i} x={c.x} y={c.y} width={cell} height={cell} fill={c.color} />
+      ))}
+    </Svg>
+  );
+}
+
 
 const C = {
   bg: '#0d1117', card: '#161b22', card2: '#1c2128',
@@ -157,8 +202,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
             <ScrollView>
               {/* Header */}
               <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
-                <View style={{ width:48, height:48, borderRadius:24, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:18 }}>{(accounts?.[activeAccIdx]?.name || userName || "CF")[0].toUpperCase()}</Text>
+              <Identicon address={pubkey || accounts?.[activeAccIdx]?.pubkey || ""} size={48} />
                 </View>
                 <View style={{ flex:1 }}>
                   <Text style={{ color:C.text, fontWeight:'bold', fontSize:16 }}>{accounts?.[activeAccIdx]?.name || userName || 'My Wallet'}</Text>
@@ -191,9 +235,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
               <Text style={{ color:C.muted, fontSize:11, fontWeight:'600', paddingHorizontal:16, marginBottom:8, letterSpacing:1 }}>YOUR ACCOUNTS</Text>
               <View style={{ marginHorizontal:16, backgroundColor:'#1c2128', borderRadius:14, marginBottom:16 }}>
                 <View style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
-                  <View style={{ width:40, height:40, borderRadius:20, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-                    <Text style={{ color:'#0d1117', fontWeight:'bold' }}>CF</Text>
-                  </View>
+              <Identicon address={pubkey || accounts?.[activeAccIdx]?.pubkey || ""} size={40} />
                   <View style={{ flex:1 }}>
                     <Text style={{ color:C.text, fontWeight:'600' }}>{accounts?.[activeAccIdx]?.name || 'Account 1'}</Text>
                     <Text style={{ color:C.muted, fontSize:12 }}>{short}</Text>
