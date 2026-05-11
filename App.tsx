@@ -449,6 +449,7 @@ export default function App() {
   const [accounts, setAccounts] = useState<{id:number,name:string,mnemonic:string,pubkey:string}[]>([]);
   const [activeAccIdx, setActiveAccIdx] = useState(0);
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showAddOptions, setShowAddOptions] = useState(false);
   const [showSeedModal, setShowSeedModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
@@ -1145,7 +1146,7 @@ export default function App() {
         <Modal visible={showWalletModal} animationType="slide" transparent>
           <View style={s.modalOverlay}>
             <View style={[s.modalCard, {maxHeight:'85%'}]}>
-              <Text style={s.modalTitle}>{accounts.length > 0 ? 'Accounts' : 'Wallet'}</Text>
+              <Text style={s.modalTitle}>Accounts</Text>
               {accounts.length > 0 && (
                 <ScrollView style={{width:'100%', maxHeight:300, marginBottom:12}} showsVerticalScrollIndicator={false}>
                   {accounts.map((acc, idx) => (
@@ -1165,15 +1166,26 @@ export default function App() {
                   ))}
                 </ScrollView>
               )}
-              <TouchableOpacity style={s.greenBtn} onPress={async () => { await addAccount(); }}>
-                <Text style={s.greenBtnTxt}>+ Add Account</Text>
-              </TouchableOpacity>
-              <Text style={s.orText}>— or import existing —</Text>
-              <TextInput style={s.seedInput} value={importSeed} onChangeText={setImportSeed} placeholder="Enter 12 or 24 word seed phrase..." placeholderTextColor={C.muted} multiline numberOfLines={3} />
-              <TouchableOpacity style={s.outlineBtn} onPress={importWallet}>
-                <Text style={s.outlineBtnTxt}>Import Wallet</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.closeBtn} onPress={() => setShowWalletModal(false)}>
+              {!showAddOptions ? (
+                <TouchableOpacity style={s.greenBtn} onPress={() => setShowAddOptions(true)}>
+                  <Text style={s.greenBtnTxt}>+ Add Account</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={{width:'100%'}}>
+                  <TouchableOpacity style={s.greenBtn} onPress={async () => { await addAccount(); setShowAddOptions(false); }}>
+                    <Text style={s.greenBtnTxt}>Create New Wallet</Text>
+                  </TouchableOpacity>
+                  <Text style={s.orText}>— or import existing —</Text>
+                  <TextInput style={s.seedInput} value={importSeed} onChangeText={setImportSeed} placeholder="Enter 12 or 24 word seed phrase..." placeholderTextColor={C.muted} multiline numberOfLines={3} />
+                  <TouchableOpacity style={s.outlineBtn} onPress={importWallet}>
+                    <Text style={s.outlineBtnTxt}>Import Wallet</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.closeBtn, {marginTop:8}]} onPress={() => setShowAddOptions(false)}>
+                    <Text style={s.closeBtnTxt}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <TouchableOpacity style={[s.closeBtn, {marginTop:8}]} onPress={() => { setShowWalletModal(false); setShowAddOptions(false); }}>
                 <Text style={s.closeBtnTxt}>Close</Text>
               </TouchableOpacity>
             </View>
