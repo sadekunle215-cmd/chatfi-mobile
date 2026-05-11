@@ -4,7 +4,8 @@ import 'react-native-get-random-values';
 import * as bip39 from 'bip39';
 import { derivePath } from 'ed25519-hd-key';
 import nacl from 'tweetnacl';
-import { Keypair, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
+import bs58 from 'bs58';
+import { Transaction, SystemProgram, PublicKey } from '@solana/web3.js';
 
 const RPC = 'https://api.mainnet-beta.solana.com';
 const SOLANA_PATH = "m/44'/501'/0'/0'";
@@ -25,8 +26,9 @@ export const DECIMALS: Record<string, number> = {
 export function deriveWallet(mnemonic: string) {
   const seed = bip39.mnemonicToSeedSync(mnemonic);
   const { key } = derivePath(SOLANA_PATH, seed.toString('hex'));
-  const keypair = Keypair.fromSeed(key);
-  return { mnemonic, publicKey: keypair.publicKey.toBase58(), secretKey: keypair.secretKey };
+  const keypair = nacl.sign.keyPair.fromSeed(key);
+  const publicKey = bs58.encode(keypair.publicKey);
+  return { mnemonic, publicKey, secretKey: keypair.secretKey };
 }
 
 export function generateWallet() {
@@ -122,7 +124,7 @@ export async function getTokenPrices(mints: string[]): Promise<Record<string, nu
 }
 
 export async function sendSOL(secretKey: Uint8Array, recipient: string, lamports: number): Promise<string> {
-  const keypair = Keypair.fromSecretKey(secretKey);
+  const keypair = nacl.sign.keyPair.fromSecretKey(secretKey);
   const bhRes = await fetch(RPC, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getLatestBlockhash', params: [{ commitment: 'confirmed' }] }),
