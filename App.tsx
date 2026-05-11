@@ -171,9 +171,9 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
 
               {/* Profile & Settings buttons */}
               <View style={{ flexDirection:'row', gap:12, padding:16 }}>
-                <TouchableOpacity onPress={() => setView('profile')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                  <Ionicons name='person-outline' size={24} color={C.text} />
-                  <Text style={{ color:C.text, fontSize:13 }}>Profile</Text>
+                <TouchableOpacity onPress={() => setView('profile')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:12, alignItems:'center', gap:4 }}>
+                  <Ionicons name='person-outline' size={22} color={C.text} />
+                  <Text style={{ color:C.text, fontSize:12 }}>Profile</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setView('settings')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
                   <Ionicons name='settings-outline' size={24} color={C.text} />
@@ -231,7 +231,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:15, marginBottom:16 }}
                 />
                 <TouchableOpacity
-                  onPress={async () => { setUserName(nameInput); await AsyncStorage.setItem('user_name', nameInput); Alert.alert('Saved!', 'Name saved successfully.'); setView('main'); }}
+                  onPress={async () => { if(!nameInput.trim()) return; setUserName(nameInput.trim()); await AsyncStorage.setItem('user_name', nameInput.trim()); Alert.alert('Saved!', 'Name saved successfully.'); setView('main'); }}
                   style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
                   <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:15 }}>Save Name</Text>
                 </TouchableOpacity>
