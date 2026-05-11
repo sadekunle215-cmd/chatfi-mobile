@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Buffer } from 'buffer';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
-import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction, deriveWalletAtIndex } from './wallet';
+import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
 import nacl from 'tweetnacl';
-import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
-import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices, sendSOL } from './wallet';
+import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, TOKENS, DECIMALS } from './sendMsg';
 
 const C = {
   bg: '#0d1117', card: '#161b22', card2: '#1c2128',
@@ -143,7 +141,7 @@ function TokLogo({uri, symbol, style}: {uri:string, symbol:string, style:any}) {
   if(err) return <View style={[style,{alignItems:'center',justifyContent:'center'}]}><Text style={{color:'#fff',fontSize:12,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
   return <Image source={{uri}} style={style} onError={()=>setErr(true)} />;
 }
-function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts=[], activeAccIdx=0, addAccount=()=>{}, switchAccount=()=>{} }) {
+function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName }) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
   React.useEffect(() => { setNameInput(userName || ''); }, [userName]);
@@ -188,7 +186,20 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 <Text style={{ color:C.green, fontSize:12, marginTop:4, fontFamily:'monospace' }}>{pubkey || 'Not connected'}</Text>
               </View>
 
-
+              {/* Accounts */}
+              <Text style={{ color:C.muted, fontSize:11, fontWeight:'600', paddingHorizontal:16, marginBottom:8, letterSpacing:1 }}>YOUR ACCOUNTS</Text>
+              <View style={{ marginHorizontal:16, backgroundColor:'#1c2128', borderRadius:14, marginBottom:16 }}>
+                <View style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                  <View style={{ width:40, height:40, borderRadius:20, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
+                    <Text style={{ color:'#0d1117', fontWeight:'bold' }}>CF</Text>
+                  </View>
+                  <View style={{ flex:1 }}>
+                    <Text style={{ color:C.text, fontWeight:'600' }}>Account 1</Text>
+                    <Text style={{ color:C.muted, fontSize:12 }}>{short}</Text>
+                  </View>
+                  <Text style={{ color:C.green, fontSize:16 }}>✓</Text>
+                </View>
+              </View>
             </ScrollView>
           )}
 
@@ -431,7 +442,7 @@ export default function App() {
   const [tab, setTab] = useState('chat');
   const [splashDone, setSplashDone] = useState(false);
   const [subtitleText, setSubtitleText] = useState('');
-  const letterAnims = React.useRef('CHATFI'.split('').map(() => new Animated.Value(0))).current;
+  const letterAnims = 'CHATFI'.split('').map(() => new Animated.Value(0));
   const [wallet, setWallet] = useState<string | null>(null);
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<{id:number,name:string,mnemonic:string,pubkey:string}[]>([]);
@@ -440,7 +451,6 @@ export default function App() {
   const [showSeedModal, setShowSeedModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
-  const [showAccountPage, setShowAccountPage] = useState(false);
   const [selectedToken, setSelectedToken] = useState<any>(null);
   const [userName, setUserName] = useState('');
   const [showNameEdit, setShowNameEdit] = useState(false);
@@ -474,7 +484,6 @@ export default function App() {
 
   // Portfolio state
   const [solBalance, setSolBalance] = useState<number | null>(null);
-  const [solPrice, setSolPrice] = useState<number>(0);
   const [tokenBalances, setTokenBalances] = useState<Array<{symbol: string, mint: string, amount: number}>>([]);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [portfolioRefreshing, setPortfolioRefreshing] = useState(false);
@@ -532,14 +541,13 @@ export default function App() {
   }, [pubkey, tab]);
 
   const addAccount = async () => {
-    if (!wallet) { Alert.alert('No wallet', 'Connect a wallet first'); return; }
-    const newIdx = accounts.length;
-    const { publicKey: newPubkey } = deriveWalletAtIndex(wallet, newIdx);
-    const newAcc = { id: newIdx + 1, name: 'Account ' + (newIdx + 1), mnemonic: wallet, pubkey: newPubkey };
+    const mnemonic = generateWallet();
+    const pk = getPublicKey(mnemonic);
+    const newAcc = {id:accounts.length+1,name:'Account '+(accounts.length+1),mnemonic,pubkey:pk};
     const updated = [...accounts, newAcc];
     setAccounts(updated);
     await AsyncStorage.setItem('accounts', JSON.stringify(updated));
-    Alert.alert('Account Added', 'Account ' + (newIdx + 1) + ' created!');
+    Alert.alert('Account Added','Account '+(accounts.length+1)+' created!');
   };
   const switchAccount = async (idx:number) => {
     const acc = accounts[idx];
@@ -559,12 +567,7 @@ export default function App() {
       const data = await res.json();
       if (data.result?.value !== undefined) {
         setSolBalance(data.result.value / 1e9);
-      const walletData = await getWalletBalances(pubkey!);
-      setSolBalance(walletData.solBalance);
-      const allMints = [TOKENS.SOL, ...walletData.tokens.map((t: any) => t.mint)];
-      const prices = await getTokenPrices(allMints);
-      setSolPrice(prices[TOKENS.SOL] || 0);
-      const tokens = walletData.tokens.map((t: any) => ({...t, price: prices[t.mint] || 0}));
+      const tokens = await getTokenBalances(pubkey);
       setTokenBalances(tokens);
       }
     } catch {}
@@ -599,16 +602,10 @@ export default function App() {
     }
     try {
       const { publicKey: pk } = deriveWallet(importSeed.trim());
-      const newAcc = {id: accounts.length+1, name: 'Account '+(accounts.length+1), mnemonic: importSeed.trim(), pubkey: pk};
-      const updated = [...accounts, newAcc];
-      const newIdx = updated.length - 1;
-      setAccounts(updated);
-      await AsyncStorage.setItem('accounts', JSON.stringify(updated));
-      await AsyncStorage.setItem('active_acc', String(newIdx));
-      setActiveAccIdx(newIdx);
+      await AsyncStorage.setItem('wallet_mnemonic', importSeed.trim());
       setWallet(importSeed.trim()); setPubkey(pk);
       setShowWalletModal(false); setImportSeed('');
-      Alert.alert('Wallet Imported!', 'Added to your accounts!');
+      Alert.alert('Wallet Imported!', 'Your wallet is ready.');
     } catch { Alert.alert('Error', 'Invalid seed phrase'); }
   };
 
@@ -773,8 +770,6 @@ export default function App() {
     if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Invalid amount', 'Enter a valid amount'); return; }
     setSendLoading(true);
     try {
-      const pk = pubkey;
-      const { secretKey } = deriveWallet(wallet!);
       const mint = TOKENS[sendToken] || TOKENS['SOL'];
       const decimals = DECIMALS[sendToken] ?? 9;
       const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
@@ -807,7 +802,7 @@ export default function App() {
 
   const copyAddress = () => {
     if (pubkey) {
-      Alert.alert('Copied!', pubkey || '');
+      Clipboard.setString(pubkey);
       Alert.alert('Copied!', 'Wallet address copied to clipboard');
     }
   };
@@ -840,12 +835,6 @@ export default function App() {
         onClose={() => setShowAccountModal(false)}
         pubkey={pubkey}
         wallet={wallet}
-        userName={userName}
-        setUserName={setUserName}
-        accounts={accounts}
-        activeAccIdx={activeAccIdx}
-        addAccount={addAccount}
-        switchAccount={switchAccount}
         onRemoveWallet={async () => {
           await AsyncStorage.removeItem('wallet_mnemonic');
           setWallet(null);
@@ -856,18 +845,11 @@ export default function App() {
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
       <View style={s.header}>
-        <TouchableOpacity style={s.logoRow} onPress={() => setShowAccountModal(true)}>
-          <View style={{ width:34, height:34, borderRadius:17, backgroundColor: userName ? C.green : C.card2,
-            alignItems:'center', justifyContent:'center', borderWidth:1, borderColor: C.border }}>
-            {userName
-              ? <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:15 }}>{userName[0].toUpperCase()}</Text>
-              : <Ionicons name="person-outline" size={18} color={C.muted} />}
-          </View>
-          <Text style={{ color:C.text, fontSize:14, fontWeight:'600', marginLeft:8 }}>
-            {userName || (accounts[activeAccIdx]?.name ?? 'Account 1')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => setShowAccountPage(true)}>
+        <View style={s.logoRow}>
+          
+          <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />{userName ? <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{userName}</Text> : null}</TouchableOpacity>
+        </View>
+        <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => setShowWalletModal(true)}>
           <Text style={[s.walletBtnTxt, wallet ? { color: C.green } : null]}>{wallet ? shortKey : 'Connect Wallet'}</Text>
         </TouchableOpacity>
       </View>
@@ -1010,7 +992,7 @@ export default function App() {
               {/* Big Balance */}
               <View style={s.pfBalanceSection}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : solBalance !== null ? '$'+((solBalance||0)*(solPrice||0)).toFixed(4) : '$0.00'}
+                  {portfolioLoading ? '...' : solBalance !== null ? '$'+((solBalance||0)*135).toFixed(4) : '$0.00'}
                 </Text>
                 <TouchableOpacity onPress={copyAddress}>
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
