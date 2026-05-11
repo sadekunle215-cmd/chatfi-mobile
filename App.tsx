@@ -532,6 +532,17 @@ export default function App() {
             AsyncStorage.setItem('accounts', JSON.stringify(acc));
             AsyncStorage.setItem('active_acc','0');
             setWallet(m); setPubkey(getPublicKey(m));
+          } else {
+            try {
+              const w = generateWallet();
+              const acc = [{id:1,name:'Account 1',mnemonic:w.mnemonic,pubkey:w.publicKey}];
+              setAccounts(acc);
+              setWallet(w.mnemonic);
+              setPubkey(w.publicKey);
+              AsyncStorage.setItem('accounts', JSON.stringify(acc));
+              AsyncStorage.setItem('active_acc','0');
+              AsyncStorage.setItem('wallet_mnemonic', w.mnemonic);
+            } catch(e) { console.error('generateWallet failed:', e); }
           }
         });
       }
