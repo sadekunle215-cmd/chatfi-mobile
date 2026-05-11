@@ -138,10 +138,11 @@ function TokenModal({ token, pubkey, onClose }) {
 }
 
 
-function TokLogo({uri, symbol, style}: {uri:string, symbol:string, style:any}) {
-  const [err, setErr] = React.useState(false);
-  if(err) return <View style={[style,{alignItems:'center',justifyContent:'center'}]}><Text style={{color:'#fff',fontSize:12,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
-  return <Image source={{uri}} style={style} onError={()=>setErr(true)} />;
+function TokLogo({uri, symbol, style, fallback}: {uri:string, symbol:string, style:any, fallback?:string}) {
+  const [tries, setTries] = React.useState(0);
+  const sources = [uri, fallback || ''].filter(Boolean);
+  if(tries >= sources.length) return <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2a1a'}]}><Text style={{color:'#39ff14',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
+  return <Image source={{uri:sources[tries]}} style={style} onError={()=>setTries(t=>t+1)} />;
 }
 function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount }: any) {
   const [view, setView] = React.useState('main');
@@ -1097,7 +1098,7 @@ export default function App() {
               {/* Big Balance */}
               <View style={s.pfBalanceSection}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : solBalance !== null ? '$'+((solBalance||0)*(solPrice||0)).toFixed(4) : '$0.00'}
+                  {portfolioLoading ? '...' : '$'+(((solBalance||0)*(solPrice||0)) + tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
                 </Text>
                 <TouchableOpacity onPress={copyAddress}>
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
@@ -1132,7 +1133,7 @@ export default function App() {
               {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
               {tokenBalances.map((t,i)=>(
                 <TouchableOpacity key={i} style={s.pfTokenRow} onPress={() => setSelectedToken(t)}>
-                  <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} symbol={t.symbol} style={s.pfTokenLogo} />
+                  <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/'+t.mint+'/logo.png'} symbol={t.symbol} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
                     <Text style={s.pfTokenName}>{t.symbol}</Text>
                     <Text style={s.pfTokenAmt}>{t.amount.toFixed(4)} {t.symbol}</Text>
