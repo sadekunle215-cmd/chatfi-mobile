@@ -141,7 +141,7 @@ function TokLogo({uri, symbol, style}: {uri:string, symbol:string, style:any}) {
   if(err) return <View style={[style,{alignItems:'center',justifyContent:'center'}]}><Text style={{color:'#fff',fontSize:12,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
   return <Image source={{uri}} style={style} onError={()=>setErr(true)} />;
 }
-function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName }) {
+function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount }: any) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
   React.useEffect(() => { setNameInput(userName || ''); }, [userName]);
@@ -848,6 +848,12 @@ export default function App() {
         onClose={() => setShowAccountModal(false)}
         pubkey={pubkey}
         wallet={wallet}
+        accounts={accounts}
+        activeAccIdx={activeAccIdx}
+        switchAccount={switchAccount}
+        addAccount={addAccount}
+        userName={userName}
+        setUserName={setUserName}
         onRemoveWallet={async () => {
           await AsyncStorage.removeItem('wallet_mnemonic');
           setWallet(null);
