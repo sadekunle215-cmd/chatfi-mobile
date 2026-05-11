@@ -1,7 +1,6 @@
 import 'react-native-get-random-values';
 import * as bip39 from 'bip39';
 import { derivePath } from 'ed25519-hd-key';
-import { PublicKey, Transaction, SystemProgram, Keypair } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 
 const RPC = 'https://api.mainnet-beta.solana.com';
@@ -20,10 +19,10 @@ export const DECIMALS: Record<string, number> = {
   SOL: 9, USDC: 6, USDT: 6, JUP: 6, BONK: 5, WIF: 6,
 };
 
-// ── Wallet Generation ────────────────────────────────────────
 export function deriveWallet(mnemonic: string) {
   const seed = bip39.mnemonicToSeedSync(mnemonic);
   const { key } = derivePath(SOLANA_PATH, seed.toString('hex'));
+  const { Keypair } = require('@solana/web3.js');
   const keypair = Keypair.fromSeed(key);
   return { mnemonic, publicKey: keypair.publicKey.toBase58(), secretKey: keypair.secretKey };
 }
@@ -42,7 +41,6 @@ export function importWallet(mnemonic: string) {
 
 export function signAndSendTransaction() {}
 
-// ── Logos ────────────────────────────────────────────────────
 const logoCache: Record<string, string> = {};
 
 export async function fetchTokenLogos(mints: string[]): Promise<Record<string, string>> {
@@ -65,7 +63,6 @@ export async function fetchTokenLogos(mints: string[]): Promise<Record<string, s
   return result;
 }
 
-// ── Balances ─────────────────────────────────────────────────
 export async function getWalletBalances(pubkey: string) {
   const solRes = await fetch(RPC, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -99,7 +96,6 @@ export async function getWalletBalances(pubkey: string) {
   return { solBalance, tokens };
 }
 
-// ── Prices ────────────────────────────────────────────────────
 export async function getTokenPrices(mints: string[]): Promise<Record<string, number>> {
   try {
     const res = await fetch(`https://lite-api.jup.ag/price/v2?ids=${mints.join(',')}`);
@@ -112,8 +108,8 @@ export async function getTokenPrices(mints: string[]): Promise<Record<string, nu
   } catch { return {}; }
 }
 
-// ── Send SOL (raw RPC, no Connection class) ───────────────────
 export async function sendSOL(secretKey: Uint8Array, recipient: string, lamports: number): Promise<string> {
+  const { PublicKey, Transaction, SystemProgram, Keypair } = require('@solana/web3.js');
   const keypair = Keypair.fromSecretKey(secretKey);
   const bhRes = await fetch(RPC, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
