@@ -4,6 +4,7 @@ import 'react-native-get-random-values';
 import * as bip39 from 'bip39';
 import { derivePath } from 'ed25519-hd-key';
 import nacl from 'tweetnacl';
+import { Keypair, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
 
 const RPC = 'https://api.mainnet-beta.solana.com';
 const SOLANA_PATH = "m/44'/501'/0'/0'";
@@ -24,7 +25,6 @@ export const DECIMALS: Record<string, number> = {
 export function deriveWallet(mnemonic: string) {
   const seed = bip39.mnemonicToSeedSync(mnemonic);
   const { key } = derivePath(SOLANA_PATH, seed.toString('hex'));
-  const { Keypair } = require('@solana/web3.js');
   const keypair = Keypair.fromSeed(key);
   return { mnemonic, publicKey: keypair.publicKey.toBase58(), secretKey: keypair.secretKey };
 }
@@ -122,7 +122,6 @@ export async function getTokenPrices(mints: string[]): Promise<Record<string, nu
 }
 
 export async function sendSOL(secretKey: Uint8Array, recipient: string, lamports: number): Promise<string> {
-  const { PublicKey, Transaction, SystemProgram, Keypair } = require('@solana/web3.js');
   const keypair = Keypair.fromSecretKey(secretKey);
   const bhRes = await fetch(RPC, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
