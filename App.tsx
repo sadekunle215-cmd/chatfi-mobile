@@ -49,6 +49,7 @@ const POPULAR_DAPPS = [
 
 function TokenModal({ token, pubkey, onClose }) {
   const [view, setView] = React.useState('main');
+  const [importSeedInput, setImportSeedInput] = React.useState('');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
   if (!token) return null;
@@ -203,6 +204,83 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
             </ScrollView>
           )}
 
+          {view === 'addAccount' && (
+            <ScrollView>
+              <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                <TouchableOpacity onPress={() => setView('manageAccounts')} style={{ marginRight:12 }}>
+                  <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
+                </TouchableOpacity>
+                <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>Add Account</Text>
+                <TouchableOpacity onPress={onClose}>
+                  <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ padding:20, gap:12 }}>
+                <TouchableOpacity onPress={() => { addAccount(); setView('manageAccounts'); }}
+                  style={{ backgroundColor:C.green, borderRadius:14, padding:18, alignItems:'center' }}>
+                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>🔑 Create New Account</Text>
+                  <Text style={{ color:'#0d1117', fontSize:12, marginTop:4 }}>Generate a new wallet</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setView('importAccount')}
+                  style={{ backgroundColor:'#1c2128', borderRadius:14, padding:18, alignItems:'center', borderWidth:1, borderColor:C.green }}>
+                  <Text style={{ color:C.green, fontWeight:'bold', fontSize:16 }}>📥 Import Account</Text>
+                  <Text style={{ color:C.muted, fontSize:12, marginTop:4 }}>Use existing seed phrase</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          )}
+
+          {view === 'importAccount' && (
+            <ScrollView>
+              <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                <TouchableOpacity onPress={() => setView('addAccount')} style={{ marginRight:12 }}>
+                  <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
+                </TouchableOpacity>
+                <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>Import Account</Text>
+                <TouchableOpacity onPress={onClose}>
+                  <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ padding:20 }}>
+                <Text style={{ color:C.muted, fontSize:13, marginBottom:8 }}>Enter your seed phrase</Text>
+                <TextInput
+                  value={importSeedInput}
+                  onChangeText={setImportSeedInput}
+                  placeholder="Enter 12 or 24 word seed phrase..."
+                  placeholderTextColor={C.muted}
+                  multiline numberOfLines={3}
+                  autoCapitalize="none"
+                  style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:14, marginBottom:16, minHeight:80 }}
+                />
+                <TouchableOpacity
+                  onPress={async () => {
+                    const words = importSeedInput.trim().split(/\s+/);
+                    if (words.length !== 12 && words.length !== 24) {
+                      Alert.alert('Invalid', 'Enter a valid 12 or 24 word seed phrase');
+                      return;
+                    }
+                    try {
+                      const { deriveWallet: dw } = require('./wallet');
+                      const { publicKey: pk } = dw(importSeedInput.trim());
+                      const raw = await AsyncStorage.getItem('accounts');
+                      const existing = raw ? JSON.parse(raw) : [];
+                      const newAcc = {id: existing.length+1, name:'Account '+(existing.length+1), mnemonic:importSeedInput.trim(), pubkey:pk};
+                      const updated = [...existing, newAcc];
+                      await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+                      await AsyncStorage.setItem('active_acc', String(existing.length));
+                      switchAccount(updated.length-1);
+                      setImportSeedInput('');
+                      setView('manageAccounts');
+                      Alert.alert('Imported!', 'Account added successfully.');
+                    } catch { Alert.alert('Error', 'Invalid seed phrase'); }
+                  }}
+                  style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
+                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:15 }}>Import Account</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          )}
+
           {view === 'profile' && (
             <ScrollView>
               <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
@@ -294,7 +372,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   {idx===activeAccIdx && <Text style={{ color:C.green,fontSize:18 }}>✓</Text>}
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity onPress={addAccount}
+              <TouchableOpacity onPress={() => setView('addAccount')}
                 style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <Text style={{ color:C.green,flex:1,fontSize:15,fontWeight:'600' }}>+ Add Account</Text>
               </TouchableOpacity>
