@@ -142,7 +142,7 @@ function TokLogo({uri, symbol, style}: {uri:string, symbol:string, style:any}) {
   if(err) return <View style={[style,{alignItems:'center',justifyContent:'center'}]}><Text style={{color:'#fff',fontSize:12,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
   return <Image source={{uri}} style={style} onError={()=>setErr(true)} />;
 }
-function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName }) {
+function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount }) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
   React.useEffect(() => { setNameInput(userName || ''); }, [userName]);
@@ -299,7 +299,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <Text style={{ color:C.green,flex:1,fontSize:15,fontWeight:'600' }}>+ Add Account</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={()=>Alert.alert('Seed Phrase', wallet||'No seed phrase found', [{text:'OK'}])}
+              <TouchableOpacity onPress={()=>{ const m = accounts[activeAccIdx]?.mnemonic || wallet; Alert.alert('Seed Phrase', m||'No seed phrase found', [{text:'OK'}]); }}
                 style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <Text style={{ color:C.text,flex:1,fontSize:15 }}>View Seed Phrase</Text>
                 <Text style={{ color:C.muted }}>›</Text>
@@ -855,6 +855,10 @@ export default function App() {
         wallet={wallet}
         userName={userName}
         setUserName={setUserName}
+        accounts={accounts}
+        activeAccIdx={activeAccIdx}
+        switchAccount={switchAccount}
+        addAccount={addAccount}
         onRemoveWallet={async () => {
           await AsyncStorage.removeItem('wallet_mnemonic');
           setWallet(null);
