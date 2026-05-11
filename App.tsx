@@ -1131,6 +1131,17 @@ export default function App() {
                 <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
               )}
               {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
+              {/* SOL Row */}
+              {solBalance !== null && solBalance > 0 && (
+                <TouchableOpacity style={s.pfTokenRow} onPress={()=>{}}>
+                  <TokLogo uri={'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112'} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'} symbol={'SOL'} style={s.pfTokenLogo} />
+                  <View style={{flex:1,marginLeft:12}}>
+                    <Text style={s.pfTokenName}>SOL</Text>
+                    <Text style={s.pfTokenAmt}>{(solBalance||0).toFixed(4)} SOL</Text>
+                  </View>
+                  <Text style={s.pfTokenVal}>{solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
+                </TouchableOpacity>
+              )}
               {tokenBalances.map((t,i)=>(
                 <TouchableOpacity key={i} style={s.pfTokenRow} onPress={() => setSelectedToken(t)}>
                   <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/'+t.mint+'/logo.png'} symbol={t.symbol} style={s.pfTokenLogo} />
@@ -1138,7 +1149,7 @@ export default function App() {
                     <Text style={s.pfTokenName}>{t.symbol}</Text>
                     <Text style={s.pfTokenAmt}>{t.amount.toFixed(4)} {t.symbol}</Text>
                   </View>
-                  <Text style={s.pfTokenVal}>—</Text>
+                  <Text style={s.pfTokenVal}>{t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               ))}
             </View>
