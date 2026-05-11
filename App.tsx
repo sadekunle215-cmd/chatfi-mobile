@@ -5,7 +5,8 @@ import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
 import nacl from 'tweetnacl';
-import { askAI, getJupiterQuote, getTokenBalances, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, TOKENS, DECIMALS } from './sendMsg';
+import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
+import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices, sendSOL } from './wallet';
 
 const C = {
   bg: '#0d1117', card: '#161b22', card2: '#1c2128',
@@ -484,6 +485,7 @@ export default function App() {
 
   // Portfolio state
   const [solBalance, setSolBalance] = useState<number | null>(null);
+  const [solPrice, setSolPrice] = useState<number>(0);
   const [tokenBalances, setTokenBalances] = useState<Array<{symbol: string, mint: string, amount: number}>>([]);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [portfolioRefreshing, setPortfolioRefreshing] = useState(false);
@@ -541,9 +543,8 @@ export default function App() {
   }, [pubkey, tab]);
 
   const addAccount = async () => {
-    const mnemonic = generateWallet();
-    const pk = getPublicKey(mnemonic);
-    const newAcc = {id:accounts.length+1,name:'Account '+(accounts.length+1),mnemonic,pubkey:pk};
+    const w = generateWallet();
+    const newAcc = {id:accounts.length+1,name:'Account '+(accounts.length+1),mnemonic:w.mnemonic,pubkey:w.publicKey};
     const updated = [...accounts, newAcc];
     setAccounts(updated);
     await AsyncStorage.setItem('accounts', JSON.stringify(updated));
@@ -567,7 +568,12 @@ export default function App() {
       const data = await res.json();
       if (data.result?.value !== undefined) {
         setSolBalance(data.result.value / 1e9);
-      const tokens = await getTokenBalances(pubkey);
+      const walletData = await getWalletBalances(pubkey!);
+      setSolBalance(walletData.solBalance);
+      const allMints = [TOKENS.SOL, ...walletData.tokens.map((t: any) => t.mint)];
+      const prices = await getTokenPrices(allMints);
+      setSolPrice(prices[TOKENS.SOL] || 0);
+      const tokens = walletData.tokens.map((t: any) => ({...t, price: prices[t.mint] || 0}));
       setTokenBalances(tokens);
       }
     } catch {}
@@ -992,7 +998,7 @@ export default function App() {
               {/* Big Balance */}
               <View style={s.pfBalanceSection}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : solBalance !== null ? '$'+((solBalance||0)*135).toFixed(4) : '$0.00'}
+                  {portfolioLoading ? '...' : solBalance !== null ? '$'+((solBalance||0)*(solPrice||0)).toFixed(4) : '$0.00'}
                 </Text>
                 <TouchableOpacity onPress={copyAddress}>
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
