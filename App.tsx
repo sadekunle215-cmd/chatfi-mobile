@@ -582,6 +582,9 @@ export default function App() {
   const [fromToken2, setFromToken2] = useState<{symbol:string,mint:string,logoURI?:string}>({symbol:'SOL',mint:'So11111111111111111111111111111111111111112'});
   const [toToken2, setToToken2] = useState<{symbol:string,mint:string,logoURI?:string}>({symbol:'USDC',mint:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'});
 
+  const [txHistory, setTxHistory] = useState<any[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
+
   // Toast system
   const [toast, setToast] = useState<{msg:string,type:'success'|'error'|'info'}|null>(null);
   const toastTimer = useRef<any>(null);
@@ -936,6 +939,41 @@ export default function App() {
     } catch (e) {
       showToast('Swap failed: '+(e.message||'Unknown error'),'error');
     }
+  };
+
+  const parseTx = (tx:any, sig:any, myPk:string) => {
+    if (!tx) return null;
+    const time = sig.blockTime ? new Date(sig.blockTime*1000).toLocaleString() : "—";
+    const keys:string[] = (tx.transaction?.message?.accountKeys||[]).map((k:any)=>typeof k==="string"?k:k.pubkey);
+    const isSwap = keys.includes("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
+    let type="UNKNOWN",amount="",token="SOL";
+    if (isSwap) {
+      type="SWAP";
+      const pre=tx.meta?.preTokenBalances||[], post=tx.meta?.postTokenBalances||[];
+      for (const pb of post) { if(pb.owner===myPk){const prev=pre.find((p:any)=>p.accountIndex===pb.accountIndex); const d=parseFloat(pb.uiTokenAmount.uiAmountString||"0")-(prev?parseFloat(prev.uiTokenAmount.uiAmountString||"0"):0); if(d>0){amount="+"+d.toFixed(4);token=pb.mint.slice(0,6)+"..";break;} } }
+    } else {
+      const idx=keys.indexOf(myPk);
+      if(idx>=0&&tx.meta){const d=((tx.meta.postBalances?.[idx]||0)-(tx.meta.preBalances?.[idx]||0))/1e9; if(Math.abs(d)>0.000001){type=d>0?"RECEIVE":"SEND";amount=(d>0?"+":"")+d.toFixed(5)+" SOL";}}
+      const pre=tx.meta?.preTokenBalances||[], post=tx.meta?.postTokenBalances||[];
+      for (const pb of post) { if(pb.owner===myPk){const prev=pre.find((p:any)=>p.accountIndex===pb.accountIndex); const d=parseFloat(pb.uiTokenAmount.uiAmountString||"0")-(prev?parseFloat(prev.uiTokenAmount.uiAmountString||"0"):0); if(Math.abs(d)>0){type=d>0?"RECEIVE":"SEND";amount=(d>0?"+":"")+d.toFixed(4);token=pb.mint.slice(0,6)+"..";}}
+      }
+    }
+    return {sig:sig.signature,time,failed:!!sig.err,type,amount,token};
+  };
+
+  const fetchTxHistory = async () => {
+    if (!pubkey) return;
+    setTxLoading(true);
+    try {
+      const RPC="https://api.mainnet-beta.solana.com";
+      const sr = await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getSignaturesForAddress",params:[pubkey,{limit:10}]})});
+      const sigs = (await sr.json()).result||[];
+      const results = await Promise.allSettled(sigs.map(async(sig:any)=>{
+        const r=await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getTransaction",params:[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]})});
+        return parseTx((await r.json()).result,sig,pubkey);
+      }));
+      setTxHistory(results.filter((r:any)=>r.status==="fulfilled"&&r.value).map((r:any)=>r.value));
+    } catch(e){console.error(e);} finally{setTxLoading(false);}
   };
 
   const searchJupTokens = async (query: string, setResults: any) => {
@@ -1783,6 +1821,10 @@ export default function App() {
 }
 
 const s = StyleSheet.create({
+  txHistWrap:{marginTop:24,paddingTop:20,borderTopWidth:1,borderTopColor:"#1e293b"},
+  txRow:{flexDirection:"row",alignItems:"center",paddingVertical:10,borderBottomWidth:1,borderBottomColor:"#0f172a"},
+  txBadge:{paddingHorizontal:7,paddingVertical:3,borderRadius:6,minWidth:64,alignItems:"center"},
+  txBadgeTxt:{color:"#fff",fontSize:10,fontWeight:"700"},
   root: { flex: 1, backgroundColor: C.bg },
   flex: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 44, borderBottomWidth: 0, borderBottomColor: 'transparent', backgroundColor: 'transparent' },
