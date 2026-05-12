@@ -1144,7 +1144,14 @@ export default function App() {
         {/* CHAT */}
         {tab === 'chat' && (
           <View style={s.flex}>
-            <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16 }}>
+                <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,flexDirection:'row',flexWrap:'wrap',opacity:0.12}}>
+                  {Array.from({length:600}).map((_,i)=>(
+                    <View key={i} style={{width:'5%',height:24,alignItems:'center',justifyContent:'center'}}>
+                      <View style={{width:2,height:2,borderRadius:1,backgroundColor:'#C7F284'}}/>
+                    </View>
+                  ))}
+                </View>
+                <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16 }}>
               {msgs.map(m => (
                 <View key={m.id} style={[s.bubble, m.from === 'user' ? s.userBubble : s.botBubble]}>
                   {m.from === 'bot' && <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>}
