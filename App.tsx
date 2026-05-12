@@ -1423,7 +1423,7 @@ export default function App() {
           const active = tab === id;
           return (
             <TouchableOpacity key={id} style={s.tabItem} onPress={() => setTab(id)}>
-              <Ionicons name={active ? (t.iconActive || t.icon) : t.icon} size={22} color={active ? '#39FF82' : 'rgba(255,255,255,0.4)'} />
+              <Ionicons name={active ? (t.iconActive || t.icon) : t.icon} size={22} color={active ? '#C7F284' : 'rgba(255,255,255,0.4)'} />
               <Text style={[s.tabLabel, active && s.tabLabelActive]}>{label}</Text>
             </TouchableOpacity>
           );
@@ -1525,7 +1525,7 @@ export default function App() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   flex: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 44, borderBottomWidth: 1, borderBottomColor: 'transparent', backgroundColor: '#080c0a' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 44, borderBottomWidth: 0, borderBottomColor: 'transparent', backgroundColor: 'transparent' },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.green },
   logoText: { color: C.text, fontSize: 20, fontWeight: 'bold' },
@@ -1542,7 +1542,7 @@ const s = StyleSheet.create({
   botDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.green },
   botTagTxt: { color: C.green, fontSize: 11, fontWeight: '600' },
   bubbleTxt: { color: C.text, fontSize: 14, lineHeight: 21 },
-  inputRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: C.border, gap: 10 },
+  inputRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   input: { flex: 1, backgroundColor: C.card, color: C.text, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 11, fontSize: 14, borderWidth: 1, borderColor: C.border },
   sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center' },
   sendBtnTxt: { color: C.bg, fontSize: 20, fontWeight: 'bold' },
@@ -1607,7 +1607,7 @@ const s = StyleSheet.create({
   seedWordTxt: { color: C.text, fontSize: 13, fontWeight: '600' },
   addressBox: { backgroundColor: C.bg, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: C.border, marginBottom: 16 },
   addressTxt: { color: C.text, fontSize: 13, lineHeight: 20 },
-  tabBar: { flexDirection: 'row', backgroundColor: '#080c0a', borderTopWidth: 1, borderTopColor: 'transparent', paddingTop: 10, paddingBottom: 24, paddingHorizontal: 4 },
+  tabBar: { flexDirection: 'row', backgroundColor: '#080c0a', borderTopWidth: 0, borderTopColor: 'transparent', paddingTop: 10, paddingBottom: 24, paddingHorizontal: 4 },
   tabItem: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 2 },
   tabIcon: { fontSize: 22, color: 'rgba(255,255,255,0.4)' },
   tabIconActive: { color: '#39FF82', textShadowColor: '#39FF82', textShadowOffset: {width:0,height:0}, textShadowRadius: 8 },
