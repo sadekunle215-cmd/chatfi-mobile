@@ -9,9 +9,10 @@ import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, cr
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices } from './wallet';
 
 const C = {
-  bg: '#0d1117', card: '#161b22', card2: '#1c2128',
-  border: '#30363d', green: '#3fb950', blue: '#58a6ff',
-  text: '#e6edf3', muted: '#8b949e', red: '#f85149', orange: '#d29922',
+  bg: '#060d06', card: '#0d1a0d', card2: '#112211',
+  border: '#1a3a1a', green: '#39ff14', blue: '#00e5ff',
+  text: '#e6f4e6', muted: '#6b8f6b', red: '#ff4444', orange: '#ffaa00',
+  gradTop: '#0a1f0a', gradBot: '#060d06',
 };
 
 const RPC = 'https://api.mainnet-beta.solana.com';
@@ -522,6 +523,12 @@ function DappBrowser({ walletAddress }) {
 export default function App() {
   const [tab, setTab] = useState('chat');
   const [splashDone, setSplashDone] = useState(false);
+  const [onboardStep, setOnboardStep] = useState<'passcode'|'fingerprint'|'wordcount'|'seedphrase'|'username'|null>(null);
+  const [passcode, setPasscode] = useState('');
+  const [wordCount, setWordCount] = useState<12|24>(12);
+  const [newSeedPhrase, setNewSeedPhrase] = useState('');
+  const [newPubkey, setNewPubkey] = useState('');
+  const [onboardName, setOnboardName] = useState('');
   const [subtitleText, setSubtitleText] = useState('');
   const letterAnims = 'CHATFI'.split('').map(() => new Animated.Value(0));
   const [wallet, setWallet] = useState<string | null>(null);
