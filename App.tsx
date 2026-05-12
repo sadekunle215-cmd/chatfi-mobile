@@ -1135,9 +1135,29 @@ export default function App() {
         userName={userName}
         setUserName={setUserName}
         onRemoveWallet={async () => {
-          await AsyncStorage.removeItem('wallet_mnemonic');
-          setWallet(null);
-          setPubkey(null);
+          const updated = accounts.filter((_:any, i:number) => i !== activeAccIdx);
+          if (updated.length === 0) {
+            // No accounts left - full reset
+            await AsyncStorage.removeItem('accounts');
+            await AsyncStorage.removeItem('active_acc');
+            await AsyncStorage.removeItem('user_name');
+            setAccounts([]);
+            setWallet(null);
+            setPubkey(null);
+            setUserName('');
+          } else {
+            // Switch to first remaining account
+            const newIdx = Math.max(0, activeAccIdx - 1);
+            const newAcc = updated[newIdx];
+            // Re-index accounts
+            const reindexed = updated.map((a:any, i:number) => ({...a, id:i+1, name:'Account '+(i+1)}));
+            await AsyncStorage.setItem('accounts', JSON.stringify(reindexed));
+            await AsyncStorage.setItem('active_acc', String(newIdx));
+            setAccounts(reindexed);
+            setActiveAccIdx(newIdx);
+            setWallet(newAcc.mnemonic);
+            setPubkey(newAcc.pubkey);
+          }
           setShowAccountModal(false);
         }}
       />
