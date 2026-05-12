@@ -666,11 +666,9 @@ export default function App() {
         if(pd){
           const solMint="So11111111111111111111111111111111111111112";
           setSolPrice(pd[solMint]?.usdPrice||0);
-          setTokenBalances(prev=>{
-            const updated=prev.map(t=>({...t,price:pd[t.mint]?.usdPrice||t.price||0}));
-            setTotalUSD(updated.reduce((s,t)=>s+(Number(t.amount)||0)*(Number(t.price)||0),0));
-            return updated;
-          });
+          const updated=tokenBalances.map((t:any)=>({...t,price:pd[t.mint]?.usdPrice||t.price||0}));
+          setTokenBalances(updated);
+          setTotalUSD(updated.reduce((s:number,t:any)=>s+(Number(t.amount)||0)*(Number(t.price)||0),0));
         }
       } catch(e){}
   } catch(e){console.log("Portfolio error",e);}
