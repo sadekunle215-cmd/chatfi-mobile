@@ -144,7 +144,7 @@ function TokLogo({uri, symbol, style, fallback}: {uri:string, symbol:string, sty
   if(tries >= sources.length) return <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2a1a'}]}><Text style={{color:'#39ff14',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
   return <Image source={{uri:sources[tries]}} style={style} onError={()=>setTries(t=>t+1)} />;
 }
-function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount }: any) {
+function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount, importSeedInput, setImportSeedInput }: any) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
   React.useEffect(() => { setNameInput(userName || ''); }, [userName]);
@@ -956,6 +956,8 @@ export default function App() {
         activeAccIdx={activeAccIdx}
         switchAccount={switchAccount}
         addAccount={addAccount}
+            importSeedInput={importSeedInput}
+            setImportSeedInput={setImportSeedInput}
         userName={userName}
         setUserName={setUserName}
         onRemoveWallet={async () => {
