@@ -140,7 +140,7 @@ function TokenModal({ token, pubkey, onClose }) {
 
 function TokLogo({uri, symbol, style, fallback}: {uri:string, symbol:string, style:any, fallback?:string}) {
   const [tries, setTries] = React.useState(0);
-  const sources = [uri, fallback || ''].filter(Boolean);
+  const mint = uri.split('/').pop(); const sources = [uri, fallback || '', 'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/' + mint + '/logo.png'].filter(Boolean);
   if(tries >= sources.length) return <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2a1a'}]}><Text style={{color:'#39ff14',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
   return <Image source={{uri:sources[tries]}} style={style} onError={()=>setTries(t=>t+1)} />;
 }
