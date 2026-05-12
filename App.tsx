@@ -69,74 +69,39 @@ function TokenModal({ token, pubkey, onClose }) {
   const [view, setView] = React.useState('main');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
-  const [priceInfo, setPriceInfo] = React.useState(null);
-  const [spark, setSpark] = React.useState([]);
   React.useEffect(() => {
-    if (!token?.mint) return;
-    setView('main'); setPriceInfo(null); setSendAddr(''); setSendAmt('');
-    fetch('https://chatfi.pro/api/jupiter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: 'https://api.jup.ag/price/v3?ids=' + token.mint, method: 'GET' })
-    }).then(r => r.json()).then(d => {
-      const info = d[token.mint] || {};
-      setPriceInfo(info);
-      const ch = info.priceChange24h || 0;
-      setSpark(Array.from({length:20}, (_, i) => {
-        const tr = (i/19)*ch/100;
-        const ns = Math.sin(i*7.3 + token.mint.charCodeAt(0))*0.015;
-        return Math.max(0.05, Math.min(0.95, 0.5+tr+ns));
-      }));
-    }).catch(()=>{});
+    if (!token) return;
+    setView('main'); setSendAddr(''); setSendAmt('');
   }, [token?.mint]);
   if (!token) return null;
-  const price = Number(priceInfo?.usdPrice ?? token?.price ?? 0) || 0;
-  const change24h = Number(priceInfo?.priceChange24h ?? 0) || 0;
-  const usdVal = (Number(token?.amount) || 0) * price;
-  const isUp = change24h >= 0;
-  const fmt = (p) => { const n = Number(p) || 0; return n < 0.001 ? n.toFixed(8) : n < 1 ? n.toFixed(4) : n.toFixed(2); };
+  const amount = (Number(token?.amount) || 0).toFixed(4);
+  const usdVal = ((Number(token?.amount) || 0) * (Number(token?.price) || 0)).toFixed(2);
   return (
     <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
         <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%' }}>
-          <View style={{ flexDirection:'row', alignItems:'center', marginBottom:16 }}>
+          {/* Header */}
+          <View style={{ flexDirection:'row', alignItems:'center', marginBottom:20 }}>
             <Image source={{ uri: token.logoURI || 'https://img.jup.ag/tokens/'+token.mint }}
               style={{ width:44, height:44, borderRadius:22, backgroundColor:C.card2, marginRight:12 }} />
             <View style={{ flex:1 }}>
               <Text style={{ color:C.text, fontWeight:'bold', fontSize:18 }}>{token.symbol}</Text>
-              <Text style={{ color:C.muted, fontSize:13 }}>{(Number(token?.amount)||0).toFixed(4)} {token.symbol}</Text>
+              <Text style={{ color:C.muted, fontSize:13 }}>{amount} {token.symbol}</Text>
             </View>
             <TouchableOpacity onPress={onClose}>
               <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
             </TouchableOpacity>
           </View>
           {view === 'main' && (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={{ color:C.text, fontSize:28, fontWeight:'700', marginBottom:4 }}>
-                {priceInfo===null ? '...' : '$'+fmt(price)}
-              </Text>
-              <Text style={{ color:isUp?C.green:C.red, fontSize:14, fontWeight:'600', marginBottom:14 }}>
-                {isUp?'▲':'▼'} {(Math.abs(change24h)||0).toFixed(2)}% (24h)
-              </Text>
-              {spark.length>0 && (
-                <View style={{ height:56, flexDirection:'row', alignItems:'flex-end', gap:2, marginBottom:16, backgroundColor:C.card, borderRadius:12, padding:10 }}>
-                  {spark.map((pt,i) => (
-                    <View key={i} style={{ flex:1, height:pt*36+2, backgroundColor:isUp?C.green:C.red, borderRadius:2, opacity:0.5+(i/20)*0.5 }} />
-                  ))}
-                </View>
-              )}
-              <View style={{ backgroundColor:C.card, borderRadius:14, padding:16, marginBottom:16, flexDirection:'row', justifyContent:'space-between' }}>
-                <View>
-                  <Text style={{ color:C.muted, fontSize:11, letterSpacing:0.5, marginBottom:4 }}>HOLDINGS</Text>
-                  <Text style={{ color:C.text, fontSize:20, fontWeight:'700' }}>{'$'+fmt(usdVal)}</Text>
-                  <Text style={{ color:C.muted, fontSize:13, marginTop:2 }}>{(Number(token?.amount)||0).toFixed(4)} {token.symbol}</Text>
-                </View>
-                <View style={{ alignItems:'flex-end', justifyContent:'center' }}>
-                  <Text style={{ color:C.muted, fontSize:11, letterSpacing:0.5, marginBottom:4 }}>24H</Text>
-                  <Text style={{ color:isUp?C.green:C.red, fontSize:18, fontWeight:'700' }}>{isUp?'+':''}{change24h.toFixed(2)}%</Text>
-                </View>
+            <View>
+              {/* Balance card */}
+              <View style={{ backgroundColor:C.card, borderRadius:14, padding:16, marginBottom:20, alignItems:'center' }}>
+                <Text style={{ color:C.muted, fontSize:12, marginBottom:4 }}>BALANCE</Text>
+                <Text style={{ color:C.text, fontSize:28, fontWeight:'700' }}>{amount} {token.symbol}</Text>
+                <Text style={{ color:C.green, fontSize:16, marginTop:4 }}>${usdVal}</Text>
               </View>
-              <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
+              {/* Buttons */}
+              <View style={{ flexDirection:'row', gap:12 }}>
                 <TouchableOpacity onPress={()=>setView('receive')} style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
                   <Ionicons name="arrow-down-outline" size={24} color={C.text} />
                   <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
@@ -146,7 +111,7 @@ function TokenModal({ token, pubkey, onClose }) {
                   <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
                 </TouchableOpacity>
               </View>
-            </ScrollView>
+            </View>
           )}
           {view === 'receive' && (
             <ScrollView>
