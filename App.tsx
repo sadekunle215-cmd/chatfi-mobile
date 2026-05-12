@@ -655,7 +655,16 @@ export default function App() {
           price: t.price || 0,
         })));
       }
-    } catch {}
+      try {
+        const mints=data.tokens.map((t:any)=>t.mint).filter(Boolean).join(",");
+        const pr=await fetch("https://price.jup.ag/v6/price?ids="+mints);
+        const pd=await pr.json();
+        if(pd.data){
+          setSolPrice(pd.data["So11111111111111111111111111111111111111112"]?.price||0);
+          setTokenBalances(prev=>prev.map(t=>({...t,price:pd.data[t.mint]?.price||t.price||0})));
+        }
+      } catch(e){}
+  } catch(e){console.log("Portfolio error",e);}
     setPortfolioLoading(false);
     setPortfolioRefreshing(false);
   };
@@ -1140,7 +1149,7 @@ export default function App() {
                   <Text style={s.pfTokenVal}>{solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               )}
-              {tokenBalances.map((t,i)=>(
+              {tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').map((t,i)=>(
                 <TouchableOpacity key={i} style={s.pfTokenRow} onPress={() => setSelectedToken(t)}>
                   <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/'+t.mint+'/logo.png'} symbol={t.symbol} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
