@@ -242,7 +242,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
                 </TouchableOpacity>
                 <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>Import Account</Text>
-                <TouchableOpacity onPress={onClose}>
+                <TouchableOpacity onPress={() => setView('addAccount')}>
                   <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
                 </TouchableOpacity>
               </View>
