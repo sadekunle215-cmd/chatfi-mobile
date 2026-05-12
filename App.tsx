@@ -67,18 +67,39 @@ async function fetchPricesViaProxy(mints: string[]): Promise<Record<string, numb
 
 function TokenModal({ token, pubkey, onClose }) {
   const [view, setView] = React.useState('main');
-  const [importSeedInput, setImportSeedInput] = React.useState('');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
+  const [priceInfo, setPriceInfo] = React.useState(null);
+  const [spark, setSpark] = React.useState([]);
+  React.useEffect(() => {
+    if (!token?.mint) return;
+    setView('main'); setPriceInfo(null); setSendAddr(''); setSendAmt('');
+    fetch('https://chatfi.pro/api/jupiter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://api.jup.ag/price/v3?ids=' + token.mint, method: 'GET' })
+    }).then(r => r.json()).then(d => {
+      const info = d[token.mint] || {};
+      setPriceInfo(info);
+      const ch = info.priceChange24h || 0;
+      setSpark(Array.from({length:20}, (_, i) => {
+        const tr = (i/19)*ch/100;
+        const ns = Math.sin(i*7.3 + token.mint.charCodeAt(0))*0.015;
+        return Math.max(0.05, Math.min(0.95, 0.5+tr+ns));
+      }));
+    }).catch(()=>{});
+  }, [token?.mint]);
   if (!token) return null;
-
+  const price = priceInfo?.usdPrice ?? token?.price ?? 0;
+  const change24h = priceInfo?.priceChange24h ?? 0;
+  const usdVal = (token.amount ?? 0) * price;
+  const isUp = change24h >= 0;
+  const fmt = (p) => p < 0.001 ? p.toFixed(8) : p < 1 ? p.toFixed(4) : p.toFixed(2);
   return (
     <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
         <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%' }}>
-
-          {/* Header */}
-          <View style={{ flexDirection:'row', alignItems:'center', marginBottom:20 }}>
+          <View style={{ flexDirection:'row', alignItems:'center', marginBottom:16 }}>
             <Image source={{ uri: token.logoURI || 'https://img.jup.ag/tokens/'+token.mint }}
               style={{ width:44, height:44, borderRadius:22, backgroundColor:C.card2, marginRight:12 }} />
             <View style={{ flex:1 }}>
@@ -89,78 +110,84 @@ function TokenModal({ token, pubkey, onClose }) {
               <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
             </TouchableOpacity>
           </View>
-
           {view === 'main' && (
-            <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
-              <TouchableOpacity onPress={() => setView('receive')}
-                style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                <Ionicons name="arrow-down-outline" size={24} color={C.text} />
-                <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setView('send')}
-                style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                <Ionicons name="arrow-up-outline" size={24} color={C.green} />
-                <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
-              </TouchableOpacity>
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={{ color:C.text, fontSize:28, fontWeight:'700', marginBottom:4 }}>
+                {priceInfo===null ? '...' : '$'+fmt(price)}
+              </Text>
+              <Text style={{ color:isUp?C.green:C.red, fontSize:14, fontWeight:'600', marginBottom:14 }}>
+                {isUp?'▲':'▼'} {Math.abs(change24h).toFixed(2)}% (24h)
+              </Text>
+              {spark.length>0 && (
+                <View style={{ height:56, flexDirection:'row', alignItems:'flex-end', gap:2, marginBottom:16, backgroundColor:C.card, borderRadius:12, padding:10 }}>
+                  {spark.map((pt,i) => (
+                    <View key={i} style={{ flex:1, height:pt*36+2, backgroundColor:isUp?C.green:C.red, borderRadius:2, opacity:0.5+(i/20)*0.5 }} />
+                  ))}
+                </View>
+              )}
+              <View style={{ backgroundColor:C.card, borderRadius:14, padding:16, marginBottom:16, flexDirection:'row', justifyContent:'space-between' }}>
+                <View>
+                  <Text style={{ color:C.muted, fontSize:11, letterSpacing:0.5, marginBottom:4 }}>HOLDINGS</Text>
+                  <Text style={{ color:C.text, fontSize:20, fontWeight:'700' }}>{'$'+fmt(usdVal)}</Text>
+                  <Text style={{ color:C.muted, fontSize:13, marginTop:2 }}>{token.amount?.toFixed(4)} {token.symbol}</Text>
+                </View>
+                <View style={{ alignItems:'flex-end', justifyContent:'center' }}>
+                  <Text style={{ color:C.muted, fontSize:11, letterSpacing:0.5, marginBottom:4 }}>24H</Text>
+                  <Text style={{ color:isUp?C.green:C.red, fontSize:18, fontWeight:'700' }}>{isUp?'+':''}{change24h.toFixed(2)}%</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
+                <TouchableOpacity onPress={()=>setView('receive')} style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                  <Ionicons name="arrow-down-outline" size={24} color={C.text} />
+                  <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={()=>setView('send')} style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                  <Ionicons name="arrow-up-outline" size={24} color="#0d1117" />
+                  <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           )}
-
           {view === 'receive' && (
             <ScrollView>
-              <TouchableOpacity onPress={() => setView('main')} style={{ marginBottom:16 }}>
+              <TouchableOpacity onPress={()=>setView('main')} style={{ marginBottom:16 }}>
                 <Text style={{ color:C.text, fontSize:16 }}>‹ Back</Text>
               </TouchableOpacity>
-              <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16, textAlign:'center' }}>
-                Receive {token.symbol}
-              </Text>
+              <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16, textAlign:'center' }}>Receive {token.symbol}</Text>
               <View style={{ backgroundColor:C.card, borderRadius:16, padding:20, alignItems:'center', marginBottom:16 }}>
-                <Image source={{ uri: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + (pubkey||'') }}
-                  style={{ width:200, height:200, borderRadius:8 }} />
+                <Image source={{ uri: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+(pubkey||'') }} style={{ width:200, height:200, borderRadius:8 }} />
               </View>
               <Text style={{ color:C.muted, fontSize:12, textAlign:'center', marginBottom:8 }}>Your wallet address</Text>
-              <TouchableOpacity onPress={() => Alert.alert('Copied', pubkey||'')}
-                style={{ backgroundColor:C.card, borderRadius:12, padding:14 }}>
+              <TouchableOpacity onPress={()=>Alert.alert('Copied', pubkey||'')} style={{ backgroundColor:C.card, borderRadius:12, padding:14 }}>
                 <Text style={{ color:C.green, fontSize:12, fontFamily:'monospace', textAlign:'center' }}>{pubkey}</Text>
               </TouchableOpacity>
               <Text style={{ color:C.muted, fontSize:11, textAlign:'center', marginTop:8 }}>Tap address to copy</Text>
             </ScrollView>
           )}
-
           {view === 'send' && (
             <ScrollView>
-              <TouchableOpacity onPress={() => setView('main')} style={{ marginBottom:16 }}>
+              <TouchableOpacity onPress={()=>setView('main')} style={{ marginBottom:16 }}>
                 <Text style={{ color:C.text, fontSize:16 }}>‹ Back</Text>
               </TouchableOpacity>
               <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16 }}>Send {token.symbol}</Text>
               <Text style={{ color:C.muted, fontSize:13, marginBottom:6 }}>Recipient Address</Text>
-              <TextInput value={sendAddr} onChangeText={setSendAddr}
-                placeholder="Enter Solana address..." placeholderTextColor={C.muted}
-                style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:13, marginBottom:16 }}
-                autoCapitalize="none" />
+              <TextInput value={sendAddr} onChangeText={setSendAddr} placeholder="Enter Solana address..." placeholderTextColor={C.muted}
+                style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:13, marginBottom:16 }} autoCapitalize="none" />
               <Text style={{ color:C.muted, fontSize:13, marginBottom:6 }}>Amount ({token.symbol})</Text>
-              <TextInput value={sendAmt} onChangeText={setSendAmt}
-                placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric"
+              <TextInput value={sendAmt} onChangeText={setSendAmt} placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric"
                 style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:20, fontWeight:'bold', marginBottom:24 }} />
               <TouchableOpacity style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}
-                onPress={() => Alert.alert('Send', `Send ${sendAmt} ${token.symbol} to ${sendAddr.slice(0,8)}...?`)}>
+                onPress={()=>Alert.alert('Send', `Send ${sendAmt} ${token.symbol} to ${sendAddr.slice(0,8)}...?`)}>
                 <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Send {token.symbol}</Text>
               </TouchableOpacity>
             </ScrollView>
           )}
-
         </View>
       </View>
     </Modal>
   );
 }
 
-
-function TokLogo({uri, symbol, style, fallback}: {uri:string, symbol:string, style:any, fallback?:string}) {
-  const [tries, setTries] = React.useState(0);
-  const mint = uri.split('/').pop(); const proxy = 'https://chatfi.pro/api/portfolio?tokenImage=' + mint; const sources = [proxy, uri, fallback || ''].filter(Boolean);
-  if(tries >= sources.length) return <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2a1a'}]}><Text style={{color:'#39ff14',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
-  return <Image source={{uri:sources[tries]}} style={style} onError={()=>setTries(t=>t+1)} />;
-}
 function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount }: any) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
