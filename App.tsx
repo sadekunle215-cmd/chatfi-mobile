@@ -601,7 +601,6 @@ export default function App() {
     );
     Animated.stagger(120, anims).start(() => {
       setTimeout(async () => {
-        setSplashDone(true);
         const stored = await AsyncStorage.getItem('accounts');
         if (!stored) setOnboardStep('passcode');
       }, 400);
@@ -610,7 +609,7 @@ export default function App() {
     const typer = setInterval(() => {
       idx++;
       setSubtitleText(full.slice(0, idx));
-      if(idx >= full.length) clearInterval(typer);
+      if(idx >= full.length){ clearInterval(typer); setTimeout(()=>setSplashDone(true), 1000); }
     }, 60);
     });
   }, []);
@@ -954,7 +953,7 @@ export default function App() {
         <View style={{ flexDirection: 'row', gap: 4 }}>
           {'CHATFI'.split('').map((letter, i) => (
             <Animated.Text key={i} style={{
-              fontSize: 48, fontWeight: 'bold', color: '#39FF82',
+              fontSize: 48, fontWeight: 'bold', color: '#C7F284',
               opacity: letterAnims[i],
               transform: [{ translateY: letterAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
               textShadowColor: '#39FF82', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12
@@ -970,7 +969,7 @@ export default function App() {
   if (onboardStep) {
     const GradBg = ({children}:{children:any}) => (
       <View style={{flex:1,backgroundColor:C.bg}}>
-        <View style={{position:'absolute',top:0,left:0,right:0,height:'60%',backgroundColor:'#0a1f0a',opacity:0.7}}/>
+        <View style={{position:'absolute',top:0,left:0,right:0,height:'60%',backgroundColor:'transparent',opacity:0}}/>
         <SafeAreaView style={{flex:1}}>{children}</SafeAreaView>
       </View>
     );
