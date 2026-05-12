@@ -22,6 +22,7 @@ const TABS = [
   { id: 'swap', label: 'Swap', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
   { id: 'portfolio', label: 'Portfolio', icon: 'time-outline', iconActive: 'time' },
   { id: 'dapp', label: 'Dapp', icon: 'compass-outline', iconActive: 'compass-sharp' },
+  { id: 'settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
 ];
 
 const TOKEN_LIST = ['SOL','USDC','JUP','BONK','WIF','USDT'];
@@ -52,6 +53,7 @@ const POPULAR_DAPPS = [
 function TokenModal({ token, pubkey, onClose }) {
   const [view, setView] = React.useState('main');
   const [importSeedInput, setImportSeedInput] = React.useState('');
+  const [showImportModal, setShowImportModal] = useState(false);
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
   if (!token) return null;
@@ -1365,29 +1367,17 @@ export default function App() {
               </TouchableOpacity>
             </View>
           )}
-
-          {/* RPC */}
-          <View style={s.stGroup}>
-            <Text style={s.stGroupLabel}>RPC Endpoint</Text>
-            {['mainnet-beta','devnet','testnet'].map(ep=>(
-              <TouchableOpacity key={ep} style={s.stRow} onPress={()=>setRpcEndpoint(ep)}>
-                <Text style={s.stRowTxt}>{ep}</Text>
-                {rpcEndpoint===ep&&<Text style={{color:C.green,fontSize:16}}>✓</Text>}
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Slippage */}
-          <View style={s.stGroup}>
-            <Text style={s.stGroupLabel}>Slippage Tolerance</Text>
-            <View style={{flexDirection:'row',gap:8,padding:12}}>
-              {['0.1','0.5','1.0','2.0'].map(v=>(
-                <TouchableOpacity key={v} onPress={()=>setSlippage(v)} style={[s.slippageChip,slippage===v&&s.chipActive]}>
-                  <Text style={[s.chipTxt,slippage===v&&s.chipTxtActive]}>{v}%</Text>
+              <View style={[s.stGroup,{marginTop:12}]}>
+                <TouchableOpacity style={s.stRow} onPress={()=>setShowImportModal(true)}>
+                  <View style={{flex:1}}>
+                    <Text style={s.stRowTxt}>Import Wallet</Text>
+                    <Text style={{color:C.muted,fontSize:12,marginTop:2}}>Import using seed phrase</Text>
+                  </View>
+                  <Text style={{color:C.muted,fontSize:18}}>›</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+              </View>
+
+
 
           {/* Info rows */}
           <View style={s.stGroup}>
@@ -1404,7 +1394,7 @@ export default function App() {
           {/* Danger */}
           {wallet && (
             <View style={{gap:12,marginTop:8}}>
-              <TouchableOpacity style={s.dangerBtn} onPress={()=>{Alert.alert('Seed Phrase','Only view in a private place.',[{text:'Cancel',style:'cancel'},{text:'Show',onPress:()=>Alert.alert('Your Seed Phrase',wallet||'')}]);}}>
+              <TouchableOpacity style={s.dangerBtn} onPress={()=>setShowSeedModal(true)}>
                 <Text style={s.dangerBtnTxt}>Show Seed Phrase</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.dangerBtn} onPress={()=>{Alert.alert('Remove Wallet','Make sure you have your seed phrase!',[{text:'Cancel',style:'cancel'},{text:'Remove',style:'destructive',onPress:async()=>{await AsyncStorage.removeItem('wallet_mnemonic');setWallet(null);setPubkey(null);setSolBalance(null);}}]);}}>
