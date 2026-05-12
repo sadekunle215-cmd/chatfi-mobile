@@ -1503,7 +1503,7 @@ export default function App() {
                 </View>
               ))}
             </View>
-            <TouchableOpacity style={s.greenBtn} onPress={confirmSeed}>
+            <TouchableOpacity style={s.greenBtn} onPress={onboardStep ? confirmSeed : () => setShowSeedModal(false)}>
               <Text style={s.greenBtnTxt}>I've Written It Down</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.closeBtn} onPress={() => setShowSeedModal(false)}>
