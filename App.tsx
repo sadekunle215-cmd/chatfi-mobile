@@ -430,7 +430,7 @@ function DappBrowser({ walletAddress }) {
   const isBookmarked = bookmarks.find(b => b.url === activeUrl);
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
+    <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: StatusBar.currentHeight }}>
       {/* URL Bar */}
       <View style={{ flexDirection: 'row', alignItems: 'center', padding: 8, gap: 6, backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border }}>
         <TouchableOpacity onPress={() => webRef.current?.goBack()} disabled={!canGoBack}>
