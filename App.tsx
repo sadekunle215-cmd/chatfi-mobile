@@ -77,12 +77,12 @@ function TokenModal({ token, pubkey, onClose }) {
             <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
               <TouchableOpacity onPress={() => setView('receive')}
                 style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                <Text style={{ fontSize:24 }}>⬇️</Text>
+                <Ionicons name="arrow-down-outline" size={24} color={C.text} />
                 <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setView('send')}
                 style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                <Text style={{ fontSize:24 }}>⬆️</Text>
+                <Ionicons name="arrow-up-outline" size={24} color={C.green} />
                 <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
               </TouchableOpacity>
             </View>
@@ -568,6 +568,7 @@ export default function App() {
   const [solPrice, setSolPrice] = useState<number>(0);
   const [tokenBalances, setTokenBalances] = useState<Array<{symbol: string, mint: string, amount: number, logoURI: string, price: number}>>([]);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [totalUSD, setTotalUSD] = useState<number>(0);
   const [portfolioRefreshing, setPortfolioRefreshing] = useState(false);
 
   // Send state
@@ -643,28 +644,22 @@ export default function App() {
     try {
       const res = await fetch('https://chatfi.pro/api/portfolio?wallet=' + pubkey);
       const data = await res.json();
-      if (data.tokens) {
-        setSolBalance(data.tokens.find((t: any) => t.symbol === 'SOL')?.amount || 0);
-        setSolPrice(data.tokens.find((t: any) => t.symbol === 'SOL')?.price || 0);
-        setTokenBalances(data.tokens.map((t: any) => ({
+      if (data.tokens?.length) {
+        const sol = data.tokens.find((t:any) => t.symbol === 'SOL');
+        setSolBalance(sol?.amount || 0);
+        setSolPrice(sol?.price || 0);
+        setTokenBalances(data.tokens.map((t:any) => ({
           symbol: t.symbol,
           name: t.name || t.symbol,
           mint: t.mint,
           amount: t.amount,
           logoURI: t.logoURI || '',
           price: t.price || 0,
+          usdValue: t.usdValue || 0,
         })));
+        setTotalUSD(data.totalUSD || 0);
       }
-      try {
-        const mints=data.tokens.map((t:any)=>t.mint).filter(Boolean).join(",");
-        const pr=await fetch("https://price.jup.ag/v6/price?ids="+mints);
-        const pd=await pr.json();
-        if(pd.data){
-          setSolPrice(pd.data["So11111111111111111111111111111111111111112"]?.price||0);
-          setTokenBalances(prev=>prev.map(t=>({...t,price:pd.data[t.mint]?.price||t.price||0})));
-        }
-      } catch(e){}
-  } catch(e){console.log("Portfolio error",e);}
+    } catch(e){ console.log('Portfolio error', e); }
     setPortfolioLoading(false);
     setPortfolioRefreshing(false);
   };
@@ -1105,7 +1100,7 @@ export default function App() {
               {/* Big Balance */}
               <View style={s.pfBalanceSection}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : '$'+(((solBalance||0)*(solPrice||0)) + tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
+                  {portfolioLoading ? '...' : '$'+totalUSD.toFixed(2)}
                 </Text>
                 <TouchableOpacity onPress={copyAddress}>
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
@@ -1115,7 +1110,7 @@ export default function App() {
               {/* 4 Action Buttons */}
               <View style={s.pfActions}>
                 <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowSendModal(true)}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↑</Text></View>
+                  <View style={s.pfActionIcon}><Ionicons name='arrow-up-outline' size={20} color={C.text} /></View>
                   <Text style={s.pfActionLbl}>Send</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.pfActionBtn} onPress={()=>setTab('swap')}>
@@ -1123,7 +1118,7 @@ export default function App() {
                   <Text style={s.pfActionLbl}>Swap</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowReceiveModal(true)}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↓</Text></View>
+                  <View style={s.pfActionIcon}><Ionicons name='arrow-down-outline' size={20} color={C.text} /></View>
                   <Text style={s.pfActionLbl}>Receive</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.pfActionBtn} onPress={copyAddress}>
