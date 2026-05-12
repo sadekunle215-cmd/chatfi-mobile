@@ -3,7 +3,7 @@ import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
+import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
 import nacl from 'tweetnacl';
 import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices } from './wallet';
@@ -537,6 +537,8 @@ export default function App() {
   const [activeAccIdx, setActiveAccIdx] = useState(0);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showSeedModal, setShowSeedModal] = useState(false);
+  const [showPrivKeyModal, setShowPrivKeyModal] = useState(false);
+  const [privKey, setPrivKey] = useState('');
   const [showSendModal, setShowSendModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [selectedToken, setSelectedToken] = useState<any>(null);
@@ -1400,6 +1402,9 @@ export default function App() {
               <TouchableOpacity style={s.dangerBtn} onPress={()=>{ const acc=accounts[activeAccIdx]; if(acc){ setSeedPhrase(acc.mnemonic); setShowSeedModal(true); } }}>
                 <Text style={s.dangerBtnTxt}>Show Seed Phrase</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={s.dangerBtn} onPress={()=>{ const acc=accounts[activeAccIdx]; if(acc){ setPrivKey(getPrivateKey(acc.mnemonic)); setShowPrivKeyModal(true); } }}>
+                <Text style={s.dangerBtnTxt}>Show Private Key</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={s.dangerBtn} onPress={()=>{Alert.alert('Remove Wallet','Make sure you have your seed phrase!',[{text:'Cancel',style:'cancel'},{text:'Remove',style:'destructive',onPress:async()=>{await AsyncStorage.removeItem('wallet_mnemonic');setWallet(null);setPubkey(null);setSolBalance(null);}}]);}}>
                 <Text style={s.dangerBtnTxt}>Remove Wallet</Text>
               </TouchableOpacity>
@@ -1464,6 +1469,27 @@ export default function App() {
             </TouchableOpacity>
             <TouchableOpacity style={s.closeBtn} onPress={() => setShowSeedModal(false)}>
               <Text style={s.closeBtnTxt}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* PRIVATE KEY MODAL */}
+      <Modal visible={showPrivKeyModal} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Private Key</Text>
+            <Text style={{color:C.red,fontSize:13,textAlign:'center',marginBottom:16}}>⚠️ Never share your private key! Anyone with it has full access to your wallet.</Text>
+            <View style={{backgroundColor:C.card,borderRadius:12,padding:16,marginBottom:16}}>
+              <Text selectable style={{color:C.green,fontSize:11,fontFamily:'monospace',lineHeight:18}}>{privKey}</Text>
+            </View>
+            <TouchableOpacity style={s.greenBtn} onPress={()=>{ Clipboard.setString(privKey); showToast('Private key copied!','success'); }}>
+              <Text style={s.greenBtnTxt}>Copy Private Key</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.closeBtn} onPress={()=>{ setShowPrivKeyModal(false); setPrivKey(''); }}>
+              <Text style={s.closeBtnTxt}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>

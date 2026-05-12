@@ -54,6 +54,11 @@ export function importWallet(mnemonic: string) {
 
 export function signAndSendTransaction() {}
 
+export function getPrivateKey(mnemonic: string): string {
+  const { secretKey } = deriveWallet(mnemonic);
+  return bs58.encode(secretKey);
+}
+
 const metaCache: Record<string, { symbol: string; name: string; logoURI: string }> = {
   'So11111111111111111111111111111111111111112':  { symbol: 'SOL',  name: 'Solana',    logoURI: 'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112' },
   'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': { symbol: 'USDC', name: 'USD Coin', logoURI: 'https://img.jup.ag/tokens/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' },
