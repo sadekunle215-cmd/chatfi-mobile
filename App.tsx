@@ -1423,6 +1423,7 @@ export default function App() {
 
       {/* WALLET MODAL */}
       <Modal visible={showWalletModal} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>Wallet</Text>
@@ -1443,6 +1444,7 @@ export default function App() {
 
       {/* SEED MODAL */}
       <Modal visible={showSeedModal} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>Your Seed Phrase</Text>
@@ -1467,6 +1469,7 @@ export default function App() {
 
       {/* SEND MODAL */}
       <Modal visible={showSendModal} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>Send SOL</Text>
@@ -1486,6 +1489,7 @@ export default function App() {
 
       {/* RECEIVE MODAL */}
       <Modal visible={showReceiveModal} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>Receive</Text>
