@@ -996,7 +996,7 @@ export default function App() {
               )}
             </ScrollView>
             <View style={s.inputRow}>
-              <TextInput style={s.input} value={input} onChangeText={(t) => { setInput(t); inputRef.current = t; }} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current || input)} editable={!aiLoading} />
+              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current || input)} editable={!aiLoading} />
               <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current || input)} disabled={aiLoading}>
                 <Ionicons name="send" size={20} color="#0d1117" />
               </TouchableOpacity>
@@ -1419,8 +1419,8 @@ const s = StyleSheet.create({
   modalTitle: { color: C.text, fontSize: 20, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
   orText: { color: C.muted, fontSize: 13, textAlign: 'center', marginVertical: 12 },
   seedInput: { backgroundColor: C.bg, color: C.text, borderRadius: 12, padding: 14, fontSize: 14, borderWidth: 1, borderColor: C.border, minHeight: 80, textAlignVertical: 'top' },
-  closeBtn: { padding: 14, alignItems: 'center', marginTop: 8 },
-  closeBtnTxt: { color: C.muted, fontSize: 14 },
+  closeBtn: { padding: 14, alignItems: 'center', marginTop: 8, minWidth: 80 },
+  closeBtnTxt: { color: C.muted, fontSize: 14, textAlign: 'center' },
   seedWarning: { color: C.orange, fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 20 },
   seedGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   seedWord: { width: '30%', flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: 8, padding: 8, borderWidth: 1, borderColor: C.border, gap: 6 },
