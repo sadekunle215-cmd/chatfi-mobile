@@ -226,10 +226,10 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   <Text style={{ color:'#0d1117', fontSize:12, marginTop:4 }}>Generate a new wallet</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setView('importAccount')}
-                  style={{ backgroundColor:'#1c2128', borderRadius:14, padding:18, alignItems:'center', borderWidth:1, borderColor:C.green }}>
+                  style={{ backgroundColor:'#1c2128', borderRadius:14, padding:18, alignItems:'center', borderWidth:1, borderColor:'#30363d' }}>
                   <Ionicons name="download-outline" size={24} color={C.green} />
-                  <Text style={{ color:C.green, fontWeight:'bold', fontSize:16 }}>Import Account</Text>
-                  <Text style={{ color:C.muted, fontSize:12, marginTop:4 }}>Use existing seed phrase</Text>
+                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:16 }}>Import Account</Text>
+                  <Text style={{ color:C.muted, fontSize:12, marginTop:4 }}>Import with seed phrase</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
