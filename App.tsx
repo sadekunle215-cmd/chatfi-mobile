@@ -644,16 +644,18 @@ export default function App() {
       const res = await fetch('https://chatfi.pro/api/portfolio?wallet=' + pubkey);
       const data = await res.json();
       if (data.tokens) {
-        setSolBalance(data.tokens.find((t: any) => t.symbol === 'SOL')?.amount || 0);
-        setSolPrice(data.tokens.find((t: any) => t.symbol === 'SOL')?.price || 0);
-        setTokenBalances(data.tokens.map((t: any) => ({
+        const tokens = data.tokens.map((t: any) => ({
           symbol: t.symbol,
           name: t.name || t.symbol,
           mint: t.mint,
           amount: t.amount,
           logoURI: t.logoURI || '',
           price: t.price || 0,
-        })));
+        }));
+        const sol = tokens.find((t:any) => t.symbol === 'SOL');
+        setSolBalance(sol?.amount || 0);
+        setSolPrice(sol?.price || 0);
+        setTokenBalances(tokens);
       }
       try {
         const mints=data.tokens.map((t:any)=>t.mint).filter(Boolean).join(",");
@@ -666,7 +668,7 @@ export default function App() {
         if(pd){
           const solMint="So11111111111111111111111111111111111111112";
           setSolPrice(pd[solMint]?.usdPrice||0);
-          const updated=tokenBalances.map((t:any)=>({...t,price:pd[t.mint]?.usdPrice||t.price||0}));
+          const updated=data.tokens.map((t:any)=>({...t,price:pd[t.mint]?.usdPrice||t.price||0}));
           setTokenBalances(updated);
           setTotalUSD(updated.reduce((s:number,t:any)=>s+(Number(t.amount)||0)*(Number(t.price)||0),0));
         }
