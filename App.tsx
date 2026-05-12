@@ -995,17 +995,16 @@ export default function App() {
   if (!splashDone) {
     return (
       <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' }}>
-        <View style={{ flexDirection: 'row', gap: 4 }}>
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8 }}>
           {'CHATFI'.split('').map((letter, i) => (
             <Animated.Text key={i} style={{
               fontSize: 48, fontWeight: 'bold', color: '#C7F284',
               opacity: letterAnims[i],
               transform: [{ translateY: letterAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
-              textShadowColor: '#39FF82', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12
             }}>{letter}</Animated.Text>
           ))}
         </View>
-        <Text style={{ color: '#888', fontSize: 14, marginTop: 12, letterSpacing: 1, paddingRight: 2, paddingRight: 2 }}>{subtitleText}</Text>
+        <Text style={{ color: '#888', fontSize: 14, marginTop: 12, textAlign: 'center', paddingHorizontal: 32, flexWrap: 'wrap' }}>{subtitleText}</Text>
       </View>
     );
   }
