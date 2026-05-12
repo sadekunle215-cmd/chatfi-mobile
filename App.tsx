@@ -59,7 +59,7 @@ async function fetchPricesViaProxy(mints: string[]): Promise<Record<string, numb
     const data = await res.json();
     const prices: Record<string, number> = {};
     Object.entries(data || {}).forEach(([mint, val]: any) => {
-      prices[mint] = parseFloat(val?.price || 0);
+      prices[mint] = parseFloat(val?.usdPrice || 0);
     });
     return prices;
   } catch { return {}; }
