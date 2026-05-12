@@ -977,7 +977,7 @@ export default function App() {
       <GradBg>
         <View style={{flex:1,alignItems:'center',paddingTop:60,paddingHorizontal:24}}>
           <Text style={{color:C.text,fontSize:28,fontWeight:'bold',marginBottom:8}}>Set app passcode</Text>
-          <Text style={{color:C.muted,fontSize:14,marginBottom:40}}>Enter a 6-digit passcode to secure your app.</Text>
+          <Text style={{color:C.muted,fontSize:14,marginBottom:40,textAlign:'center',flexWrap:'wrap'}}>Enter a 6-digit passcode to secure your app.</Text>
           <View style={{flexDirection:'row',gap:16,marginBottom:48}}>
             {[0,1,2,3,4,5].map(i=>(
               <View key={i} style={{width:16,height:16,borderRadius:8,backgroundColor:passcode.length>i?C.green:C.border}}/>
@@ -1007,7 +1007,7 @@ export default function App() {
         <View style={{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
           <Ionicons name="finger-print" size={80} color={C.green} style={{marginBottom:24}}/>
           <Text style={{color:C.text,fontSize:28,fontWeight:'bold',marginBottom:12}}>Fingerprint Unlock</Text>
-          <Text style={{color:C.muted,fontSize:14,textAlign:'center',marginBottom:60}}>Use your fingerprint to secure your wallet. You can skip this for now.</Text>
+          <Text style={{color:C.muted,fontSize:14,textAlign:'center',marginBottom:60,flexWrap:'wrap'}}>Use your fingerprint to secure your wallet. You can skip this for now.</Text>
           <TouchableOpacity onPress={()=>setOnboardStep('wordcount')} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.card,borderWidth:1,borderColor:C.border,width:'100%',alignItems:'center',marginBottom:12}}>
             <Text style={{color:C.muted,fontSize:16}}>I will do it later</Text>
           </TouchableOpacity>
