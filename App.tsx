@@ -1533,7 +1533,7 @@ const s = StyleSheet.create({
   walletBtnOn: { borderColor: C.green },
   walletBtnTxt: { color: C.muted, fontSize: 12, fontWeight: '600' },
   content: { flex: 1 },
-  pad: { padding: 16 },
+  pad: { padding: 16, backgroundColor: C.bg, flex: 1 },
   msgs: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   bubble: { marginBottom: 12, maxWidth: '85%' },
   userBubble: { alignSelf: 'flex-end', backgroundColor: C.card2, borderRadius: 16, borderBottomRightRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border },
