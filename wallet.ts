@@ -40,8 +40,8 @@ export function deriveWalletAtIndex(mnemonic: string, index: number) {
   return { mnemonic, publicKey, secretKey: keypair.secretKey };
 }
 
-export function generateWallet() {
-  return deriveWallet(bip39.generateMnemonic());
+export function generateWallet(wordCount: number = 12) {
+  return deriveWallet(bip39.generateMnemonic(wordCount === 24 ? 256 : 128));
 }
 
 export function getPublicKey(mnemonic: string): string {

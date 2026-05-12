@@ -1029,8 +1029,8 @@ export default function App() {
               </TouchableOpacity>
             ))}
           </View>
-          <View style={{position:'absolute',bottom:40,left:24,right:24,gap:12}}>
-            <TouchableOpacity onPress={async()=>{const w=generateWallet();setNewSeedPhrase(w.mnemonic);setNewPubkey(w.publicKey);setOnboardStep('seedphrase');}} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.green,alignItems:'center'}}>
+          <View style={{position:'absolute',bottom:60,left:24,right:24,gap:12}}>
+            <TouchableOpacity onPress={async()=>{const w=generateWallet(wordCount);setNewSeedPhrase(w.mnemonic);setNewPubkey(w.publicKey);setOnboardStep('seedphrase');}} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.green,alignItems:'center'}}>
               <Text style={{color:'#060d06',fontWeight:'700',fontSize:16}}>Continue</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={()=>setOnboardStep('fingerprint')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
@@ -1059,7 +1059,7 @@ export default function App() {
               <Ionicons name="copy-outline" size={18} color={C.green}/>
               <Text style={{color:C.text,fontSize:15}}>Copy</Text>
             </TouchableOpacity>
-            <View style={{position:'absolute',bottom:40,left:24,right:24,gap:12}}>
+            <View style={{position:'absolute',bottom:60,left:24,right:24,gap:12}}>
               <TouchableOpacity onPress={()=>setOnboardStep('username')} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.green,alignItems:'center'}}>
                 <Text style={{color:'#060d06',fontWeight:'700',fontSize:16}}>OK, I saved it somewhere</Text>
               </TouchableOpacity>
@@ -1083,7 +1083,7 @@ export default function App() {
             <TextInput value={onboardName} onChangeText={setOnboardName} placeholder="wallet01" placeholderTextColor={C.muted} style={{flex:1,color:C.text,fontSize:16,paddingVertical:12}} autoCapitalize="none"/>
           </View>
           <Text style={{color:C.muted,fontSize:12,marginBottom:40}}>{onboardName.length}/8 letters, numbers, or underscores</Text>
-          <View style={{position:'absolute',bottom:40,left:24,right:24,gap:12}}>
+          <View style={{position:'absolute',bottom:60,left:24,right:24,gap:12}}>
             <TouchableOpacity onPress={async()=>{
               const name=onboardName||'wallet01';
               const acc=[{id:1,name:'Account 1',mnemonic:newSeedPhrase,pubkey:newPubkey}];
