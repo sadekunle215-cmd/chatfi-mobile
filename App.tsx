@@ -523,7 +523,8 @@ export default function App() {
   const [tab, setTab] = useState('chat');
   const [splashDone, setSplashDone] = useState(false);
   const [subtitleText, setSubtitleText] = useState('');
-  const letterAnims = 'CHATFI'.split('').map(() => new Animated.Value(0));
+  const letterAnimsRef = React.useRef('CHATFI'.split('').map(() => new Animated.Value(0)));
+  const letterAnims = letterAnimsRef.current;
   const [wallet, setWallet] = useState<string | null>(null);
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<{id:number,name:string,mnemonic:string,pubkey:string}[]>([]);
