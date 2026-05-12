@@ -77,12 +77,12 @@ function TokenModal({ token, pubkey, onClose }) {
             <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
               <TouchableOpacity onPress={() => setView('receive')}
                 style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                <Text style={{ fontSize:24 }}>⬇️</Text>
+                <Ionicons name="arrow-down-outline" size={24} color={C.text} />
                 <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setView('send')}
                 style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                <Text style={{ fontSize:24 }}>⬆️</Text>
+                <Ionicons name="arrow-up-outline" size={24} color="#0d1117" />
                 <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
               </TouchableOpacity>
             </View>
