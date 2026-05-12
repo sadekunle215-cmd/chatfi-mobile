@@ -1368,7 +1368,7 @@ export default function App() {
             </View>
           )}
               <View style={[s.stGroup,{marginTop:12}]}>
-                <TouchableOpacity style={s.stRow} onPress={()=>setShowImportModal(true)}>
+                <TouchableOpacity style={s.stRow} onPress={()=>setShowWalletModal(true)}>
                   <View style={{flex:1}}>
                     <Text style={s.stRowTxt}>Import Wallet</Text>
                     <Text style={{color:C.muted,fontSize:12,marginTop:2}}>Import using seed phrase</Text>
