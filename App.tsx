@@ -886,6 +886,7 @@ export default function App() {
     if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Invalid amount', 'Enter a valid amount'); return; }
     setSendLoading(true);
     try {
+      const { secretKey } = deriveWallet(wallet);
       const mint = TOKENS[sendToken] || TOKENS['SOL'];
       const decimals = DECIMALS[sendToken] ?? 9;
       const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
