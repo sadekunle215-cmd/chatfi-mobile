@@ -5,7 +5,7 @@ import * as bip39 from 'bip39';
 import { derivePath } from 'ed25519-hd-key';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
-import { Transaction, SystemProgram, PublicKey } from '@solana/web3.js';
+
 
 const RPC = 'https://api.mainnet-beta.solana.com';
 const SOLANA_PATH = "m/44'/501'/0'/0'";
@@ -142,6 +142,7 @@ export async function getTokenPrices(mints: string[]): Promise<Record<string, nu
 }
 
 export async function sendSOL(secretKey: Uint8Array, recipient: string, lamports: number): Promise<string> {
+  const { Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
   const keypair = nacl.sign.keyPair.fromSecretKey(secretKey);
   const fromPubkey = new PublicKey(bs58.encode(keypair.publicKey));
   const bhRes = await fetch(RPC, {
