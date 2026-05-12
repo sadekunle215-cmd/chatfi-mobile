@@ -1094,7 +1094,7 @@ export default function App() {
 
     if (onboardStep === 'passcode') return (
       <GradBg>
-        <View style={{flex:1,alignItems:'center',paddingTop:60,paddingHorizontal:24}}>
+        <View style={{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
           <Text style={{color:C.text,fontSize:28,fontWeight:'bold',marginBottom:8}}>Set app passcode</Text>
           <Text style={{color:C.muted,fontSize:14,marginBottom:40,textAlign:'center',flexWrap:'wrap'}}>Enter a 6-digit passcode to secure your app.</Text>
           <View style={{flexDirection:'row',gap:16,marginBottom:48}}>
