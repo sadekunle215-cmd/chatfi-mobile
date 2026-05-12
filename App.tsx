@@ -1436,6 +1436,7 @@ export default function App() {
             </TouchableOpacity>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* SEED MODAL */}
@@ -1461,6 +1462,7 @@ export default function App() {
             </TouchableOpacity>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* SEND MODAL */}
@@ -1481,6 +1483,7 @@ export default function App() {
             </TouchableOpacity>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* RECEIVE MODAL */}
@@ -1501,6 +1504,7 @@ export default function App() {
             </TouchableOpacity>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {toast && (
