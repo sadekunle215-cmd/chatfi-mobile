@@ -1115,9 +1115,7 @@ export default function App() {
               ))}
             </View>
           ))}
-          <TouchableOpacity onPress={()=>setOnboardStep(null)} style={{marginTop:24,paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,width:'100%',alignItems:'center'}}>
-            <Text style={{color:C.text,fontSize:16}}>Back</Text>
-          </TouchableOpacity>
+
         </View>
       </GradBg>
     );
