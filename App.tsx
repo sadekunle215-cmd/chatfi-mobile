@@ -1394,7 +1394,7 @@ export default function App() {
           {/* Danger */}
           {wallet && (
             <View style={{gap:12,marginTop:8}}>
-              <TouchableOpacity style={s.dangerBtn} onPress={()=>setShowSeedModal(true)}>
+              <TouchableOpacity style={s.dangerBtn} onPress={()=>{ const acc=accounts[activeAccIdx]; if(acc){ setSeedPhrase(acc.mnemonic); setShowSeedModal(true); } }}>
                 <Text style={s.dangerBtnTxt}>Show Seed Phrase</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.dangerBtn} onPress={()=>{Alert.alert('Remove Wallet','Make sure you have your seed phrase!',[{text:'Cancel',style:'cancel'},{text:'Remove',style:'destructive',onPress:async()=>{await AsyncStorage.removeItem('wallet_mnemonic');setWallet(null);setPubkey(null);setSolBalance(null);}}]);}}>
