@@ -1,0 +1,29 @@
+[1mdiff --git a/App.tsx b/App.tsx[m
+[1mindex 45ff96f1..d56849e9 100644[m
+[1m--- a/App.tsx[m
+[1m+++ b/App.tsx[m
+[36m@@ -222,13 +222,13 @@[m [mfunction AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa[m
+                   style={{ backgroundColor:C.green, borderRadius:14, padding:18, alignItems:'center' }}>[m
+                   <Ionicons name="add-circle-outline" size={24} color="#0d1117" />[m
+                   <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Create New Account</Text>[m
+[31m-                  <Text style={{ color:'#0d1117', fontSize:12, marginTop:4 }}>Generate a new wallet</Text>[m
+[32m+[m[32m                  <Text style={{ color:'#0d1117', fontSize:12, marginTop:4, textAlign:'center', width:'100%' }}>Generate a new wallet</Text>[m
+                 </TouchableOpacity>[m
+                 <TouchableOpacity onPress={() => setView('importAccount')}[m
+                   style={{ backgroundColor:'#1c2128', borderRadius:14, padding:18, alignItems:'center', borderWidth:1, borderColor:C.green }}>[m
+                   <Ionicons name="download-outline" size={24} color={C.green} />[m
+                   <Text style={{ color:C.green, fontWeight:'bold', fontSize:16 }}>Import Account</Text>[m
+[31m-                  <Text style={{ color:C.muted, fontSize:12, marginTop:4 }}>Use existing seed phrase</Text>[m
+[32m+[m[32m                  <Text style={{ color:C.muted, fontSize:12, marginTop:4, textAlign:'center', width:'100%' }}>Use existing seed phrase</Text>[m
+                 </TouchableOpacity>[m
+               </View>[m
+             </ScrollView>[m
+[36m@@ -999,7 +999,7 @@[m [mexport default function App() {[m
+               )}[m
+             </ScrollView>[m
+             <View style={s.inputRow}>[m
+[31m-              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current || input)} editable={!aiLoading} />[m
+[32m+[m[32m              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(input)} editable={!aiLoading} />[m
+               <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current || input)} disabled={aiLoading}>[m
+                 <Ionicons name="send" size={20} color="#0d1117" />[m
+               </TouchableOpacity>[m

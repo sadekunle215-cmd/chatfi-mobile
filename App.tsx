@@ -274,7 +274,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                       switchAccount(updated.length-1);
                       setImportSeedInput('');
                       setView('manageAccounts');
-                      Alert.alert('Imported!', 'Account added successfully.');
+                      showToast('Account imported!','success');
                     } catch { Alert.alert('Error', 'Invalid seed phrase'); }
                   }}
                   style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
@@ -311,7 +311,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:15, marginBottom:16 }}
                 />
                 <TouchableOpacity
-                  onPress={async () => { setUserName(nameInput); await AsyncStorage.setItem('user_name', nameInput); Alert.alert('Saved!', 'Name saved successfully.'); setView('main'); }}
+                  onPress={async () => { setUserName(nameInput); await AsyncStorage.setItem('user_name', nameInput); showToast('Name saved!','success'); setView('main'); }}
                   style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
                   <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:15 }}>Save Name</Text>
                 </TouchableOpacity>
@@ -563,10 +563,19 @@ export default function App() {
   const [fromToken2, setFromToken2] = useState<{symbol:string,mint:string,logoURI?:string}>({symbol:'SOL',mint:'So11111111111111111111111111111111111111112'});
   const [toToken2, setToToken2] = useState<{symbol:string,mint:string,logoURI?:string}>({symbol:'USDC',mint:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'});
 
+  // Toast system
+  const [toast, setToast] = useState<{msg:string,type:'success'|'error'|'info'}|null>(null);
+  const toastTimer = useRef<any>(null);
+  const showToast = (msg:string, type:'success'|'error'|'info'='info') => {
+    if(toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({msg,type});
+    toastTimer.current = setTimeout(()=>setToast(null), 3000);
+  };
+
   // Portfolio state
   const [solBalance, setSolBalance] = useState<number | null>(null);
   const [solPrice, setSolPrice] = useState<number>(0);
-  const [tokenBalances, setTokenBalances] = useState<Array<{symbol: string, mint: string, amount: number, logoURI: string, price: number}>>([]);
+  const [tokenBalances, setTokenBalances] = useState<Array<{symbol: string, mint: string, amount: number, logoURI: string, price: number, isVerified?: boolean}>>([]);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [portfolioRefreshing, setPortfolioRefreshing] = useState(false);
 
@@ -629,7 +638,7 @@ export default function App() {
     const updated = [...accounts, newAcc];
     setAccounts(updated);
     await AsyncStorage.setItem('accounts', JSON.stringify(updated));
-    Alert.alert('Account Added','Account '+(accounts.length+1)+' created!');
+    showToast('Account '+(accounts.length+1)+' added!','success');
   };
   const switchAccount = async (idx:number) => {
     const acc = accounts[idx];
@@ -651,6 +660,7 @@ export default function App() {
           amount: t.amount,
           logoURI: t.logoURI || '',
           price: t.price || 0,
+          isVerified: t.isVerified || false,
         }));
         const sol = tokens.find((t:any) => t.symbol === 'SOL');
         setSolBalance(sol?.amount || 0);
@@ -684,7 +694,7 @@ export default function App() {
       setSeedPhrase(mnemonic);
       setShowSeedModal(true);
     } catch (e) {
-      Alert.alert('Error', 'Failed to generate wallet: ' + (e?.message || String(e)) + '');
+      showToast('Failed to generate wallet: '+(e?.message||String(e)),'error');
     }
   };
 
@@ -701,7 +711,7 @@ export default function App() {
     setPubkey(pk);
     setShowSeedModal(false);
     setShowWalletModal(false);
-    Alert.alert('Wallet Created!', 'Keep your seed phrase safe!');
+    showToast('Wallet created! Keep seed phrase safe.','success');
   };
 
   const importWallet = async () => {
@@ -721,7 +731,7 @@ export default function App() {
       await AsyncStorage.setItem('active_acc', String(existing2.length));
       setWallet(importSeed.trim()); setPubkey(pk);
       setShowWalletModal(false); setImportSeed('');
-      Alert.alert('Wallet Imported!', 'Your wallet is ready.');
+      showToast('Wallet imported!','success');
     } catch { Alert.alert('Error', 'Invalid seed phrase'); }
   };
 
@@ -842,33 +852,33 @@ export default function App() {
   };
 
   const fetchQuote = async () => {
-    if (!amt || isNaN(parseFloat(amt))) { Alert.alert('Invalid amount'); return; }
-    if (fromToken === toToken) { Alert.alert('Select different tokens'); return; }
+    if (!amt || isNaN(parseFloat(amt))) { showToast('Invalid amount','error'); return; }
+    if (fromToken === toToken) { showToast('Select different tokens','error'); return; }
     setQuoteLoading(true);
     setQuote(null);
     try {
       const q = await getJupiterQuote(fromToken, toToken, parseFloat(amt));
       setQuote(q);
-    } catch { Alert.alert('Failed to fetch quote'); }
+    } catch { showToast('Failed to fetch quote','error'); }
     setQuoteLoading(false);
   };
 
   const executeSwap = async () => {
-    if (!wallet) { Alert.alert('No wallet', 'Create or connect a wallet first'); return; }
-    if (!quote) { Alert.alert('No Quote', 'Get a quote first before swapping'); return; }
+    if (!wallet) { showToast('Create or connect a wallet first','error'); return; }
+    if (!quote) { showToast('Get a quote first before swapping','error'); return; }
     try {
       const { mnemonic, publicKey: pk, secretKey } = deriveWallet(wallet);
       const RPC = 'https://api.mainnet-beta.solana.com';
-      Alert.alert('Swapping', `Executing ${fromToken} → ${toToken} swap...`);
+      showToast(`Swapping ${fromToken} → ${toToken}...`,'info');
       const txSig = await executeSwapTx(
         TOKENS[fromToken], TOKENS[toToken],
         parseFloat(swapAmt), DECIMALS[fromToken] || 6,
         pk, secretKey, RPC
       );
-      Alert.alert('Swap Done!', `Transaction: ${txSig.slice(0,20)}...`);
+      showToast('Swap complete! ✓','success');
       fetchPortfolio();
     } catch (e) {
-      Alert.alert('Swap Failed', e.message || 'Unknown error');
+      showToast('Swap failed: '+(e.message||'Unknown error'),'error');
     }
   };
 
@@ -882,8 +892,8 @@ export default function App() {
   };
 
   const sendTokens = async () => {
-    if (!sendTo || !sendTo.trim()) { Alert.alert('Missing address', 'Enter a recipient address'); return; }
-    if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Invalid amount', 'Enter a valid amount'); return; }
+    if (!sendTo || !sendTo.trim()) { showToast('Enter a recipient address','error'); return; }
+    if (!sendAmt || isNaN(parseFloat(sendAmt))) { showToast('Enter a valid amount','error'); return; }
     setSendLoading(true);
     try {
       const { secretKey } = deriveWallet(wallet);
@@ -910,17 +920,17 @@ export default function App() {
       });
       const rpcData = await rpcRes.json();
       if (rpcData.error) throw new Error(rpcData.error.message);
-      Alert.alert('Sent!', `Sent ${sendAmt} ${sendToken} to ${sendTo.slice(0,8)}...`);
+      showToast(`Sent ${sendAmt} ${sendToken} ✓`,'success');
       setShowSendModal(false); setSendAmt(''); setSendTo('');
     } catch (e) {
-      Alert.alert('Send Failed', e.message || 'Unknown error');
+      showToast('Send failed: '+(e.message||'Unknown error'),'error');
     } finally { setSendLoading(false); }
   };
 
   const copyAddress = () => {
     if (pubkey) {
       Clipboard.setString(pubkey);
-      Alert.alert('Copied!', 'Wallet address copied to clipboard');
+      showToast('Address copied!','success');
     }
   };
 
@@ -972,7 +982,7 @@ export default function App() {
           
           <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />{userName ? <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{userName}</Text> : null}</TouchableOpacity>
         </View>
-        <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => { if(pubkey){ Clipboard.setString(pubkey); Alert.alert('Copied!', 'Wallet address copied.'); } }}>
+        <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => { if(pubkey){ Clipboard.setString(pubkey); showToast('Address copied!','success'); } }}>
           <Text style={[s.walletBtnTxt, wallet ? { color: C.green } : null]}>{wallet ? shortKey : 'Connect Wallet'}</Text>
         </TouchableOpacity>
       </View>
@@ -1163,8 +1173,11 @@ export default function App() {
                 <TouchableOpacity key={i} style={s.pfTokenRow} onPress={() => setSelectedToken(t)}>
                   <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/'+t.mint+'/logo.png'} symbol={t.symbol} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
-                    <Text style={s.pfTokenName}>{t.symbol}</Text>
-                    <Text style={s.pfTokenAmt}>{t.amount.toFixed(4)} {t.symbol}</Text>
+                    <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                      <Text style={s.pfTokenName}>{t.symbol}</Text>
+                      {t.isVerified && <Ionicons name="checkmark-circle" size={14} color="#39ff14" />}
+                    </View>
+                    <Text style={s.pfTokenAmt}>{(Number(t.amount)||0).toFixed(4)} {t.symbol}</Text>
                   </View>
                   <Text style={s.pfTokenVal}>{t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
@@ -1340,6 +1353,12 @@ export default function App() {
         </View>
       </Modal>
 
+      {toast && (
+        <View style={{position:'absolute',bottom:90,left:20,right:20,backgroundColor:toast.type==='success'?'#1a3a1a':toast.type==='error'?'#3a1a1a':'#1a1a3a',borderLeftWidth:4,borderLeftColor:toast.type==='success'?'#39ff14':toast.type==='error'?'#ff4444':'#4488ff',borderRadius:10,padding:14,flexDirection:'row',alignItems:'center',gap:10,zIndex:9999,elevation:20}}>
+          <Ionicons name={toast.type==='success'?'checkmark-circle':toast.type==='error'?'close-circle':'information-circle'} size={20} color={toast.type==='success'?'#39ff14':toast.type==='error'?'#ff4444':'#4488ff'} />
+          <Text style={{color:'#fff',flex:1,fontSize:14}}>{toast.msg}</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
