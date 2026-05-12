@@ -543,6 +543,7 @@ export default function App() {
   const [showLockScreen, setShowLockScreen] = useState(false);
   const [lockInput, setLockInput] = useState('');
   const [showSecurityModal, setShowSecurityModal] = useState(false);
+  const [changingPasscode, setChangingPasscode] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authInput, setAuthInput] = useState('');
   const authResolveRef = useRef<((v:boolean)=>void)|null>(null);
@@ -1064,6 +1065,33 @@ export default function App() {
       );
     }
 
+    if (changingPasscode) return (
+      <View style={{flex:1,backgroundColor:C.bg,alignItems:'center',justifyContent:'center',padding:32}}>
+        <StatusBar barStyle="light-content" backgroundColor={C.bg}/>
+        <Text style={{color:C.text,fontSize:24,fontWeight:'bold',marginBottom:8}}>Change Passcode</Text>
+        <Text style={{color:C.muted,fontSize:14,marginBottom:40,textAlign:'center'}}>Enter a new 6-digit passcode</Text>
+        <View style={{flexDirection:'row',gap:16,marginBottom:48}}>
+          {[0,1,2,3,4,5].map(i=>(
+            <View key={i} style={{width:16,height:16,borderRadius:8,backgroundColor:passcode.length>i?C.green:C.border}}/>
+          ))}
+        </View>
+        {[[1,2,3],[4,5,6],[7,8,9],['cancel',0,'<']].map((row,ri)=>(
+          <View key={ri} style={{flexDirection:'row',gap:16,marginBottom:16}}>
+            {row.map(k=>(
+              <TouchableOpacity key={String(k)} onPress={async()=>{
+                const kk=String(k);
+                if(kk==='cancel'){setChangingPasscode(false);setPasscode('');return;}
+                if(kk==='<'){setPasscode(p=>p.slice(0,-1));return;}
+                if(passcode.length<6){const np=passcode+kk;setPasscode(np);if(np.length===6){await AsyncStorage.setItem('passcode',np);setChangingPasscode(false);setPasscode('');showToast('Passcode updated!','success');}}
+              }} style={{width:72,height:72,borderRadius:36,backgroundColor:C.card,alignItems:'center',justifyContent:'center'}}>
+                <Text style={{color:C.text,fontSize:kk==='cancel'?12:kk==='<'?20:24,fontWeight:'500'}}>{kk==='<'?'⌫':kk==='cancel'?'Cancel':k}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))}
+      </View>
+    );
+
     if (onboardStep === 'passcode') return (
       <GradBg>
         <View style={{flex:1,alignItems:'center',paddingTop:60,paddingHorizontal:24}}>
@@ -1080,7 +1108,7 @@ export default function App() {
                 <TouchableOpacity key={ki} onPress={()=>{
                   if(k==='x'){setPasscode('');return;}
                   if(k==='<'){setPasscode(p=>p.slice(0,-1));return;}
-                  if(passcode.length<6){const np=passcode+k;setPasscode(np);if(np.length===6){AsyncStorage.setItem('passcode',np);setTimeout(()=>setOnboardStep('fingerprint'),300);}}
+                  if(passcode.length<6){const np=passcode+k;setPasscode(np);if(np.length===6){AsyncStorage.setItem('passcode',np);if(changingPasscode){setChangingPasscode(false);setPasscode('');showToast('Passcode updated!','success');}else{setTimeout(()=>setOnboardStep('fingerprint'),300);}}}
                 }} style={{width:80,height:80,borderRadius:40,backgroundColor:C.card,borderWidth:1,borderColor:C.border,alignItems:'center',justifyContent:'center'}}>
                   <Text style={{color:k==='x'?C.muted:C.green,fontSize:k==='<'?20:24,fontWeight:'600'}}>{k==='x'?'x':String(k)}</Text>
                 </TouchableOpacity>
@@ -1120,7 +1148,7 @@ export default function App() {
               </TouchableOpacity>
             ))}
           </View>
-          <View style={{position:'absolute',bottom:60,left:24,right:24,gap:12}}>
+          <View style={{position:'absolute',bottom:90,left:24,right:24,gap:12}}>
             <TouchableOpacity onPress={async()=>{const w=generateWallet(wordCount);setNewSeedPhrase(w.mnemonic);setNewPubkey(w.publicKey);setOnboardStep('seedphrase');}} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.green,alignItems:'center'}}>
               <Text style={{color:'#060d06',fontWeight:'700',fontSize:16}}>Continue</Text>
             </TouchableOpacity>
@@ -1150,7 +1178,7 @@ export default function App() {
               <Ionicons name="copy-outline" size={18} color={C.green}/>
               <Text style={{color:C.text,fontSize:15}}>Copy</Text>
             </TouchableOpacity>
-            <View style={{position:'absolute',bottom:60,left:24,right:24,gap:12}}>
+            <View style={{position:'absolute',bottom:90,left:24,right:24,gap:12}}>
               <TouchableOpacity onPress={()=>setOnboardStep('username')} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.green,alignItems:'center'}}>
                 <Text style={{color:'#060d06',fontWeight:'700',fontSize:16}}>OK, I saved it somewhere</Text>
               </TouchableOpacity>
@@ -1174,7 +1202,7 @@ export default function App() {
             <TextInput key="username-input" value={onboardName} onChangeText={setOnboardName} placeholder="wallet01" placeholderTextColor={C.muted} style={{flex:1,color:C.text,fontSize:16,paddingVertical:12}} autoCapitalize="none" blurOnSubmit={false} autoFocus={true}/>
           </View>
           <Text style={{color:C.muted,fontSize:12,marginBottom:40}}>{onboardName.length}/8 letters, numbers, or underscores</Text>
-          <View style={{position:'absolute',bottom:60,left:24,right:24,gap:12}}>
+          <View style={{position:'absolute',bottom:90,left:24,right:24,gap:12}}>
             <TouchableOpacity onPress={async()=>{
               const name=onboardName||'wallet01';
               const existingRaw = await AsyncStorage.getItem('accounts');
@@ -1651,7 +1679,7 @@ export default function App() {
                   <View style={{width:22,height:22,borderRadius:11,backgroundColor:'#fff',alignSelf:fingerprintEnabled?'flex-end':'flex-start'}}/>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={()=>{setShowSecurityModal(false);setPasscode('');setOnboardStep('passcode');}} style={{paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <TouchableOpacity onPress={()=>{setShowSecurityModal(false);setPasscode('');setChangingPasscode(true);}} style={{paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
                 <Text style={{color:C.green,fontSize:15}}>Change Passcode →</Text>
               </TouchableOpacity>
             </>)}
