@@ -48,111 +48,102 @@ const POPULAR_DAPPS = [
 
 
 
-
-async function fetchPricesViaProxy(mints: string[]): Promise<Record<string, number>> {
-  try {
-    const res = await fetch('https://chatfi.pro/api/jupiter', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ url: `https://api.jup.ag/price/v3?ids=${mints.join(',')}`, method: 'GET' })
-    });
-    const data = await res.json();
-    const prices: Record<string, number> = {};
-    Object.entries(data || {}).forEach(([mint, val]: any) => {
-      prices[mint] = parseFloat(val?.usdPrice || 0);
-    });
-    return prices;
-  } catch { return {}; }
-}
-
 function TokenModal({ token, pubkey, onClose }) {
   const [view, setView] = React.useState('main');
+  const [importSeedInput, setImportSeedInput] = React.useState('');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
-  React.useEffect(() => {
-    if (!token) return;
-    setView('main'); setSendAddr(''); setSendAmt('');
-  }, [token?.mint]);
   if (!token) return null;
-  const amount = (Number(token?.amount) || 0).toFixed(4);
-  const usdVal = ((Number(token?.amount) || 0) * (Number(token?.price) || 0)).toFixed(2);
+
   return (
     <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
         <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%' }}>
+
           {/* Header */}
           <View style={{ flexDirection:'row', alignItems:'center', marginBottom:20 }}>
             <Image source={{ uri: token.logoURI || 'https://img.jup.ag/tokens/'+token.mint }}
               style={{ width:44, height:44, borderRadius:22, backgroundColor:C.card2, marginRight:12 }} />
             <View style={{ flex:1 }}>
               <Text style={{ color:C.text, fontWeight:'bold', fontSize:18 }}>{token.symbol}</Text>
-              <Text style={{ color:C.muted, fontSize:13 }}>{amount} {token.symbol}</Text>
+              <Text style={{ color:C.muted, fontSize:13 }}>{token.amount?.toFixed(4)} {token.symbol}</Text>
             </View>
             <TouchableOpacity onPress={onClose}>
               <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
             </TouchableOpacity>
           </View>
+
           {view === 'main' && (
-            <View>
-              {/* Balance card */}
-              <View style={{ backgroundColor:C.card, borderRadius:14, padding:16, marginBottom:20, alignItems:'center' }}>
-                <Text style={{ color:C.muted, fontSize:12, marginBottom:4 }}>BALANCE</Text>
-                <Text style={{ color:C.text, fontSize:28, fontWeight:'700' }}>{amount} {token.symbol}</Text>
-                <Text style={{ color:C.green, fontSize:16, marginTop:4 }}>${usdVal}</Text>
-              </View>
-              {/* Buttons */}
-              <View style={{ flexDirection:'row', gap:12 }}>
-                <TouchableOpacity onPress={()=>setView('receive')} style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                  <Ionicons name="arrow-down-outline" size={24} color={C.text} />
-                  <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={()=>setView('send')} style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                  <Ionicons name="arrow-up-outline" size={24} color="#0d1117" />
-                  <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
-                </TouchableOpacity>
-              </View>
+            <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
+              <TouchableOpacity onPress={() => setView('receive')}
+                style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                <Text style={{ fontSize:24 }}>⬇️</Text>
+                <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setView('send')}
+                style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                <Text style={{ fontSize:24 }}>⬆️</Text>
+                <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
+              </TouchableOpacity>
             </View>
           )}
+
           {view === 'receive' && (
             <ScrollView>
-              <TouchableOpacity onPress={()=>setView('main')} style={{ marginBottom:16 }}>
+              <TouchableOpacity onPress={() => setView('main')} style={{ marginBottom:16 }}>
                 <Text style={{ color:C.text, fontSize:16 }}>‹ Back</Text>
               </TouchableOpacity>
-              <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16, textAlign:'center' }}>Receive {token.symbol}</Text>
+              <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16, textAlign:'center' }}>
+                Receive {token.symbol}
+              </Text>
               <View style={{ backgroundColor:C.card, borderRadius:16, padding:20, alignItems:'center', marginBottom:16 }}>
-                <Image source={{ uri: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+(pubkey||'') }} style={{ width:200, height:200, borderRadius:8 }} />
+                <Image source={{ uri: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + (pubkey||'') }}
+                  style={{ width:200, height:200, borderRadius:8 }} />
               </View>
               <Text style={{ color:C.muted, fontSize:12, textAlign:'center', marginBottom:8 }}>Your wallet address</Text>
-              <TouchableOpacity onPress={()=>Alert.alert('Copied', pubkey||'')} style={{ backgroundColor:C.card, borderRadius:12, padding:14 }}>
+              <TouchableOpacity onPress={() => Alert.alert('Copied', pubkey||'')}
+                style={{ backgroundColor:C.card, borderRadius:12, padding:14 }}>
                 <Text style={{ color:C.green, fontSize:12, fontFamily:'monospace', textAlign:'center' }}>{pubkey}</Text>
               </TouchableOpacity>
               <Text style={{ color:C.muted, fontSize:11, textAlign:'center', marginTop:8 }}>Tap address to copy</Text>
             </ScrollView>
           )}
+
           {view === 'send' && (
             <ScrollView>
-              <TouchableOpacity onPress={()=>setView('main')} style={{ marginBottom:16 }}>
+              <TouchableOpacity onPress={() => setView('main')} style={{ marginBottom:16 }}>
                 <Text style={{ color:C.text, fontSize:16 }}>‹ Back</Text>
               </TouchableOpacity>
               <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16 }}>Send {token.symbol}</Text>
               <Text style={{ color:C.muted, fontSize:13, marginBottom:6 }}>Recipient Address</Text>
-              <TextInput value={sendAddr} onChangeText={setSendAddr} placeholder="Enter Solana address..." placeholderTextColor={C.muted}
-                style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:13, marginBottom:16 }} autoCapitalize="none" />
+              <TextInput value={sendAddr} onChangeText={setSendAddr}
+                placeholder="Enter Solana address..." placeholderTextColor={C.muted}
+                style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:13, marginBottom:16 }}
+                autoCapitalize="none" />
               <Text style={{ color:C.muted, fontSize:13, marginBottom:6 }}>Amount ({token.symbol})</Text>
-              <TextInput value={sendAmt} onChangeText={setSendAmt} placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric"
+              <TextInput value={sendAmt} onChangeText={setSendAmt}
+                placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric"
                 style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:20, fontWeight:'bold', marginBottom:24 }} />
               <TouchableOpacity style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}
-                onPress={()=>Alert.alert('Send', `Send ${sendAmt} ${token.symbol} to ${sendAddr.slice(0,8)}...?`)}>
+                onPress={() => Alert.alert('Send', `Send ${sendAmt} ${token.symbol} to ${sendAddr.slice(0,8)}...?`)}>
                 <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Send {token.symbol}</Text>
               </TouchableOpacity>
             </ScrollView>
           )}
+
         </View>
       </View>
     </Modal>
   );
 }
 
+
+function TokLogo({uri, symbol, style, fallback}: {uri:string, symbol:string, style:any, fallback?:string}) {
+  const [tries, setTries] = React.useState(0);
+  const mint = uri.split('/').pop(); const proxy = 'https://chatfi.pro/api/portfolio?tokenImage=' + mint; const sources = [proxy, uri, fallback || ''].filter(Boolean);
+  if(tries >= sources.length) return <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2a1a'}]}><Text style={{color:'#39ff14',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
+  return <Image source={{uri:sources[tries]}} style={style} onError={()=>setTries(t=>t+1)} />;
+}
 function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount }: any) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
@@ -273,7 +264,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                       return;
                     }
                     try {
-                      const { publicKey: pk } = await deriveWallet(importSeedInput.trim());
+                      const { publicKey: pk } = deriveWallet(importSeedInput.trim());
                       const raw = await AsyncStorage.getItem('accounts');
                       const existing = raw ? JSON.parse(raw) : [];
                       const newAcc = {id: existing.length+1, name:'Account '+(existing.length+1), mnemonic:importSeedInput.trim(), pubkey:pk};
@@ -577,7 +568,6 @@ export default function App() {
   const [solPrice, setSolPrice] = useState<number>(0);
   const [tokenBalances, setTokenBalances] = useState<Array<{symbol: string, mint: string, amount: number, logoURI: string, price: number}>>([]);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
-  const [totalUSD, setTotalUSD] = useState<number>(0);
   const [portfolioRefreshing, setPortfolioRefreshing] = useState(false);
 
   // Send state
@@ -653,34 +643,28 @@ export default function App() {
     try {
       const res = await fetch('https://chatfi.pro/api/portfolio?wallet=' + pubkey);
       const data = await res.json();
-      if (data.tokens?.length) {
-        let tokens = data.tokens.map((t:any) => ({
+      if (data.tokens) {
+        setSolBalance(data.tokens.find((t: any) => t.symbol === 'SOL')?.amount || 0);
+        setSolPrice(data.tokens.find((t: any) => t.symbol === 'SOL')?.price || 0);
+        setTokenBalances(data.tokens.map((t: any) => ({
           symbol: t.symbol,
           name: t.name || t.symbol,
           mint: t.mint,
           amount: t.amount,
           logoURI: t.logoURI || '',
           price: t.price || 0,
-          usdValue: t.usdValue || 0,
-        }));
-        // If server returned no prices, fetch via proxy
-        if (!data.totalUSD || data.totalUSD === 0) {
-          const mints = tokens.map((t:any) => t.mint).filter(Boolean);
-          const prices = await fetchPricesViaProxy(mints);
-          tokens = tokens.map((t:any) => ({
-            ...t,
-            price: prices[t.mint] || 0,
-            usdValue: t.amount * (prices[t.mint] || 0),
-          }));
-        }
-        const sol = tokens.find((t:any) => t.symbol === 'SOL');
-        setSolBalance(sol?.amount || 0);
-        setSolPrice(sol?.price || 0);
-        setTokenBalances(tokens);
-        const total = data.totalUSD || tokens.reduce((s:number,t:any) => s + (t.usdValue||0), 0);
-        setTotalUSD(total);
+        })));
       }
-    } catch(e){ console.log('Portfolio error', e); }
+      try {
+        const mints=data.tokens.map((t:any)=>t.mint).filter(Boolean).join(",");
+        const pr=await fetch("https://price.jup.ag/v6/price?ids="+mints);
+        const pd=await pr.json();
+        if(pd.data){
+          setSolPrice(pd.data["So11111111111111111111111111111111111111112"]?.price||0);
+          setTokenBalances(prev=>prev.map(t=>({...t,price:pd.data[t.mint]?.price||t.price||0})));
+        }
+      } catch(e){}
+  } catch(e){console.log("Portfolio error",e);}
     setPortfolioLoading(false);
     setPortfolioRefreshing(false);
   };
@@ -1121,7 +1105,7 @@ export default function App() {
               {/* Big Balance */}
               <View style={s.pfBalanceSection}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : '$'+(Number(totalUSD)||0).toFixed(2)}
+                  {portfolioLoading ? '...' : '$'+(((solBalance||0)*(solPrice||0)) + tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
                 </Text>
                 <TouchableOpacity onPress={copyAddress}>
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
@@ -1131,7 +1115,7 @@ export default function App() {
               {/* 4 Action Buttons */}
               <View style={s.pfActions}>
                 <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowSendModal(true)}>
-                  <View style={s.pfActionIcon}><Ionicons name='arrow-up-outline' size={20} color={C.text} /></View>
+                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↑</Text></View>
                   <Text style={s.pfActionLbl}>Send</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.pfActionBtn} onPress={()=>setTab('swap')}>
@@ -1139,7 +1123,7 @@ export default function App() {
                   <Text style={s.pfActionLbl}>Swap</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowReceiveModal(true)}>
-                  <View style={s.pfActionIcon}><Ionicons name='arrow-down-outline' size={20} color={C.text} /></View>
+                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↓</Text></View>
                   <Text style={s.pfActionLbl}>Receive</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.pfActionBtn} onPress={copyAddress}>
@@ -1160,9 +1144,9 @@ export default function App() {
                   <TokLogo uri={'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112'} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'} symbol={'SOL'} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
                     <Text style={s.pfTokenName}>SOL</Text>
-                    <Text style={s.pfTokenAmt}>{(Number(solBalance)||0).toFixed(4)} SOL</Text>
+                    <Text style={s.pfTokenAmt}>{(solBalance||0).toFixed(4)} SOL</Text>
                   </View>
-                  <Text style={s.pfTokenVal}>{solPrice ? '$'+((Number(solBalance)||0)*(Number(solPrice)||0)).toFixed(2) : '—'}</Text>
+                  <Text style={s.pfTokenVal}>{solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               )}
               {tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').map((t,i)=>(
@@ -1170,9 +1154,9 @@ export default function App() {
                   <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/'+t.mint+'/logo.png'} symbol={t.symbol} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
                     <Text style={s.pfTokenName}>{t.symbol}</Text>
-                    <Text style={s.pfTokenAmt}>{(Number(t.amount)||0).toFixed(4)} {t.symbol}</Text>
+                    <Text style={s.pfTokenAmt}>{t.amount.toFixed(4)} {t.symbol}</Text>
                   </View>
-                  <Text style={s.pfTokenVal}>{t.price ? '$'+((Number(t.amount)||0)*(Number(t.price)||0)).toFixed(2) : '—'}</Text>
+                  <Text style={s.pfTokenVal}>{t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               ))}
             </View>
