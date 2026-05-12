@@ -1385,7 +1385,7 @@ export default function App() {
 
                   {/* PORTFOLIO */}
       {tab === 'portfolio' && (
-        <ScrollView style={s.pad} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
+        <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
           {!wallet ? (
             <View style={s.emptyState}>
               <Text style={s.emptyTitle}>No Wallet</Text>
@@ -1467,7 +1467,7 @@ export default function App() {
         )}
         {/* SETTINGS */}
       {tab === 'settings' && (
-        <ScrollView style={s.pad}>
+        <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}}>
           {/* Wallet profile row */}
           {wallet && (
             <View style={s.stGroup}>
