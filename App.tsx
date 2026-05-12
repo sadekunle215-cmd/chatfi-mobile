@@ -222,13 +222,13 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   style={{ backgroundColor:C.green, borderRadius:14, padding:18, alignItems:'center' }}>
                   <Ionicons name="add-circle-outline" size={24} color="#0d1117" />
                   <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Create New Account</Text>
-                  <Text style={{ color:'#0d1117', fontSize:12, marginTop:4 }}>Generate a new wallet</Text>
+                  <Text style={{ color:'#0d1117', fontSize:12, marginTop:4, textAlign:'center', width:'100%' }}>Generate a new wallet</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setView('importAccount')}
                   style={{ backgroundColor:'#1c2128', borderRadius:14, padding:18, alignItems:'center', borderWidth:1, borderColor:C.green }}>
                   <Ionicons name="download-outline" size={24} color={C.green} />
                   <Text style={{ color:C.green, fontWeight:'bold', fontSize:16 }}>Import Account</Text>
-                  <Text style={{ color:C.muted, fontSize:12, marginTop:4 }}>Use existing seed phrase</Text>
+                  <Text style={{ color:C.muted, fontSize:12, marginTop:4, textAlign:'center', width:'100%' }}>Use existing seed phrase</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -999,7 +999,7 @@ export default function App() {
               )}
             </ScrollView>
             <View style={s.inputRow}>
-              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current || input)} editable={!aiLoading} />
+              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(input)} editable={!aiLoading} />
               <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current || input)} disabled={aiLoading}>
                 <Ionicons name="send" size={20} color="#0d1117" />
               </TouchableOpacity>
