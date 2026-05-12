@@ -3,6 +3,7 @@ import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
 import nacl from 'tweetnacl';
 import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
@@ -537,6 +538,14 @@ export default function App() {
   const [activeAccIdx, setActiveAccIdx] = useState(0);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showSeedModal, setShowSeedModal] = useState(false);
+  const [securityEnabled, setSecurityEnabled] = useState(false);
+  const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
+  const [showLockScreen, setShowLockScreen] = useState(false);
+  const [lockInput, setLockInput] = useState('');
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authInput, setAuthInput] = useState('');
+  const authResolveRef = useRef<((v:boolean)=>void)|null>(null);
   const [showPrivKeyModal, setShowPrivKeyModal] = useState(false);
   const [privKey, setPrivKey] = useState('');
   const [showSendModal, setShowSendModal] = useState(false);
@@ -625,6 +634,10 @@ export default function App() {
         const idx = idxRaw ? parseInt(idxRaw) : 0;
         setAccounts(accs); setActiveAccIdx(idx);
         if(accs[idx]){ setWallet(accs[idx].mnemonic); setPubkey(accs[idx].pubkey); }
+        const secOn = await AsyncStorage.getItem('security_enabled');
+        const fpOn = await AsyncStorage.getItem('fingerprint_enabled');
+        if(secOn==='true'){ setSecurityEnabled(true); setShowLockScreen(true); }
+        if(fpOn==='true'){ setFingerprintEnabled(true); }
       } else {
         if (!raw) AsyncStorage.getItem('wallet_mnemonic').then(m => {
           if(m){
@@ -738,6 +751,21 @@ export default function App() {
       setShowWalletModal(false);
       showToast('Wallet created! Keep seed phrase safe.','success');
     }
+  };
+
+  const requireAuth = (): Promise<boolean> => {
+    if (!securityEnabled) return Promise.resolve(true);
+    return new Promise(async (resolve) => {
+      if (fingerprintEnabled) {
+        try {
+          const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Authenticate to continue', cancelLabel: 'Cancel' });
+          if (res.success) { resolve(true); return; }
+        } catch(e) {}
+      }
+      authResolveRef.current = resolve;
+      setAuthInput('');
+      setShowAuthModal(true);
+    });
   };
 
   const importWallet = async () => {
@@ -990,6 +1018,53 @@ export default function App() {
         <SafeAreaView style={{flex:1}}>{children}</SafeAreaView>
       </View>
     );
+    if (showLockScreen) {
+      const tryFp = async () => {
+        try {
+          const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock ChatFi', cancelLabel: 'Use Passcode' });
+          if (res.success) { setShowLockScreen(false); setLockInput(''); }
+        } catch(e) {}
+      };
+      const handleKey = async (k: string) => {
+        if(k==='x'){setLockInput('');return;}
+        if(k==='<'){setLockInput(p=>p.slice(0,-1));return;}
+        if(lockInput.length<6){
+          const np=lockInput+k; setLockInput(np);
+          if(np.length===6){
+            const stored=await AsyncStorage.getItem('passcode');
+            if(np===stored){setShowLockScreen(false);setLockInput('');}
+            else{setLockInput('');showToast('Wrong passcode','error');}
+          }
+        }
+      };
+      return (
+        <View style={{flex:1,backgroundColor:C.bg,alignItems:'center',justifyContent:'center',padding:32}}>
+          <StatusBar barStyle="light-content" backgroundColor={C.bg}/>
+          <Text style={{color:C.green,fontSize:36,fontWeight:'bold',marginBottom:6}}>ChatFi</Text>
+          <Text style={{color:C.muted,fontSize:14,marginBottom:48}}>Enter passcode to unlock</Text>
+          <View style={{flexDirection:'row',gap:16,marginBottom:48}}>
+            {[0,1,2,3,4,5].map(i=>(
+              <View key={i} style={{width:16,height:16,borderRadius:8,backgroundColor:lockInput.length>i?C.green:C.border}}/>
+            ))}
+          </View>
+          {[[1,2,3],[4,5,6],[7,8,9],['x',0,'<']].map((row,ri)=>(
+            <View key={ri} style={{flexDirection:'row',gap:16,marginBottom:16}}>
+              {row.map(k=>(
+                <TouchableOpacity key={String(k)} onPress={()=>handleKey(String(k))} style={{width:72,height:72,borderRadius:36,backgroundColor:C.card,alignItems:'center',justifyContent:'center'}}>
+                  <Text style={{color:C.text,fontSize:String(k)==='<'||String(k)==='x'?20:24,fontWeight:'500'}}>{String(k)==='<'?'⌫':String(k)==='x'?'✕':k}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))}
+          {fingerprintEnabled && (
+            <TouchableOpacity onPress={tryFp} style={{marginTop:16,padding:16}}>
+              <Ionicons name="finger-print-outline" size={40} color={C.green}/>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    }
+
     if (onboardStep === 'passcode') return (
       <GradBg>
         <View style={{flex:1,alignItems:'center',paddingTop:60,paddingHorizontal:24}}>
@@ -1006,7 +1081,7 @@ export default function App() {
                 <TouchableOpacity key={ki} onPress={()=>{
                   if(k==='x'){setPasscode('');return;}
                   if(k==='<'){setPasscode(p=>p.slice(0,-1));return;}
-                  if(passcode.length<6){const np=passcode+k;setPasscode(np);if(np.length===6)setTimeout(()=>setOnboardStep('fingerprint'),300);}
+                  if(passcode.length<6){const np=passcode+k;setPasscode(np);if(np.length===6){AsyncStorage.setItem('passcode',np);setTimeout(()=>setOnboardStep('fingerprint'),300);}}
                 }} style={{width:80,height:80,borderRadius:40,backgroundColor:C.card,borderWidth:1,borderColor:C.border,alignItems:'center',justifyContent:'center'}}>
                   <Text style={{color:k==='x'?C.muted:C.green,fontSize:k==='<'?20:24,fontWeight:'600'}}>{k==='x'?'x':String(k)}</Text>
                 </TouchableOpacity>
@@ -1423,6 +1498,17 @@ export default function App() {
 
 
 
+          {/* Security */}
+          <View style={[s.stGroup,{marginTop:12}]}>
+            <TouchableOpacity style={s.stRow} onPress={()=>setShowSecurityModal(true)}>
+              <View style={{flex:1}}>
+                <Text style={s.stRowTxt}>Security</Text>
+                <Text style={{color:C.muted,fontSize:12,marginTop:2}}>{securityEnabled?'App lock on':'App lock off'}</Text>
+              </View>
+              <Text style={{color:C.muted,fontSize:18}}>›</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Info rows */}
           <View style={s.stGroup}>
             <View style={s.stRow}>
@@ -1533,6 +1619,83 @@ export default function App() {
           </View>
         </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* SECURITY MODAL */}
+      <Modal visible={showSecurityModal} animationType="slide" transparent>
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Security</Text>
+            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:14,borderBottomWidth:securityEnabled?1:0,borderBottomColor:C.border}}>
+              <View style={{flex:1}}>
+                <Text style={{color:C.text,fontSize:15,fontWeight:'600'}}>App Lock</Text>
+                <Text style={{color:C.muted,fontSize:12,marginTop:2}}>Require passcode on open</Text>
+              </View>
+              <TouchableOpacity onPress={async()=>{
+                const next=!securityEnabled; setSecurityEnabled(next);
+                await AsyncStorage.setItem('security_enabled',String(next));
+                if(!next){setFingerprintEnabled(false);await AsyncStorage.setItem('fingerprint_enabled','false');}
+              }} style={{width:50,height:28,borderRadius:14,backgroundColor:securityEnabled?C.green:C.border,justifyContent:'center',paddingHorizontal:3}}>
+                <View style={{width:22,height:22,borderRadius:11,backgroundColor:'#fff',alignSelf:securityEnabled?'flex-end':'flex-start'}}/>
+              </TouchableOpacity>
+            </View>
+            {securityEnabled && (<>
+              <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
+                <View style={{flex:1}}>
+                  <Text style={{color:C.text,fontSize:15,fontWeight:'600'}}>Fingerprint Unlock</Text>
+                  <Text style={{color:C.muted,fontSize:12,marginTop:2}}>Use biometrics to unlock</Text>
+                </View>
+                <TouchableOpacity onPress={async()=>{
+                  const next=!fingerprintEnabled; setFingerprintEnabled(next);
+                  await AsyncStorage.setItem('fingerprint_enabled',String(next));
+                }} style={{width:50,height:28,borderRadius:14,backgroundColor:fingerprintEnabled?C.green:C.border,justifyContent:'center',paddingHorizontal:3}}>
+                  <View style={{width:22,height:22,borderRadius:11,backgroundColor:'#fff',alignSelf:fingerprintEnabled?'flex-end':'flex-start'}}/>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={()=>{setShowSecurityModal(false);setPasscode('');setOnboardStep('passcode');}} style={{paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
+                <Text style={{color:C.green,fontSize:15}}>Change Passcode →</Text>
+              </TouchableOpacity>
+            </>)}
+            <TouchableOpacity style={[s.closeBtn,{marginTop:20}]} onPress={()=>setShowSecurityModal(false)}>
+              <Text style={s.closeBtnTxt}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* AUTH MODAL */}
+      <Modal visible={showAuthModal} animationType="fade" transparent>
+        <View style={s.modalOverlay}>
+          <View style={[s.modalCard,{paddingBottom:24}]}>
+            <Text style={s.modalTitle}>Confirm Identity</Text>
+            <View style={{flexDirection:'row',gap:16,marginBottom:32,justifyContent:'center'}}>
+              {[0,1,2,3,4,5].map(i=>(
+                <View key={i} style={{width:14,height:14,borderRadius:7,backgroundColor:authInput.length>i?C.green:C.border}}/>
+              ))}
+            </View>
+            {[[1,2,3],[4,5,6],[7,8,9],['x',0,'<']].map((row,ri)=>(
+              <View key={ri} style={{flexDirection:'row',gap:12,marginBottom:12,justifyContent:'center'}}>
+                {row.map(k=>(
+                  <TouchableOpacity key={String(k)} onPress={async()=>{
+                    const kk=String(k);
+                    if(kk==='x'){authResolveRef.current?.(false);authResolveRef.current=null;setShowAuthModal(false);setAuthInput('');return;}
+                    if(kk==='<'){setAuthInput(p=>p.slice(0,-1));return;}
+                    if(authInput.length<6){
+                      const np=authInput+kk; setAuthInput(np);
+                      if(np.length===6){
+                        const stored=await AsyncStorage.getItem('passcode');
+                        if(np===stored){authResolveRef.current?.(true);authResolveRef.current=null;setShowAuthModal(false);setAuthInput('');}
+                        else{setAuthInput('');showToast('Wrong passcode','error');}
+                      }
+                    }
+                  }} style={{width:64,height:64,borderRadius:32,backgroundColor:C.card,alignItems:'center',justifyContent:'center'}}>
+                    <Text style={{color:C.text,fontSize:String(k)==='<'||String(k)==='x'?18:22,fontWeight:'500'}}>{String(k)==='<'?'⌫':String(k)==='x'?'✕':k}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+          </View>
+        </View>
       </Modal>
 
       {/* SEND MODAL */}
