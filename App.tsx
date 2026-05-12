@@ -1088,10 +1088,14 @@ export default function App() {
           <View style={{position:'absolute',bottom:60,left:24,right:24,gap:12}}>
             <TouchableOpacity onPress={async()=>{
               const name=onboardName||'wallet01';
-              const acc=[{id:1,name:'Account 1',mnemonic:newSeedPhrase,pubkey:newPubkey}];
+              const existingRaw = await AsyncStorage.getItem('accounts');
+              const existing = existingRaw ? JSON.parse(existingRaw) : [];
+              const newAcc = {id:existing.length+1,name:'Account '+(existing.length+1),mnemonic:newSeedPhrase,pubkey:newPubkey};
+              const acc = [...existing, newAcc];
+              const newIdx = acc.length-1;
               setAccounts(acc);setWallet(newSeedPhrase);setPubkey(newPubkey);setUserName(name);
               await AsyncStorage.setItem('accounts',JSON.stringify(acc));
-              await AsyncStorage.setItem('active_acc','0');
+              await AsyncStorage.setItem('active_acc',String(newIdx));
               await AsyncStorage.setItem('user_name',name);
               setOnboardStep(null);
             }} style={{paddingVertical:16,borderRadius:30,backgroundColor:onboardName.length>=3?C.green:C.card,alignItems:'center'}}>
