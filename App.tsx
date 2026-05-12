@@ -1114,7 +1114,7 @@ export default function App() {
               {/* Big Balance */}
               <View style={s.pfBalanceSection}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : '$'+(((solBalance||0)*(solPrice||0)) + tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
+                  {portfolioLoading ? '...' : '$'+(tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
                 </Text>
                 <TouchableOpacity onPress={copyAddress}>
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
