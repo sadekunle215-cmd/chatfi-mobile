@@ -1156,7 +1156,7 @@ export default function App() {
               {/* Big Balance */}
               <View style={s.pfBalanceSection}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : '$'+totalUSD.toFixed(2)}
+                  {portfolioLoading ? '...' : '$'+(Number(totalUSD)||0).toFixed(2)}
                 </Text>
                 <TouchableOpacity onPress={copyAddress}>
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
@@ -1195,9 +1195,9 @@ export default function App() {
                   <TokLogo uri={'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112'} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'} symbol={'SOL'} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
                     <Text style={s.pfTokenName}>SOL</Text>
-                    <Text style={s.pfTokenAmt}>{(solBalance||0).toFixed(4)} SOL</Text>
+                    <Text style={s.pfTokenAmt}>{(Number(solBalance)||0).toFixed(4)} SOL</Text>
                   </View>
-                  <Text style={s.pfTokenVal}>{solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
+                  <Text style={s.pfTokenVal}>{solPrice ? '$'+((Number(solBalance)||0)*(Number(solPrice)||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               )}
               {tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').map((t,i)=>(
@@ -1205,9 +1205,9 @@ export default function App() {
                   <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/'+t.mint+'/logo.png'} symbol={t.symbol} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
                     <Text style={s.pfTokenName}>{t.symbol}</Text>
-                    <Text style={s.pfTokenAmt}>{t.amount.toFixed(4)} {t.symbol}</Text>
+                    <Text style={s.pfTokenAmt}>{(Number(t.amount)||0).toFixed(4)} {t.symbol}</Text>
                   </View>
-                  <Text style={s.pfTokenVal}>{t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
+                  <Text style={s.pfTokenVal}>{t.price ? '$'+((Number(t.amount)||0)*(Number(t.price)||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               ))}
             </View>
