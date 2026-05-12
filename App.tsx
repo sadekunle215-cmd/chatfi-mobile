@@ -182,10 +182,6 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   <Ionicons name='person-outline' size={24} color={C.text} />
                   <Text style={{ color:C.text, fontSize:13 }}>Profile</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setView('settings')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                  <Ionicons name='settings-outline' size={24} color={C.text} />
-                  <Text style={{ color:C.text, fontSize:13 }}>Settings</Text>
-                </TouchableOpacity>
               </View>
 
               {/* Wallet balance */}
