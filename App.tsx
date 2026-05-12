@@ -137,8 +137,8 @@ function TokenModal({ token, pubkey, onClose }) {
 
         </View>
       </View>
-    </Modal>
       </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
