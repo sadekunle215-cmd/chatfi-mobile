@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
@@ -274,7 +274,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                       switchAccount(updated.length-1);
                       setImportSeedInput('');
                       setView('manageAccounts');
-                      showToast('Account imported!','success');
+                      Alert.alert('Imported!', 'Account added successfully.');
                     } catch { Alert.alert('Error', 'Invalid seed phrase'); }
                   }}
                   style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
@@ -311,7 +311,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:15, marginBottom:16 }}
                 />
                 <TouchableOpacity
-                  onPress={async () => { setUserName(nameInput); await AsyncStorage.setItem('user_name', nameInput); showToast('Name saved!','success'); setView('main'); }}
+                  onPress={async () => { setUserName(nameInput); await AsyncStorage.setItem('user_name', nameInput); Alert.alert('Saved!', 'Name saved!'); setView('main'); }}
                   style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
                   <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:15 }}>Save Name</Text>
                 </TouchableOpacity>
