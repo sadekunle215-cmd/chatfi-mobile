@@ -276,37 +276,36 @@ export async function sendSolana(
   pubkey: string,
   secretKey: Uint8Array,
   recipient: string,
-  amountNum: number
+  lamports: number
 ): Promise<string> {
-  const senderPk = new PublicKey(pubkey);
-  const recipientPk = new PublicKey(recipient);
-
-  // Get latest blockhash
+  const bs58 = require("bs58");
   const bhRes = await fetch(RPC, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getLatestBlockhash', params: [{ commitment: 'confirmed' }] }),
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getLatestBlockhash", params: [{ commitment: "confirmed" }] }),
   });
   const bhData = await bhRes.json();
   const blockhash = bhData.result.value.blockhash;
-
-  // Build transaction
-  const tx = new Transaction();
-  tx.add(SystemProgram.transfer({ fromPubkey: senderPk, toPubkey: recipientPk, lamports: amountNum }));
-  tx.feePayer = senderPk;
-  tx.recentBlockhash = blockhash;
-
-  // Sign
-  const msgBytes = tx.serializeMessage();
-  const sig = nacl.sign.detached(msgBytes, secretKey);
-  tx.addSignature(senderPk, Buffer.from(sig));
-
-  // Submit
-  const raw = tx.serialize().toString('base64');
+  const fromPk = bs58.decode(pubkey);
+  const toPk = bs58.decode(recipient);
+  const bhBytes = bs58.decode(blockhash);
+  const sysProg = new Uint8Array(32);
+  const ixData = new Uint8Array(12);
+  new DataView(ixData.buffer).setUint32(0, 2, true);
+  new DataView(ixData.buffer).setBigUint64(4, BigInt(lamports), true);
+  const msg = new Uint8Array([
+    1, 0, 1, 3,
+    ...fromPk, ...toPk, ...sysProg,
+    ...bhBytes,
+    1, 2, 2, 0, 1, 12, ...ixData,
+  ]);
+  const sig = nacl.sign.detached(msg, secretKey);
+  const tx = new Uint8Array([1, ...sig, ...msg]);
+  const txB64 = Buffer.from(tx).toString("base64");
   const sendRes = await fetch(RPC, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [raw, { encoding: 'base64', preflightCommitment: 'confirmed' }] }),
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sendTransaction", params: [txB64, { encoding: "base64" }] }),
   });
   const sendData = await sendRes.json();
   if (sendData.error) throw new Error(sendData.error.message);

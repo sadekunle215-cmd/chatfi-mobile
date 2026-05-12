@@ -146,7 +146,7 @@ function TokenModal({ token, pubkey, onClose }) {
 
 function TokLogo({uri, symbol, style, fallback}: {uri:string, symbol:string, style:any, fallback?:string}) {
   const [tries, setTries] = React.useState(0);
-  const mint = uri.split('/').pop(); const proxy = 'https://chatfi.pro/api/portfolio?tokenImage=' + mint; const sources = [proxy, uri, fallback || ''].filter(Boolean);
+  const sources = [uri, fallback || ''].filter(Boolean);
   if(tries >= sources.length) return <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2a1a'}]}><Text style={{color:'#39ff14',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
   return <Image source={{uri:sources[tries]}} style={style} onError={()=>setTries(t=>t+1)} />;
 }
@@ -928,7 +928,7 @@ export default function App() {
       showToast(`Swapping ${fromToken} → ${toToken}...`,'info');
       const txSig = await executeSwapTx(
         TOKENS[fromToken], TOKENS[toToken],
-        parseFloat(swapAmt), DECIMALS[fromToken] || 6,
+        parseFloat(amt), DECIMALS[fromToken] || 6,
         pk, secretKey, RPC
       );
       showToast('Swap complete! ✓','success');
@@ -952,30 +952,37 @@ export default function App() {
     if (!sendAmt || isNaN(parseFloat(sendAmt))) { showToast('Enter a valid amount','error'); return; }
     setSendLoading(true);
     try {
-      const { secretKey } = deriveWallet(wallet);
+      const { secretKey, publicKey: pk } = deriveWallet(wallet);
       const mint = TOKENS[sendToken] || TOKENS['SOL'];
       const decimals = DECIMALS[sendToken] ?? 9;
       const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
-      const res = await fetch('https://chatfi.pro/api/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: pk, recipient: sendTo.trim(), amount: String(amountNum), mint }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.tx) throw new Error(data.error || 'Failed to build transaction');
-      const txBytes = Uint8Array.from(Buffer.from(data.tx, 'base64'));
-      const numSigs = txBytes[0];
-      const msgBytes = txBytes.slice(1 + numSigs * 64);
-      const userSig = nacl.sign.detached(msgBytes, secretKey);
-      txBytes.set(userSig, 1);
-      const txB64 = Buffer.from(txBytes).toString('base64');
-      const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [txB64, { encoding: 'base64', preflightCommitment: 'confirmed' }] }),
-      });
-      const rpcData = await rpcRes.json();
-      if (rpcData.error) throw new Error(rpcData.error.message);
+      let txSig: string;
+      if (sendToken === "SOL") {
+        const { sendSolana } = require("./sendMsg");
+        txSig = await sendSolana(pk, secretKey, sendTo.trim(), amountNum);
+      } else {
+        const res = await fetch("https://chatfi.pro/api/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sender: pk, recipient: sendTo.trim(), amount: String(amountNum), mint }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.tx) throw new Error(data.error || "Failed to build transaction");
+        const txBytes = Uint8Array.from(Buffer.from(data.tx, "base64"));
+        const numSigs = txBytes[0];
+        const msgBytes = txBytes.slice(1 + numSigs * 64);
+        const userSig = nacl.sign.detached(msgBytes, secretKey);
+        txBytes.set(userSig, 1);
+        const txB64 = Buffer.from(txBytes).toString("base64");
+        const rpcRes = await fetch("https://api.mainnet-beta.solana.com", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sendTransaction", params: [txB64, { encoding: "base64", preflightCommitment: "confirmed" }] }),
+        });
+        const rpcData = await rpcRes.json();
+        if (rpcData.error) throw new Error(rpcData.error.message);
+        txSig = rpcData.result;
+      }
       showToast(`Sent ${sendAmt} ${sendToken} ✓`,'success');
       setShowSendModal(false); setSendAmt(''); setSendTo('');
     } catch (e) {
