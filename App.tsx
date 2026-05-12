@@ -90,11 +90,11 @@ function TokenModal({ token, pubkey, onClose }) {
     }).catch(()=>{});
   }, [token?.mint]);
   if (!token) return null;
-  const price = priceInfo?.usdPrice ?? token?.price ?? 0;
-  const change24h = priceInfo?.priceChange24h ?? 0;
-  const usdVal = (token.amount ?? 0) * price;
+  const price = Number(priceInfo?.usdPrice ?? token?.price ?? 0) || 0;
+  const change24h = Number(priceInfo?.priceChange24h ?? 0) || 0;
+  const usdVal = (Number(token?.amount) || 0) * price;
   const isUp = change24h >= 0;
-  const fmt = (p) => p < 0.001 ? p.toFixed(8) : p < 1 ? p.toFixed(4) : p.toFixed(2);
+  const fmt = (p) => { const n = Number(p) || 0; return n < 0.001 ? n.toFixed(8) : n < 1 ? n.toFixed(4) : n.toFixed(2); };
   return (
     <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
@@ -104,7 +104,7 @@ function TokenModal({ token, pubkey, onClose }) {
               style={{ width:44, height:44, borderRadius:22, backgroundColor:C.card2, marginRight:12 }} />
             <View style={{ flex:1 }}>
               <Text style={{ color:C.text, fontWeight:'bold', fontSize:18 }}>{token.symbol}</Text>
-              <Text style={{ color:C.muted, fontSize:13 }}>{token.amount?.toFixed(4)} {token.symbol}</Text>
+              <Text style={{ color:C.muted, fontSize:13 }}>{(Number(token?.amount)||0).toFixed(4)} {token.symbol}</Text>
             </View>
             <TouchableOpacity onPress={onClose}>
               <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
@@ -116,7 +116,7 @@ function TokenModal({ token, pubkey, onClose }) {
                 {priceInfo===null ? '...' : '$'+fmt(price)}
               </Text>
               <Text style={{ color:isUp?C.green:C.red, fontSize:14, fontWeight:'600', marginBottom:14 }}>
-                {isUp?'▲':'▼'} {Math.abs(change24h).toFixed(2)}% (24h)
+                {isUp?'▲':'▼'} {(Math.abs(change24h)||0).toFixed(2)}% (24h)
               </Text>
               {spark.length>0 && (
                 <View style={{ height:56, flexDirection:'row', alignItems:'flex-end', gap:2, marginBottom:16, backgroundColor:C.card, borderRadius:12, padding:10 }}>
@@ -129,7 +129,7 @@ function TokenModal({ token, pubkey, onClose }) {
                 <View>
                   <Text style={{ color:C.muted, fontSize:11, letterSpacing:0.5, marginBottom:4 }}>HOLDINGS</Text>
                   <Text style={{ color:C.text, fontSize:20, fontWeight:'700' }}>{'$'+fmt(usdVal)}</Text>
-                  <Text style={{ color:C.muted, fontSize:13, marginTop:2 }}>{token.amount?.toFixed(4)} {token.symbol}</Text>
+                  <Text style={{ color:C.muted, fontSize:13, marginTop:2 }}>{(Number(token?.amount)||0).toFixed(4)} {token.symbol}</Text>
                 </View>
                 <View style={{ alignItems:'flex-end', justifyContent:'center' }}>
                   <Text style={{ color:C.muted, fontSize:11, letterSpacing:0.5, marginBottom:4 }}>24H</Text>
