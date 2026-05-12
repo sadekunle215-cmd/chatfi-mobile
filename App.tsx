@@ -1283,7 +1283,7 @@ export default function App() {
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>Wallet</Text>
-            <TouchableOpacity style={s.greenBtn} onPress={createWallet}>
+            <TouchableOpacity style={s.greenBtn} onPress={() => { setShowWalletModal(false); setOnboardStep('passcode'); }}>
               <Text style={s.greenBtnTxt}>Create New Wallet</Text>
             </TouchableOpacity>
             <Text style={s.orText}>— or import existing —</Text>
