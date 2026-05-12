@@ -1129,7 +1129,7 @@ export default function App() {
       />
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
-      <View style={s.header}>
+      {tab !== 'dapp' && <View style={s.header}>
         <View style={s.logoRow}>
           
           <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />{userName ? <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{userName}</Text> : null}</TouchableOpacity>
@@ -1137,7 +1137,7 @@ export default function App() {
         <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => { if(pubkey){ Clipboard.setString(pubkey); showToast('Address copied!','success'); } }}>
           <Text style={[s.walletBtnTxt, wallet ? { color: C.green } : null]}>{wallet ? shortKey : 'Connect Wallet'}</Text>
         </TouchableOpacity>
-      </View>
+      </View>}
 
       <KeyboardAvoidingView style={s.content} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
 
