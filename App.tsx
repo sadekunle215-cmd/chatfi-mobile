@@ -48,6 +48,23 @@ const POPULAR_DAPPS = [
 
 
 
+
+async function fetchPricesViaProxy(mints: string[]): Promise<Record<string, number>> {
+  try {
+    const res = await fetch('https://chatfi.pro/api/jupiter', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ url: `https://api.jup.ag/price/v3?ids=${mints.join(',')}`, method: 'GET' })
+    });
+    const data = await res.json();
+    const prices: Record<string, number> = {};
+    Object.entries(data || {}).forEach(([mint, val]: any) => {
+      prices[mint] = parseFloat(val?.price || 0);
+    });
+    return prices;
+  } catch { return {}; }
+}
+
 function TokenModal({ token, pubkey, onClose }) {
   const [view, setView] = React.useState('main');
   const [importSeedInput, setImportSeedInput] = React.useState('');
@@ -645,10 +662,7 @@ export default function App() {
       const res = await fetch('https://chatfi.pro/api/portfolio?wallet=' + pubkey);
       const data = await res.json();
       if (data.tokens?.length) {
-        const sol = data.tokens.find((t:any) => t.symbol === 'SOL');
-        setSolBalance(sol?.amount || 0);
-        setSolPrice(sol?.price || 0);
-        setTokenBalances(data.tokens.map((t:any) => ({
+        let tokens = data.tokens.map((t:any) => ({
           symbol: t.symbol,
           name: t.name || t.symbol,
           mint: t.mint,
@@ -656,8 +670,23 @@ export default function App() {
           logoURI: t.logoURI || '',
           price: t.price || 0,
           usdValue: t.usdValue || 0,
-        })));
-        setTotalUSD(data.totalUSD || 0);
+        }));
+        // If server returned no prices, fetch via proxy
+        if (!data.totalUSD || data.totalUSD === 0) {
+          const mints = tokens.map((t:any) => t.mint).filter(Boolean);
+          const prices = await fetchPricesViaProxy(mints);
+          tokens = tokens.map((t:any) => ({
+            ...t,
+            price: prices[t.mint] || 0,
+            usdValue: t.amount * (prices[t.mint] || 0),
+          }));
+        }
+        const sol = tokens.find((t:any) => t.symbol === 'SOL');
+        setSolBalance(sol?.amount || 0);
+        setSolPrice(sol?.price || 0);
+        setTokenBalances(tokens);
+        const total = data.totalUSD || tokens.reduce((s:number,t:any) => s + (t.usdValue||0), 0);
+        setTotalUSD(total);
       }
     } catch(e){ console.log('Portfolio error', e); }
     setPortfolioLoading(false);
