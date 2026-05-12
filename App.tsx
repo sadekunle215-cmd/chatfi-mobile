@@ -947,6 +947,7 @@ export default function App() {
 
   const shortKey = pubkey ? pubkey.slice(0, 4) + '...' + pubkey.slice(-4) : null;
 
+  // SPLASH
   if (!splashDone) {
     return (
       <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' }}>
@@ -963,6 +964,146 @@ export default function App() {
         <Text style={{ color: '#888', fontSize: 14, marginTop: 12, letterSpacing: 1 }}>{subtitleText}</Text>
       </View>
     );
+  }
+
+
+  if (onboardStep) {
+    const GradBg = ({children}:{children:any}) => (
+      <View style={{flex:1,backgroundColor:C.bg}}>
+        <View style={{position:'absolute',top:0,left:0,right:0,height:'60%',backgroundColor:'#0a1f0a',opacity:0.7}}/>
+        <SafeAreaView style={{flex:1}}>{children}</SafeAreaView>
+      </View>
+    );
+    if (onboardStep === 'passcode') return (
+      <GradBg>
+        <View style={{flex:1,alignItems:'center',paddingTop:60,paddingHorizontal:24}}>
+          <Text style={{color:C.text,fontSize:28,fontWeight:'bold',marginBottom:8}}>Set app passcode</Text>
+          <Text style={{color:C.muted,fontSize:14,marginBottom:40}}>Enter a 6-digit passcode to secure your app.</Text>
+          <View style={{flexDirection:'row',gap:16,marginBottom:48}}>
+            {[0,1,2,3,4,5].map(i=>(
+              <View key={i} style={{width:16,height:16,borderRadius:8,backgroundColor:passcode.length>i?C.green:C.border}}/>
+            ))}
+          </View>
+          {[[1,2,3],[4,5,6],[7,8,9],['x',0,'<']].map((row,ri)=>(
+            <View key={ri} style={{flexDirection:'row',gap:20,marginBottom:16}}>
+              {row.map((k,ki)=>(
+                <TouchableOpacity key={ki} onPress={()=>{
+                  if(k==='x'){setPasscode('');return;}
+                  if(k==='<'){setPasscode(p=>p.slice(0,-1));return;}
+                  if(passcode.length<6){const np=passcode+k;setPasscode(np);if(np.length===6)setTimeout(()=>setOnboardStep('fingerprint'),300);}
+                }} style={{width:80,height:80,borderRadius:40,backgroundColor:C.card,borderWidth:1,borderColor:C.border,alignItems:'center',justifyContent:'center'}}>
+                  <Text style={{color:k==='x'?C.muted:C.green,fontSize:k==='<'?20:24,fontWeight:'600'}}>{k==='x'?'x':String(k)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))}
+          <TouchableOpacity onPress={()=>setOnboardStep(null)} style={{marginTop:24,paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,width:'100%',alignItems:'center'}}>
+            <Text style={{color:C.text,fontSize:16}}>Back</Text>
+          </TouchableOpacity>
+        </View>
+      </GradBg>
+    );
+    if (onboardStep === 'fingerprint') return (
+      <GradBg>
+        <View style={{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
+          <Ionicons name="finger-print" size={80} color={C.green} style={{marginBottom:24}}/>
+          <Text style={{color:C.text,fontSize:28,fontWeight:'bold',marginBottom:12}}>Fingerprint Unlock</Text>
+          <Text style={{color:C.muted,fontSize:14,textAlign:'center',marginBottom:60}}>Use your fingerprint to secure your wallet. You can skip this for now.</Text>
+          <TouchableOpacity onPress={()=>setOnboardStep('wordcount')} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.card,borderWidth:1,borderColor:C.border,width:'100%',alignItems:'center',marginBottom:12}}>
+            <Text style={{color:C.muted,fontSize:16}}>I will do it later</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={()=>setOnboardStep('passcode')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,width:'100%',alignItems:'center'}}>
+            <Text style={{color:C.text,fontSize:16}}>Back</Text>
+          </TouchableOpacity>
+        </View>
+      </GradBg>
+    );
+    if (onboardStep === 'wordcount') return (
+      <GradBg>
+        <View style={{flex:1,paddingHorizontal:24,paddingTop:80}}>
+          <Text style={{color:C.text,fontSize:28,fontWeight:'bold',marginBottom:12}}>Secret recovery phrase</Text>
+          <Text style={{color:C.muted,fontSize:14,marginBottom:40,lineHeight:22}}>Choose how many words your backup phrase will use.</Text>
+          <View style={{flexDirection:'row',gap:16,marginBottom:60}}>
+            {([12,24] as const).map(n=>(
+              <TouchableOpacity key={n} onPress={()=>setWordCount(n)} style={{flex:1,paddingVertical:16,borderRadius:30,backgroundColor:wordCount===n?C.green:C.card,borderWidth:1,borderColor:wordCount===n?C.green:C.border,alignItems:'center'}}>
+                <Text style={{color:wordCount===n?'#060d06':C.text,fontWeight:'700',fontSize:16}}>{n} words</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={{position:'absolute',bottom:40,left:24,right:24,gap:12}}>
+            <TouchableOpacity onPress={async()=>{const w=generateWallet();setNewSeedPhrase(w.mnemonic);setNewPubkey(w.publicKey);setOnboardStep('seedphrase');}} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.green,alignItems:'center'}}>
+              <Text style={{color:'#060d06',fontWeight:'700',fontSize:16}}>Continue</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={()=>setOnboardStep('fingerprint')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
+              <Text style={{color:C.text,fontSize:16}}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </GradBg>
+    );
+    if (onboardStep === 'seedphrase') {
+      const words = newSeedPhrase.split(' ');
+      return (
+        <GradBg>
+          <View style={{flex:1,paddingHorizontal:24,paddingTop:60}}>
+            <Text style={{color:C.text,fontSize:26,fontWeight:'bold',marginBottom:8}}>Secret Recovery Phrase</Text>
+            <Text style={{color:C.muted,fontSize:13,marginBottom:28,lineHeight:20}}>Store this somewhere safe. It is the only way to recover your wallet.</Text>
+            <View style={{flexDirection:'row',flexWrap:'wrap',gap:10,marginBottom:24}}>
+              {words.map((w,i)=>(
+                <View key={i} style={{flexDirection:'row',alignItems:'center',backgroundColor:C.card,borderRadius:20,paddingVertical:8,paddingHorizontal:12,borderWidth:1,borderColor:C.border,width:'30%'}}>
+                  <Text style={{color:C.muted,fontSize:11,marginRight:4}}>{i+1}</Text>
+                  <Text style={{color:C.text,fontSize:13,fontWeight:'500'}}>{w}</Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity onPress={()=>{Clipboard.setString(newSeedPhrase);showToast('Copied!','success');}} style={{flexDirection:'row',alignItems:'center',gap:8,alignSelf:'center',backgroundColor:C.card,paddingVertical:12,paddingHorizontal:24,borderRadius:20,borderWidth:1,borderColor:C.border,marginBottom:32}}>
+              <Ionicons name="copy-outline" size={18} color={C.green}/>
+              <Text style={{color:C.text,fontSize:15}}>Copy</Text>
+            </TouchableOpacity>
+            <View style={{position:'absolute',bottom:40,left:24,right:24,gap:12}}>
+              <TouchableOpacity onPress={()=>setOnboardStep('username')} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.green,alignItems:'center'}}>
+                <Text style={{color:'#060d06',fontWeight:'700',fontSize:16}}>OK, I saved it somewhere</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={()=>setOnboardStep('wordcount')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
+                <Text style={{color:C.text,fontSize:16}}>Back</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </GradBg>
+      );
+    }
+    if (onboardStep === 'username') return (
+      <GradBg>
+        <View style={{flex:1,alignItems:'center',paddingHorizontal:24,paddingTop:80}}>
+          <View style={{width:80,height:80,borderRadius:40,backgroundColor:C.card,borderWidth:2,borderColor:C.green,alignItems:'center',justifyContent:'center',marginBottom:24}}>
+            <Text style={{color:C.green,fontSize:32,fontWeight:'bold'}}>C</Text>
+          </View>
+          <Text style={{color:C.text,fontSize:28,fontWeight:'bold',marginBottom:32}}>Choose a username</Text>
+          <View style={{flexDirection:'row',alignItems:'center',backgroundColor:C.card,borderRadius:30,borderWidth:1,borderColor:C.green,paddingHorizontal:16,paddingVertical:4,width:'100%',marginBottom:8}}>
+            <Text style={{color:C.muted,fontSize:16,marginRight:8}}>@</Text>
+            <TextInput value={onboardName} onChangeText={setOnboardName} placeholder="wallet01" placeholderTextColor={C.muted} style={{flex:1,color:C.text,fontSize:16,paddingVertical:12}} autoCapitalize="none"/>
+          </View>
+          <Text style={{color:C.muted,fontSize:12,marginBottom:40}}>{onboardName.length}/8 letters, numbers, or underscores</Text>
+          <View style={{position:'absolute',bottom:40,left:24,right:24,gap:12}}>
+            <TouchableOpacity onPress={async()=>{
+              const name=onboardName||'wallet01';
+              const acc=[{id:1,name:'Account 1',mnemonic:newSeedPhrase,pubkey:newPubkey}];
+              setAccounts(acc);setWallet(newSeedPhrase);setPubkey(newPubkey);setUserName(name);
+              await AsyncStorage.setItem('accounts',JSON.stringify(acc));
+              await AsyncStorage.setItem('active_acc','0');
+              await AsyncStorage.setItem('user_name',name);
+              setOnboardStep(null);
+            }} style={{paddingVertical:16,borderRadius:30,backgroundColor:onboardName.length>=3?C.green:C.card,alignItems:'center'}}>
+              <Text style={{color:onboardName.length>=3?'#060d06':C.muted,fontWeight:'700',fontSize:16}}>Continue</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={()=>setOnboardStep('seedphrase')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
+              <Text style={{color:C.text,fontSize:16}}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </GradBg>
+    );
+    return null;
   }
 
   return (
