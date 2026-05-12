@@ -60,6 +60,7 @@ function TokenModal({ token, pubkey, onClose }) {
 
   return (
     <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
         <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%' }}>
 
@@ -137,6 +138,7 @@ function TokenModal({ token, pubkey, onClose }) {
         </View>
       </View>
     </Modal>
+      </KeyboardAvoidingView>
   );
 }
 
