@@ -1023,7 +1023,7 @@ export default function App() {
                 <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setFromResults); else setFromResults([]);}} />
                 {fromResults.slice(0,5).map(t=>(
                   <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setFromToken(t.symbol);TOKENS[t.symbol]=t.address;setShowFromSearch(false);setQuote(null);}}>
-                    <TokLogo uri={'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
+                    <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
                     <View style={{flex:1,marginLeft:8}}>
                       <Text style={s.tokenResTxt}>{t.symbol}</Text>
                       <Text style={s.tokenResSub} numberOfLines={1}>{t.name}</Text>
@@ -1053,7 +1053,7 @@ export default function App() {
                 <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setToResults); else setToResults([]);}} />
                 {toResults.slice(0,5).map(t=>(
                   <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setToToken(t.symbol);TOKENS[t.symbol]=t.address;setShowToSearch(false);setQuote(null);}}>
-                    <TokLogo uri={'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
+                    <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
                     <View style={{flex:1,marginLeft:8}}>
                       <Text style={s.tokenResTxt}>{t.symbol}</Text>
                       <Text style={s.tokenResSub} numberOfLines={1}>{t.name}</Text>
