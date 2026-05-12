@@ -140,11 +140,11 @@ function TokenModal({ token, pubkey, onClose }) {
 
 function TokLogo({uri, symbol, style, fallback}: {uri:string, symbol:string, style:any, fallback?:string}) {
   const [tries, setTries] = React.useState(0);
-  const mint = uri.split('/').pop(); const proxy = 'https://chatfi.pro/api/portfolio?tokenImage=' + mint; const sources = [uri, proxy, fallback || ''].filter(Boolean);
+  const mint = uri.split('/').pop(); const proxy = 'https://chatfi.pro/api/portfolio?tokenImage=' + mint; const sources = [proxy, uri, fallback || ''].filter(Boolean);
   if(tries >= sources.length) return <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2a1a'}]}><Text style={{color:'#39ff14',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
   return <Image source={{uri:sources[tries]}} style={style} onError={()=>setTries(t=>t+1)} />;
 }
-function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount, importSeedInput, setImportSeedInput }: any) {
+function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount }: any) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
   React.useEffect(() => { setNameInput(userName || ''); }, [userName]);
@@ -222,13 +222,13 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   style={{ backgroundColor:C.green, borderRadius:14, padding:18, alignItems:'center' }}>
                   <Ionicons name="add-circle-outline" size={24} color="#0d1117" />
                   <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Create New Account</Text>
-                  <Text style={{ color:'#0d1117', fontSize:12, marginTop:4, textAlign:'center', width:'100%' }}>Generate a new wallet</Text>
+                  <Text style={{ color:'#0d1117', fontSize:12, marginTop:4 }}>Generate a new wallet</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setView('importAccount')}
                   style={{ backgroundColor:'#1c2128', borderRadius:14, padding:18, alignItems:'center', borderWidth:1, borderColor:C.green }}>
                   <Ionicons name="download-outline" size={24} color={C.green} />
                   <Text style={{ color:C.green, fontWeight:'bold', fontSize:16 }}>Import Account</Text>
-                  <Text style={{ color:C.muted, fontSize:12, marginTop:4, textAlign:'center', width:'100%' }}>Use existing seed phrase</Text>
+                  <Text style={{ color:C.muted, fontSize:12, marginTop:4 }}>Use existing seed phrase</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -523,8 +523,7 @@ export default function App() {
   const [tab, setTab] = useState('chat');
   const [splashDone, setSplashDone] = useState(false);
   const [subtitleText, setSubtitleText] = useState('');
-  const letterAnimsRef = React.useRef('CHATFI'.split('').map(() => new Animated.Value(0)));
-  const letterAnims = letterAnimsRef.current;
+  const letterAnims = 'CHATFI'.split('').map(() => new Animated.Value(0));
   const [wallet, setWallet] = useState<string | null>(null);
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<{id:number,name:string,mnemonic:string,pubkey:string}[]>([]);
@@ -539,7 +538,7 @@ export default function App() {
   const [accountView, setAccountView] = useState('main');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [seedPhrase, setSeedPhrase] = useState('');
-  const [importSeedInput, setImportSeedInput] = useState('');
+  const [importSeed, setImportSeed] = useState('');
   const [msgs, setMsgs] = useState([
     { id: 1, text: 'Welcome to ChatFi! Your AI DeFi assistant on Solana.\n\nTry:\n• "swap 1 SOL to USDC"\n• "price of JUP"\n• "what is yield farming?"', from: 'bot' }
   ]);
@@ -957,8 +956,6 @@ export default function App() {
         activeAccIdx={activeAccIdx}
         switchAccount={switchAccount}
         addAccount={addAccount}
-            importSeedInput={importSeedInput}
-            setImportSeedInput={setImportSeedInput}
         userName={userName}
         setUserName={setUserName}
         onRemoveWallet={async () => {
@@ -1000,7 +997,7 @@ export default function App() {
               )}
             </ScrollView>
             <View style={s.inputRow}>
-              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(input)} editable={!aiLoading} />
+              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current || input)} editable={!aiLoading} />
               <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current || input)} disabled={aiLoading}>
                 <Ionicons name="send" size={20} color="#0d1117" />
               </TouchableOpacity>
