@@ -9,10 +9,10 @@ import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, cr
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices } from './wallet';
 
 const C = {
-  bg: '#060d06', card: '#0d1a0d', card2: '#112211',
-  border: '#1a3a1a', green: '#39ff14', blue: '#00e5ff',
-  text: '#e6f4e6', muted: '#6b8f6b', red: '#ff4444', orange: '#ffaa00',
-  gradTop: '#0a1f0a', gradBot: '#060d06',
+  bg: '#0d1117', card: '#1C2936', card2: '#162030',
+  border: '#2a3f52', green: '#C7F284', blue: '#79e0f2',
+  text: '#e8f4e8', muted: '#7a9bb5', red: '#ff5555', orange: '#ffaa00',
+  gradTop: '#1C2936', gradBot: '#0d1117',
 };
 
 const RPC = 'https://api.mainnet-beta.solana.com';
