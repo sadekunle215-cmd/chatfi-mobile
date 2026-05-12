@@ -538,7 +538,7 @@ export default function App() {
   const [accountView, setAccountView] = useState('main');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [seedPhrase, setSeedPhrase] = useState('');
-  const [importSeed, setImportSeed] = useState('');
+  const [importSeedInput, setImportSeedInput] = useState('');
   const [msgs, setMsgs] = useState([
     { id: 1, text: 'Welcome to ChatFi! Your AI DeFi assistant on Solana.\n\nTry:\n• "swap 1 SOL to USDC"\n• "price of JUP"\n• "what is yield farming?"', from: 'bot' }
   ]);
