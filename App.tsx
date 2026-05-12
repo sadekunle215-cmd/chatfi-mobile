@@ -193,7 +193,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
               </View>
 
               {/* Accounts */}
-              <Text style={{ color:C.muted, fontSize:11, fontWeight:'600', paddingHorizontal:16, marginBottom:8, letterSpacing:1 }}>YOUR ACCOUNTS</Text>
+              <Text style={{ color:C.muted, fontSize:11, fontWeight:'600', paddingHorizontal:16, marginBottom:8, letterSpacing:1, paddingRight: 2, paddingRight: 2 }}>YOUR ACCOUNTS</Text>
               <View style={{ marginHorizontal:16, backgroundColor:'#1c2128', borderRadius:14, marginBottom:16 }}>
                 <View style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                   <View style={{ width:40, height:40, borderRadius:20, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
@@ -486,7 +486,7 @@ function DappBrowser({ walletAddress }) {
       {/* Main content */}
       {!activeUrl ? (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-          <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 12 }}>POPULAR DAPPS</Text>
+          <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, paddingRight: 2, marginBottom: 12 }}>POPULAR DAPPS</Text>
           {POPULAR_DAPPS.map((d, i) => (
             <TouchableOpacity key={i} onPress={() => navigate(d.url)}
               style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border }}>
@@ -962,7 +962,7 @@ export default function App() {
             }}>{letter}</Animated.Text>
           ))}
         </View>
-        <Text style={{ color: '#888', fontSize: 14, marginTop: 12, letterSpacing: 1 }}>{subtitleText}</Text>
+        <Text style={{ color: '#888', fontSize: 14, marginTop: 12, letterSpacing: 1, paddingRight: 2, paddingRight: 2 }}>{subtitleText}</Text>
       </View>
     );
   }
@@ -1567,7 +1567,7 @@ const s = StyleSheet.create({
   portfolioAction: { alignItems: 'center', backgroundColor: C.card2, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: C.border },
   portfolioActionIcon: { color: C.green, fontSize: 18, fontWeight: 'bold' },
   portfolioActionTxt: { color: C.text, fontSize: 10, marginTop: 2 },
-  sectionLabel: { color: C.muted, fontSize: 11, fontWeight: '600', marginBottom: 8, letterSpacing: 1 },
+  sectionLabel: { color: C.muted, fontSize: 11, fontWeight: '600', marginBottom: 8, letterSpacing: 1, paddingRight: 2, paddingRight: 2 },
   assetRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: C.border },
   assetIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   assetIconTxt: { color: C.green, fontWeight: 'bold', fontSize: 15 },
