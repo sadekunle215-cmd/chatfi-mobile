@@ -1355,14 +1355,19 @@ export default function App() {
           {/* Wallet profile row */}
           {wallet && (
             <View style={s.stGroup}>
-              <TouchableOpacity style={s.stProfileRow} onPress={copyAddress}>
-                <View style={s.stAvatar}><Text style={s.stAvatarTxt}>◎</Text></View>
-                <View style={{flex:1,marginLeft:12}}>
-                  <Text style={s.stProfileAddr}>{pubkey?pubkey.slice(0,6)+'...'+pubkey.slice(-6):''}</Text>
-                  <Text style={s.stProfileSub}>Tap to copy</Text>
-                </View>
-                <Text style={{color:C.muted}}>›</Text>
-              </TouchableOpacity>
+              <Text style={{color:C.muted,fontSize:11,fontWeight:'600',paddingHorizontal:16,paddingTop:12,paddingBottom:6,letterSpacing:1,paddingRight:2}}>ACCOUNTS</Text>
+              {accounts.map((acc,idx)=>(
+                <TouchableOpacity key={acc.id} onPress={()=>switchAccount(idx)} style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderBottomWidth:idx<accounts.length-1?1:0,borderBottomColor:C.border}}>
+                  <View style={{width:36,height:36,borderRadius:18,backgroundColor:idx===activeAccIdx?C.green:C.card,alignItems:'center',justifyContent:'center',marginRight:12}}>
+                    <Text style={{color:idx===activeAccIdx?'#0d1117':C.muted,fontWeight:'bold',fontSize:14}}>{idx+1}</Text>
+                  </View>
+                  <View style={{flex:1}}>
+                    <Text style={{color:C.text,fontWeight:'600',fontSize:14}}>{acc.name}{idx===activeAccIdx?' ✓':''}</Text>
+                    <Text style={{color:C.muted,fontSize:12}}>{acc.pubkey?acc.pubkey.slice(0,6)+'...'+acc.pubkey.slice(-4):''}</Text>
+                  </View>
+                  {idx===activeAccIdx&&<TouchableOpacity onPress={copyAddress}><Text style={{color:C.green,fontSize:12}}>Copy</Text></TouchableOpacity>}
+                </TouchableOpacity>
+              ))}
             </View>
           )}
               <View style={[s.stGroup,{marginTop:12}]}>
