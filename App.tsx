@@ -648,8 +648,13 @@ export default function App() {
     const w = generateWallet();
     const newAcc = {id:accounts.length+1,name:'Account '+(accounts.length+1),mnemonic:w.mnemonic,pubkey:w.publicKey};
     const updated = [...accounts, newAcc];
+    const newIdx = updated.length - 1;
     setAccounts(updated);
+    setActiveAccIdx(newIdx);
+    setWallet(w.mnemonic);
+    setPubkey(w.publicKey);
     await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+    await AsyncStorage.setItem('active_acc', String(newIdx));
     showToast('Account '+(accounts.length+1)+' added!','success');
   };
   const switchAccount = async (idx:number) => {
@@ -748,6 +753,7 @@ export default function App() {
       const newAcc2 = {id: existing2.length+1, name:'Account '+(existing2.length+1), mnemonic:importSeed.trim(), pubkey:pk};
       const updated2 = [...existing2, newAcc2];
       setAccounts(updated2);
+      setActiveAccIdx(existing2.length);
       await AsyncStorage.setItem('accounts', JSON.stringify(updated2));
       await AsyncStorage.setItem('active_acc', String(existing2.length));
       setWallet(importSeed.trim()); setPubkey(pk);
