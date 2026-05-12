@@ -746,7 +746,7 @@ export default function App() {
   };
 
   const sendMsg = async (overrideText?: string) => {
-    const q = (overrideText || inputRef.current || input).trim();
+    const q = (overrideText || input).trim();
     if (!q || aiLoading) return;
     setMsgs(p => [...p, { id: Date.now(), text: q, from: 'user' }]);
     const msgText = q;
@@ -1080,7 +1080,7 @@ export default function App() {
           <Text style={{color:C.text,fontSize:28,fontWeight:'bold',marginBottom:32}}>Choose a username</Text>
           <View style={{flexDirection:'row',alignItems:'center',backgroundColor:C.card,borderRadius:30,borderWidth:1,borderColor:C.green,paddingHorizontal:16,paddingVertical:4,width:'100%',marginBottom:8}}>
             <Text style={{color:C.muted,fontSize:16,marginRight:8}}>@</Text>
-            <TextInput value={onboardName} onChangeText={setOnboardName} placeholder="wallet01" placeholderTextColor={C.muted} style={{flex:1,color:C.text,fontSize:16,paddingVertical:12}} autoCapitalize="none"/>
+            <TextInput key="username-input" value={onboardName} onChangeText={setOnboardName} placeholder="wallet01" placeholderTextColor={C.muted} style={{flex:1,color:C.text,fontSize:16,paddingVertical:12}} autoCapitalize="none" blurOnSubmit={false}/>
           </View>
           <Text style={{color:C.muted,fontSize:12,marginBottom:40}}>{onboardName.length}/8 letters, numbers, or underscores</Text>
           <View style={{position:'absolute',bottom:60,left:24,right:24,gap:12}}>
