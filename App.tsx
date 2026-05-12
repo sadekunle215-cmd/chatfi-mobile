@@ -264,7 +264,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                       return;
                     }
                     try {
-                      const { publicKey: pk } = deriveWallet(importSeedInput.trim());
+                      const { publicKey: pk } = await deriveWallet(importSeedInput.trim());
                       const raw = await AsyncStorage.getItem('accounts');
                       const existing = raw ? JSON.parse(raw) : [];
                       const newAcc = {id: existing.length+1, name:'Account '+(existing.length+1), mnemonic:importSeedInput.trim(), pubkey:pk};
