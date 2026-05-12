@@ -657,11 +657,20 @@ export default function App() {
       }
       try {
         const mints=data.tokens.map((t:any)=>t.mint).filter(Boolean).join(",");
-        const pr=await fetch("https://price.jup.ag/v6/price?ids="+mints);
+        const pr=await fetch("https://chatfi.pro/api/jupiter",{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({url:'https://api.jup.ag/price/v3?ids='+mints,method:'GET'})
+        });
         const pd=await pr.json();
-        if(pd.data){
-          setSolPrice(pd.data["So11111111111111111111111111111111111111112"]?.price||0);
-          setTokenBalances(prev=>prev.map(t=>({...t,price:pd.data[t.mint]?.price||t.price||0})));
+        if(pd){
+          const solMint="So11111111111111111111111111111111111111112";
+          setSolPrice(pd[solMint]?.usdPrice||0);
+          setTokenBalances(prev=>{
+            const updated=prev.map(t=>({...t,price:pd[t.mint]?.usdPrice||t.price||0}));
+            setTotalUSD(updated.reduce((s,t)=>s+(Number(t.amount)||0)*(Number(t.price)||0),0));
+            return updated;
+          });
         }
       } catch(e){}
   } catch(e){console.log("Portfolio error",e);}
