@@ -641,21 +641,19 @@ export default function App() {
     if (!pubkey) return;
     setPortfolioLoading(true);
     try {
-      const res = await fetch(RPC, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [pubkey] })
-      });
+      const res = await fetch('https://chatfi.pro/api/portfolio?wallet=' + pubkey);
       const data = await res.json();
-      if (data.result?.value !== undefined) {
-        setSolBalance(data.result.value / 1e9);
-      const walletData = await getWalletBalances(pubkey!);
-      setSolBalance(walletData.solBalance);
-      const allMints = [TOKENS.SOL, ...walletData.tokens.map((t: any) => t.mint)];
-      const prices = await getTokenPrices(allMints);
-      setSolPrice(prices[TOKENS.SOL] || 0);
-      const tokens = walletData.tokens.map((t: any) => ({...t, price: prices[t.mint] || 0}));
-      setTokenBalances(tokens);
+      if (data.tokens) {
+        setSolBalance(data.tokens.find((t: any) => t.symbol === 'SOL')?.amount || 0);
+        setSolPrice(data.tokens.find((t: any) => t.symbol === 'SOL')?.price || 0);
+        setTokenBalances(data.tokens.map((t: any) => ({
+          symbol: t.symbol,
+          name: t.name || t.symbol,
+          mint: t.mint,
+          amount: t.amount,
+          logoURI: t.logoURI || '',
+          price: t.price || 0,
+        })));
       }
     } catch {}
     setPortfolioLoading(false);
