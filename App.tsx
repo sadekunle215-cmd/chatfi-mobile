@@ -600,7 +600,11 @@ export default function App() {
       Animated.timing(anim, { toValue: 1, duration: 300, delay: i * 80, useNativeDriver: true })
     );
     Animated.stagger(120, anims).start(() => {
-      setTimeout(() => setSplashDone(true), 400);
+      setTimeout(async () => {
+        setSplashDone(true);
+        const stored = await AsyncStorage.getItem('accounts');
+        if (!stored) setOnboardStep('passcode');
+      }, 400);
     const full = 'DeFi, but conversational...';
     let idx = 0;
     const typer = setInterval(() => {
