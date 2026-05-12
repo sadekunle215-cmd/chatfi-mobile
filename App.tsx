@@ -711,19 +711,28 @@ export default function App() {
   };
 
   const confirmSeed = async () => {
-    const pk = getPublicKey(seedPhrase);
-    const raw = await AsyncStorage.getItem('accounts');
-    const existing = raw ? JSON.parse(raw) : [];
-    const newAcc = {id: existing.length+1, name:'Account '+(existing.length+1), mnemonic:seedPhrase, pubkey:pk};
-    const updated = [...existing, newAcc];
-    setAccounts(updated);
-    await AsyncStorage.setItem('accounts', JSON.stringify(updated));
-    await AsyncStorage.setItem('active_acc', String(existing.length));
-    setWallet(seedPhrase);
-    setPubkey(pk);
-    setShowSeedModal(false);
-    setShowWalletModal(false);
-    showToast('Wallet created! Keep seed phrase safe.','success');
+    if (onboardStep) {
+      // During onboarding - just move to next step, account created at username step
+      setNewSeedPhrase(seedPhrase);
+      setNewPubkey(getPublicKey(seedPhrase));
+      setShowSeedModal(false);
+      setOnboardStep('username');
+    } else {
+      // From settings - add as new account
+      const pk = getPublicKey(seedPhrase);
+      const raw = await AsyncStorage.getItem('accounts');
+      const existing = raw ? JSON.parse(raw) : [];
+      const newAcc = {id: existing.length+1, name:'Account '+(existing.length+1), mnemonic:seedPhrase, pubkey:pk};
+      const updated = [...existing, newAcc];
+      setAccounts(updated);
+      await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+      await AsyncStorage.setItem('active_acc', String(existing.length));
+      setWallet(seedPhrase);
+      setPubkey(pk);
+      setShowSeedModal(false);
+      setShowWalletModal(false);
+      showToast('Wallet created! Keep seed phrase safe.','success');
+    }
   };
 
   const importWallet = async () => {
