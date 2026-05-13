@@ -1727,41 +1727,44 @@ export default function App() {
             </View>
           ) : (
             <View>
-              {/* Big Balance */}
-              <View style={s.pfBalanceSection}>
-                {/* Diagonal stripe pattern background */}
+              {/* Balance + Actions Card */}
+              <View style={s.pfHeroCard}>
                 <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
-                  {Array.from({length:30}).map((_,i)=>(
-                    <SvgLine key={i} x1={i*24-200} y1="0" x2={i*24+200} y2="300" stroke="rgba(199,242,132,0.07)" strokeWidth="12" />
+                  {Array.from({length:40}).map((_,i)=>(
+                    <SvgLine key={i} x1={i*22-200} y1="0" x2={i*22+300} y2="400" stroke="rgba(199,242,132,0.06)" strokeWidth="14" />
                   ))}
                 </Svg>
-                <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : '$'+(tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
-                </Text>
-                <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:6}}>
-                  <Image source={{uri:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112'}} style={{width:16,height:16,borderRadius:8}} />
-                  <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* 4 Action Buttons */}
-              <View style={s.pfActions}>
-                <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowSendModal(true)}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↑</Text></View>
-                  <Text style={s.pfActionLbl}>Send</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.pfActionBtn} onPress={()=>setTab('swap')}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⇄</Text></View>
-                  <Text style={s.pfActionLbl}>Swap</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowReceiveModal(true)}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↓</Text></View>
-                  <Text style={s.pfActionLbl}>Receive</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.pfActionBtn} onPress={copyAddress}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⧉</Text></View>
-                  <Text style={s.pfActionLbl}>Copy</Text>
-                </TouchableOpacity>
+                {/* Balance */}
+                <View style={{alignItems:'center', paddingTop:28, paddingBottom:20}}>
+                  <Text style={s.pfBalanceAmt}>
+                    {portfolioLoading ? '...' : '$'+(tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
+                  </Text>
+                  <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:6}}>
+                    <Image source={{uri:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112'}} style={{width:16,height:16,borderRadius:8}} />
+                    <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
+                  </TouchableOpacity>
+                </View>
+                {/* Divider */}
+                <View style={{height:1,backgroundColor:'rgba(199,242,132,0.1)',marginHorizontal:16,marginBottom:20}}/>
+                {/* Action Buttons */}
+                <View style={{flexDirection:'row',justifyContent:'space-around',paddingBottom:24}}>
+                  <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowSendModal(true)}>
+                    <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↑</Text></View>
+                    <Text style={s.pfActionLbl}>Send</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.pfActionBtn} onPress={()=>setTab('swap')}>
+                    <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⇄</Text></View>
+                    <Text style={s.pfActionLbl}>Swap</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowReceiveModal(true)}>
+                    <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↓</Text></View>
+                    <Text style={s.pfActionLbl}>Receive</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.pfActionBtn} onPress={copyAddress}>
+                    <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⧉</Text></View>
+                    <Text style={s.pfActionLbl}>Copy</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Token List */}
@@ -2233,6 +2236,7 @@ const s = StyleSheet.create({
   tokenResTxt:{ color:C.text, fontSize:14, fontWeight:'600' },
   tokenResSub:{ color:C.muted, fontSize:12, marginTop:2 },
   swapDirBtn:{ alignSelf:'center', backgroundColor:C.card, borderRadius:22, padding:12, marginVertical:6, borderWidth:3, borderColor:C.bg },
+  pfHeroCard:{ overflow:'hidden', borderRadius:20, backgroundColor:'#0a1a0a', marginBottom:16, borderWidth:1, borderColor:'rgba(199,242,132,0.15)' },
   pfBalanceSection:{ alignItems:'center', paddingVertical:36, overflow:'hidden', borderRadius:20, backgroundColor:'#0f1e0f', marginBottom:16, borderWidth:1, borderColor:'rgba(199,242,132,0.15)' },
   pfBalanceAmt:{ color:C.text, fontSize:40, fontWeight:'700', letterSpacing:-1, zIndex:1 },
   pfAddressTxt:{ color:C.muted, fontSize:13, marginTop:6 },
