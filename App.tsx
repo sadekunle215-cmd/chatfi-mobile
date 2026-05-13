@@ -984,18 +984,15 @@ export default function App() {
         setSolPrice(sol?.price || 0);
         setTokenBalances(tokens);
         // Fetch logos for tokens missing them
-        const missingLogo = tokens.filter((t:any) => !t.logoURI || t.logoURI.includes('img.jup.ag/tokens/'+t.mint));
-        if (missingLogo.length > 0) {
-          missingLogo.forEach(async (t:any) => {
-            try {
-              const r = await fetch('https://api.jup.ag/tokens/v1/token/'+t.mint);
-              const d = await r.json();
-              if (d.logoURI) {
-                setTokenBalances(prev => prev.map(tok => tok.mint === t.mint ? {...tok, logoURI: d.logoURI} : tok));
-              }
-            } catch(e) {}
-          });
-        }
+        tokens.forEach(async (t:any) => {
+          try {
+            const r = await fetch('https://lite-api.jup.ag/tokens/v1/token/'+t.mint);
+            const d = await r.json();
+            if (d.logoURI) {
+              setTokenBalances(prev => prev.map(tok => tok.mint === t.mint ? {...tok, logoURI: d.logoURI} : tok));
+            }
+          } catch(e) {}
+        });
       }
       try {
         const mints=data.tokens.map((t:any)=>t.mint).filter(Boolean).join(",");
