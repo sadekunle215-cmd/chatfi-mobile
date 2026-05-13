@@ -1015,8 +1015,9 @@ export default function App() {
     setSendLoading(true);
     try {
       const { secretKey, publicKey: pk } = deriveWallet(wallet);
-      const mint = TOKENS[sendToken] || TOKENS['SOL'];
-      const decimals = DECIMALS[sendToken] ?? 9;
+      const tokenInfo = tokenBalances.find(t => t.symbol === sendToken);
+      const mint = tokenInfo?.mint || TOKENS[sendToken] || TOKENS['SOL'];
+      const decimals = DECIMALS[sendToken] ?? tokenInfo?.decimals ?? 9;
       const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
       let txSig: string;
       if (sendToken === "SOL") {
@@ -1830,10 +1831,22 @@ export default function App() {
         <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
-            <Text style={s.modalTitle}>Send SOL</Text>
+            <Text style={s.modalTitle}>Send {sendToken}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}>
+              <View style={{flexDirection:'row',gap:8,paddingVertical:4}}>
+                {tokenBalances.map(t=>(
+                  <TouchableOpacity key={t.mint} onPress={()=>{setSendToken(t.symbol);}}
+                    style={{paddingHorizontal:14,paddingVertical:8,borderRadius:20,
+                      backgroundColor:sendToken===t.symbol?C.green:C.card,
+                      borderWidth:1,borderColor:sendToken===t.symbol?C.green:C.border}}>
+                    <Text style={{color:sendToken===t.symbol?'#0d1117':C.text,fontWeight:'600',fontSize:13}}>{t.symbol}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
             <Text style={s.cardLabel}>Recipient Address</Text>
             <TextInput style={s.seedInput} value={sendTo} onChangeText={setSendTo} placeholder="Solana wallet address..." placeholderTextColor={C.muted} autoCapitalize="none" />
-            <Text style={[s.cardLabel, { marginTop: 12 }]}>Amount (SOL)</Text>
+            <Text style={[s.cardLabel, { marginTop: 12 }]}>Amount ({sendToken})</Text>
             <TextInput style={[s.seedInput, { minHeight: 0, height: 48 }]} value={sendAmt} onChangeText={setSendAmt} placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric" />
             <TouchableOpacity style={[s.greenBtn, { marginTop: 16 }]} onPress={sendTokens} disabled={sendLoading}>
               {sendLoading ? <ActivityIndicator color={C.bg} /> : <Text style={s.greenBtnTxt}>Send</Text>}
