@@ -27,6 +27,53 @@ const C = {
 
 const RPC = 'https://api.mainnet-beta.solana.com';
 
+async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamports:number):Promise<string>{
+  const bs58=require('bs58');
+  const bh=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getLatestBlockhash',params:[{commitment:'confirmed'}]})})).json();
+  const blockhash=bh.result.value.blockhash;
+  const from=bs58.decode(pubkey);
+  const to=bs58.decode(recipient);
+  const bhb=bs58.decode(blockhash);
+  const sys=new Uint8Array(32);
+  const ix=new Uint8Array(12);
+  new DataView(ix.buffer).setUint32(0,2,true);
+  new DataView(ix.buffer).setBigUint64(4,BigInt(lamports),true);
+  const msg=new Uint8Array([1,0,1,3,...from,...to,...sys,...bhb,1,2,2,0,1,12,...ix]);
+  const sig=nacl.sign.detached(msg,secretKey);
+  const tx=new Uint8Array([1,...sig,...msg]);
+  const r=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'sendTransaction',params:[Buffer.from(tx).toString('base64'),{encoding:'base64',preflightCommitment:'confirmed'}]})})).json();
+  if(r.error)throw new Error(r.error.message);
+  return r.result;
+}
+
+async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amountRaw:number,mint:string):Promise<string>{
+  const bs58=require('bs58');
+  const bh=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getLatestBlockhash',params:[{commitment:'confirmed'}]})})).json();
+  const blockhash=bh.result.value.blockhash;
+  const sa=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:2,method:'getTokenAccountsByOwner',params:[pubkey,{mint},{encoding:'jsonParsed'}]})})).json();
+  const sATA=sa.result?.value?.[0]?.pubkey;
+  if(!sATA)throw new Error('No token account for '+mint);
+  const ra=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:3,method:'getTokenAccountsByOwner',params:[recipient,{mint},{encoding:'jsonParsed'}]})})).json();
+  const rATA=ra.result?.value?.[0]?.pubkey;
+  if(!rATA)throw new Error('Recipient has no account for this token');
+  const fp=bs58.decode(pubkey);
+  const fa=bs58.decode(sATA);
+  const ta=bs58.decode(rATA);
+  const bhb=bs58.decode(blockhash);
+  const tp=bs58.decode('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+  const ix=new Uint8Array(9);ix[0]=3;
+  new DataView(ix.buffer).setBigUint64(1,BigInt(amountRaw),true);
+  const parts=[new Uint8Array([1,0,2]),new Uint8Array([4]),fa,ta,fp,tp,bhb,new Uint8Array([1]),new Uint8Array([3]),new Uint8Array([3,0,1,2]),new Uint8Array([9]),ix];
+  const len=parts.reduce((s,p)=>s+p.length,0);
+  const msg=new Uint8Array(len);
+  let off=0;for(const p of parts){msg.set(p,off);off+=p.length;}
+  const sig=nacl.sign.detached(msg,secretKey);
+  const tx=new Uint8Array(1+64+len);tx[0]=1;tx.set(sig,1);tx.set(msg,65);
+  const r=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'sendTransaction',params:[Buffer.from(tx).toString('base64'),{encoding:'base64',preflightCommitment:'confirmed'}]})})).json();
+  if(r.error)throw new Error(r.error.message);
+  return r.result;
+}
+
 const TABS = [
   { id: 'chat', label: 'Chat', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
   { id: 'swap', label: 'Swap', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
@@ -1237,11 +1284,9 @@ export default function App() {
       const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
       let txSig: string;
       if (sendToken === "SOL") {
-        const { sendSolana } = require("./sendMsg");
-        txSig = await sendSolana(pk, secretKey, sendTo.trim(), amountNum);
+        txSig = await _sendSOL(pk, secretKey, sendTo.trim(), amountNum);
       } else {
-        const { sendSPLToken } = require("./sendMsg");
-        txSig = await sendSPLToken(pk, secretKey, sendTo.trim(), amountNum, mint, decimals);
+        txSig = await _sendSPL(pk, secretKey, sendTo.trim(), amountNum, mint);
       }
       showToast(`Sent ${sendAmt} ${sendToken} ✓`,'success');
       setShowSendModal(false); setSendAmt(''); setSendTo('');
@@ -1475,11 +1520,9 @@ export default function App() {
     const { secretKey, publicKey: pk } = deriveWallet(wallet);
     const amountNum = Math.round(parseFloat(amount) * Math.pow(10, decimals));
     if (symbol === 'SOL') {
-      const { sendSolana } = require('./sendMsg');
-      await sendSolana(pk, secretKey, recipient, amountNum);
+      await _sendSOL(pk, secretKey, recipient, amountNum);
     } else {
-      const { sendSPLToken } = require('./sendMsg');
-      await sendSPLToken(pk, secretKey, recipient, amountNum, mint, decimals);
+      await _sendSPL(pk, secretKey, recipient, amountNum, mint);
     }
     showToast('Sent ' + amount + ' ' + symbol + ' ✓', 'success');
     setSelectedToken(null);
