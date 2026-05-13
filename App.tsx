@@ -1711,23 +1711,6 @@ export default function App() {
             </View>
           ) : (
             <View>
-              {/* Balance + Actions Card */}
-              <View style={s.pfHeroCard}>
-                <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
-                  {Array.from({length:40}).map((_,i)=>(
-                    <SvgLine key={i} x1={i*22-200} y1="0" x2={i*22+300} y2="400" stroke="rgba(199,242,132,0.06)" strokeWidth="14" />
-                  ))}
-                </Svg>
-                {/* Balance */}
-                <View style={{alignItems:'center', paddingTop:28, paddingBottom:20}}>
-                  <Text style={s.pfBalanceAmt}>
-                    {portfolioLoading ? '...' : '$'+(tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
-                  </Text>
-                  <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:6}}>
-                    <Image source={{uri:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112'}} style={{width:16,height:16,borderRadius:8}} />
-                    <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
-                  </TouchableOpacity>
-                </View>
                 {/* Divider */}
                 <View style={{height:1,backgroundColor:'rgba(199,242,132,0.1)',marginHorizontal:16,marginBottom:20}}/>
                 {/* Action Buttons */}
