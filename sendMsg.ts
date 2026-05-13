@@ -277,6 +277,8 @@ export async function sendSolana(
   lamports: number
 ): Promise<string> {
   const bs58 = require("bs58");
+
+  // Get latest blockhash
   const bhRes = await fetch(RPC, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -284,26 +286,60 @@ export async function sendSolana(
   });
   const bhData = await bhRes.json();
   const blockhash = bhData.result.value.blockhash;
+
   const fromPk = bs58.decode(pubkey);
   const toPk = bs58.decode(recipient);
   const bhBytes = bs58.decode(blockhash);
-  const sysProg = new Uint8Array(32);
+  const sysProg = new Uint8Array(32); // System program = all zeros
+
+  // Instruction data: u32 instruction index (2 = transfer) + u64 lamports
   const ixData = new Uint8Array(12);
-  new DataView(ixData.buffer).setUint32(0, 2, true);
-  new DataView(ixData.buffer).setBigUint64(4, BigInt(lamports), true);
-  const msg = new Uint8Array([
-    1, 0, 1, 3,
-    ...fromPk, ...toPk, ...sysProg,
-    ...bhBytes,
-    1, 2, 2, 0, 1, 12, ...ixData,
+  const dv = new DataView(ixData.buffer);
+  dv.setUint32(0, 2, true);
+  dv.setBigUint64(4, BigInt(lamports), true);
+
+  // Message header: [numRequiredSignatures, numReadonlySignedAccounts, numReadonlyUnsignedAccounts]
+  const header = new Uint8Array([1, 0, 1]);
+
+  // Account addresses (3 accounts: from, to, system program)
+  const numAccounts = new Uint8Array([3]);
+
+  // Recent blockhash (32 bytes)
+  // Instructions: [numInstructions(1), programIdIndex(2), numAccounts(2), accountIndices(0,1), dataLen(12), data]
+  const instructions = new Uint8Array([
+    1,        // num instructions
+    2,        // program id index (system program = index 2)
+    2,        // num account indices
+    0, 1,     // account indices: from=0, to=1
+    12,       // data length
+    ...ixData
   ]);
+
+  // Full message
+  const msg = new Uint8Array([
+    ...header,
+    ...numAccounts,
+    ...fromPk,
+    ...toPk,
+    ...sysProg,
+    ...bhBytes,
+    ...instructions,
+  ]);
+
   const sig = nacl.sign.detached(msg, secretKey);
+
+  // Transaction: [numSignatures(1), signature(64), message]
   const tx = new Uint8Array([1, ...sig, ...msg]);
   const txB64 = Buffer.from(tx).toString("base64");
+
   const sendRes = await fetch(RPC, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sendTransaction", params: [txB64, { encoding: "base64" }] }),
+    body: JSON.stringify({
+      jsonrpc: "2.0", id: 1,
+      method: "sendTransaction",
+      params: [txB64, { encoding: "base64", preflightCommitment: "confirmed" }]
+    }),
   });
   const sendData = await sendRes.json();
   if (sendData.error) throw new Error(sendData.error.message);
