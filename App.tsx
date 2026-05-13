@@ -1711,10 +1711,17 @@ export default function App() {
             </View>
           ) : (
             <View>
-                {/* Divider */}
-                <View style={{height:1,backgroundColor:'rgba(199,242,132,0.1)',marginHorizontal:16,marginBottom:20}}/>
+                {/* Balance */}
+                <View style={{alignItems:'center', paddingTop:16, paddingBottom:8}}>
+                  <Text style={s.pfBalanceAmt}>
+                    {portfolioLoading ? '...' : '$'+(tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
+                  </Text>
+                  <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:6}}>
+                    <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
+                  </TouchableOpacity>
+                </View>
                 {/* Action Buttons */}
-                <View style={{flexDirection:'row',justifyContent:'space-around',paddingBottom:24}}>
+                <View style={{flexDirection:'row',justifyContent:'space-around',paddingBottom:16}}>
                   <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowSendModal(true)}>
                     <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↑</Text></View>
                     <Text style={s.pfActionLbl}>Send</Text>
@@ -1732,7 +1739,6 @@ export default function App() {
                     <Text style={s.pfActionLbl}>Copy</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
 
               {/* Token List */}
               <Text style={s.pfSectionLbl}>Tokens</Text>
