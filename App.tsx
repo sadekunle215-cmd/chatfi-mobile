@@ -1224,6 +1224,8 @@ export default function App() {
   const executeSwap = async () => {
     if (!wallet) { showToast('Create or connect a wallet first','error'); return; }
     if (!quote) { showToast('Get a quote first before swapping','error'); return; }
+    const authed = await requireAuth();
+    if (!authed) return;
     try {
       const { mnemonic, publicKey: pk, secretKey } = deriveWallet(wallet);
       const RPC = 'https://api.mainnet-beta.solana.com';
@@ -1304,6 +1306,8 @@ export default function App() {
   const sendTokens = async () => {
     if (!sendTo || !sendTo.trim()) { showToast('Enter a recipient address','error'); return; }
     if (!sendAmt || isNaN(parseFloat(sendAmt))) { showToast('Enter a valid amount','error'); return; }
+    const authed = await requireAuth();
+    if (!authed) return;
     setSendLoading(true);
     try {
       const { secretKey, publicKey: pk } = deriveWallet(wallet);
