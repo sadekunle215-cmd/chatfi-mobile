@@ -1803,8 +1803,7 @@ export default function App() {
               {/* CRYPTO TAB */}
               {portfolioTab==='crypto' && <Text style={s.pfSectionLbl}>Tokens</Text>}
               {portfolioTab==='crypto' &&
-              {tokenBalances.length===0&&!portfolioLoading&&(
-                <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
+              {tokenBalances.length===0&&!portfolioLoading&&(                 <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
               )}
               {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
               {/* SOL Row */}
