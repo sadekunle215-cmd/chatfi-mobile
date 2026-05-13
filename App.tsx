@@ -59,12 +59,13 @@ const POPULAR_DAPPS = [
 
 
 
-function TokenModal({ token, pubkey, onClose }) {
+function TokenModal({ token, pubkey, onClose, onSend }) {
   const [view, setView] = React.useState('main');
   const [importSeedInput, setImportSeedInput] = React.useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
+  const [sending, setSending] = React.useState(false);
   if (!token) return null;
 
   return (
@@ -137,9 +138,21 @@ function TokenModal({ token, pubkey, onClose }) {
               <TextInput value={sendAmt} onChangeText={setSendAmt}
                 placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric"
                 style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:20, fontWeight:'bold', marginBottom:24 }} />
-              <TouchableOpacity style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}
-                onPress={() => Alert.alert('Send', `Send ${sendAmt} ${token.symbol} to ${sendAddr.slice(0,8)}...?`)}>
-                <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Send {token.symbol}</Text>
+              <TouchableOpacity style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', opacity: sending ? 0.6 : 1 }}
+                disabled={sending}
+                onPress={async () => {
+                  if (!sendAddr.trim()) { Alert.alert('Error','Enter recipient address'); return; }
+                  if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Error','Enter a valid amount'); return; }
+                  setSending(true);
+                  try {
+                    await onSend(token.mint, sendAddr.trim(), sendAmt, token.symbol, token.decimals ?? 6);
+                    setSendAddr(''); setSendAmt(''); setView('main');
+                  } catch(e) { Alert.alert('Send failed', e.message || 'Unknown error'); }
+                  finally { setSending(false); }
+                }}>
+                {sending
+                  ? <ActivityIndicator color="#0d1117" />
+                  : <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Send {token.symbol}</Text>}
               </TouchableOpacity>
             </ScrollView>
           )}
@@ -1284,7 +1297,40 @@ export default function App() {
 
   return (
     <SafeAreaView style={s.root}>
-      <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)} />
+      <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
+  onSend={async (mint, recipient, amount, symbol, decimals) => {
+    const { secretKey, publicKey: pk } = deriveWallet(wallet);
+    const amountNum = Math.round(parseFloat(amount) * Math.pow(10, decimals));
+    if (symbol === 'SOL') {
+      const { sendSolana } = require('./sendMsg');
+      await sendSolana(pk, secretKey, recipient, amountNum);
+    } else {
+      const res = await fetch('https://chatfi.pro/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender: pk, recipient, amount: String(amountNum), mint }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.tx) throw new Error(data.error || 'Failed to build transaction');
+      const txBytes = Uint8Array.from(Buffer.from(data.tx, 'base64'));
+      const numSigs = txBytes[0];
+      const msgBytes = txBytes.slice(1 + numSigs * 64);
+      const userSig = nacl.sign.detached(msgBytes, secretKey);
+      txBytes.set(userSig, 1);
+      const txB64 = Buffer.from(txBytes).toString('base64');
+      const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [txB64, { encoding: 'base64', preflightCommitment: 'confirmed' }] }),
+      });
+      const rpcData = await rpcRes.json();
+      if (rpcData.error) throw new Error(rpcData.error.message);
+    }
+    showToast('Sent ' + amount + ' ' + symbol + ' ✓', 'success');
+    setSelectedToken(null);
+    fetchPortfolio();
+  }}
+/>
       <AccountModal
         visible={showAccountModal}
         onClose={() => setShowAccountModal(false)}
