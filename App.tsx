@@ -773,6 +773,31 @@ function DappBrowser({ walletAddress }) {
               setUrl(s.url);
               setPageTitle(s.title);
             }}
+            injectedJavaScript={`
+              (function() {
+                const walletAddress = "${walletAddress || ''}";
+                if (!walletAddress) return;
+                const solanaWallet = {
+                  isPhantom: true,
+                  isChatFi: true,
+                  publicKey: { toString: () => walletAddress, toBase58: () => walletAddress },
+                  isConnected: true,
+                  connect: async () => ({ publicKey: { toString: () => walletAddress, toBase58: () => walletAddress } }),
+                  disconnect: async () => {},
+                  signTransaction: async (tx) => tx,
+                  signAllTransactions: async (txs) => txs,
+                  signMessage: async (msg) => ({ signature: new Uint8Array(64) }),
+                  on: (event, cb) => {},
+                  off: (event, cb) => {},
+                };
+                window.solana = solanaWallet;
+                window.phantom = { solana: solanaWallet };
+                window.dispatchEvent(new Event('load'));
+              })();
+              true;
+            `}
+            onMessage={() => {}}
+            javaScriptEnabled={true}
             style={{ flex: 1 }}
           />
         </View>
