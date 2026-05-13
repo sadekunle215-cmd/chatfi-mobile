@@ -769,6 +769,14 @@ export default function App() {
     if (!pubkey) return;
     setPortfolioLoading(true);
     try {
+      let verifiedMints = new Set<string>();
+      try {
+        const vr = await fetch('https://api.jup.ag/tokens/v1/tagged/verified');
+        const vd = await vr.json();
+        verifiedMints = new Set(
+          Array.isArray(vd) ? vd.map((x: any) => typeof x === 'string' ? x : x.mint).filter(Boolean) : []
+        );
+      } catch(e) {}
       const res = await fetch('https://chatfi.pro/api/portfolio?wallet=' + pubkey);
       const data = await res.json();
       if (data.tokens) {
@@ -779,7 +787,7 @@ export default function App() {
           amount: t.amount,
           logoURI: t.logoURI || '',
           price: t.price || 0,
-          isVerified: t.isVerified || false,
+          isVerified: t.isVerified || verifiedMints.has(t.mint) || false,
         }));
         const sol = tokens.find((t:any) => t.symbol === 'SOL');
         setSolBalance(sol?.amount || 0);
