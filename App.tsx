@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WebView } from 'react-native-webview';
 import Svg, { Line as SvgLine } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
@@ -765,6 +765,21 @@ export default function App() {
     await AsyncStorage.setItem('active_acc', String(newIdx));
     showToast('Account '+(accounts.length+1)+' added!','success');
   };
+  // Lock app when it goes to background
+  React.useEffect(() => {
+    const sub = AppState.addEventListener('change', async (state) => {
+      if (state === 'background' || state === 'inactive') {
+        const stored = await AsyncStorage.getItem('passcode');
+        const lockEnabled = await AsyncStorage.getItem('appLockEnabled');
+        if (stored && lockEnabled === 'true') {
+          setLockInput('');
+          setShowLockScreen(true);
+        }
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   const switchAccount = async (idx:number) => {
     const acc = accounts[idx];
     setActiveAccIdx(idx); setWallet(acc.mnemonic); setPubkey(acc.pubkey);
