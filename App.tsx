@@ -994,7 +994,7 @@ export default function App() {
           amount: t.amount,
           logoURI: t.logoURI || 'https://img.jup.ag/tokens/'+t.mint,
           price: t.price || 0,
-          isVerified: false,
+          isVerified: verifiedMints.has(t.mint),
         }));
         const sol = tokens.find((t:any) => t.symbol === 'SOL');
         setSolBalance(sol?.amount || 0);
