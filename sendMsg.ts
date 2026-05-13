@@ -38,16 +38,14 @@ export type AIResponse = {
 };
 
 // ── Jupiter quote ────────────────────────────────────────────────────────────
-export const getJupiterQuote = async (from: string, to: string, amount: number) => {
-  const inputMint  = TOKENS[from];
-  const outputMint = TOKENS[to];
+export const getJupiterQuote = async (inputMint: string, outputMint: string, amount: number, fromDecimals: number = 6, toDecimals: number = 6) => {
   if (!inputMint || !outputMint) return null;
-  const amountSmallest = Math.floor(amount * Math.pow(10, DECIMALS[from] || 6));
+  const amountSmallest = Math.floor(amount * Math.pow(10, fromDecimals));
   const url = `${JUP_QUOTE}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountSmallest}&slippageBps=50`;
   const res  = await fetch(url);
   const data = await res.json();
   if (data.error) return null;
-  const outAmount    = parseInt(data.outAmount) / Math.pow(10, DECIMALS[to] || 6);
+  const outAmount    = parseInt(data.outAmount) / Math.pow(10, toDecimals);
   const priceImpact  = parseFloat(data.priceImpactPct || '0').toFixed(4);
   const route        = data.routePlan?.map((r: any) => r.swapInfo?.label).filter(Boolean).join(' → ') || 'Direct';
   return { outAmount, priceImpact, route, raw: data };

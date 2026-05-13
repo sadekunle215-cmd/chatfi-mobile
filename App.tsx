@@ -916,7 +916,10 @@ export default function App() {
     setQuoteLoading(true);
     setQuote(null);
     try {
-      const q = await getJupiterQuote(fromToken, toToken, parseFloat(amt));
+      const fromMint = TOKENS[fromToken];
+      const toMint = TOKENS[toToken];
+      if (!fromMint || !toMint) { showToast('Token address not found','error'); setQuoteLoading(false); return; }
+      const q = await getJupiterQuote(fromMint, toMint, parseFloat(amt), DECIMALS[fromToken]??6, DECIMALS[toToken]??6);
       setQuote(q);
     } catch { showToast('Failed to fetch quote','error'); }
     setQuoteLoading(false);
@@ -1376,7 +1379,7 @@ export default function App() {
               <View style={s.tokenDropdown}>
                 <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setFromResults); else setFromResults([]);}} />
                 {fromResults.slice(0,5).map(t=>(
-                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setFromToken(t.symbol);TOKENS[t.symbol]=t.address;setShowFromSearch(false);setQuote(null);}}>
+                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setFromToken(t.symbol);TOKENS[t.symbol]=t.address;if(t.decimals!=null)DECIMALS[t.symbol]=t.decimals;setShowFromSearch(false);setQuote(null);}}>
                     <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
                     <View style={{flex:1,marginLeft:8}}>
                       <Text style={s.tokenResTxt}>{t.symbol}</Text>
@@ -1406,7 +1409,7 @@ export default function App() {
               <View style={s.tokenDropdown}>
                 <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setToResults); else setToResults([]);}} />
                 {toResults.slice(0,5).map(t=>(
-                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setToToken(t.symbol);TOKENS[t.symbol]=t.address;setShowToSearch(false);setQuote(null);}}>
+                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setToToken(t.symbol);TOKENS[t.symbol]=t.address;if(t.decimals!=null)DECIMALS[t.symbol]=t.decimals;setShowToSearch(false);setQuote(null);}}>
                     <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
                     <View style={{flex:1,marginLeft:8}}>
                       <Text style={s.tokenResTxt}>{t.symbol}</Text>
