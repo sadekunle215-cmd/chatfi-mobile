@@ -370,11 +370,9 @@ export async function sendSPLToken(
   recipient: string,
   amountRaw: number,
   mint: string,
-  decimals: number
+  _decimals: number
 ): Promise<string> {
   const bs58 = require("bs58");
-
-  // Get latest blockhash
   const bhRes = await fetch(RPC, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -382,8 +380,6 @@ export async function sendSPLToken(
   });
   const bhData = await bhRes.json();
   const blockhash = bhData.result.value.blockhash;
-
-  // Get sender's ATA
   const ataRes = await fetch(RPC, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -392,8 +388,6 @@ export async function sendSPLToken(
   const ataData = await ataRes.json();
   const senderATA = ataData.result?.value?.[0]?.pubkey;
   if (!senderATA) throw new Error("No token account found for " + mint);
-
-  // Get recipient's ATA
   const rataRes = await fetch(RPC, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -402,36 +396,25 @@ export async function sendSPLToken(
   const rataData = await rataRes.json();
   const recipientATA = rataData.result?.value?.[0]?.pubkey;
   if (!recipientATA) throw new Error("Recipient has no token account for this token");
-
-  // Build SPL transfer instruction manually
-  const fromPk = bs58.decode(pubkey);
-  const fromATA = bs58.decode(senderATA);
-  const toATA = bs58.decode(recipientATA);
+  const fromPkBytes = bs58.decode(pubkey);
+  const fromATABytes = bs58.decode(senderATA);
+  const toATABytes = bs58.decode(recipientATA);
   const bhBytes = bs58.decode(blockhash);
-  const TOKEN_PROGRAM = bs58.decode("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
-
-  // instruction data: [3 (transfer), amount as u64 LE]
+  const TOKEN_PROGRAM_ID = bs58.decode("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
   const ixData = new Uint8Array(9);
   ixData[0] = 3;
-  const view = new DataView(ixData.buffer);
-  view.setBigUint64(1, BigInt(amountRaw), true);
-
-  // Message: header + accounts + blockhash + instructions
-  const msg = new Uint8Array([
-    1, 0, 1, // num sigs, readonly signed, readonly unsigned
-    4,       // num accounts
-    ...fromATA, ...toATA, ...fromPk, ...TOKEN_PROGRAM,
-    ...bhBytes,
-    1,       // num instructions
-    3,       // program id index (TOKEN_PROGRAM)
-    3, 0, 1, 2, // num accounts, account indices
-    9, ...ixData, // data length + data
-  ]);
-
+  new DataView(ixData.buffer).setBigUint64(1, BigInt(amountRaw), true);
+  const header = new Uint8Array([1, 0, 2]);
+  const numAccounts = new Uint8Array([4]);
+  const msgParts = [header, numAccounts, fromATABytes, toATABytes, fromPkBytes, TOKEN_PROGRAM_ID, bhBytes, new Uint8Array([1]), new Uint8Array([3]), new Uint8Array([3, 0, 1, 2]), new Uint8Array([9]), ixData];
+  const msgLen = msgParts.reduce((s, p) => s + p.length, 0);
+  const msg = new Uint8Array(msgLen);
+  let offset = 0;
+  for (const part of msgParts) { msg.set(part, offset); offset += part.length; }
   const sig = nacl.sign.detached(msg, secretKey);
-  const tx = new Uint8Array([1, ...sig, ...msg]);
+  const tx = new Uint8Array(1 + 64 + msgLen);
+  tx[0] = 1; tx.set(sig, 1); tx.set(msg, 65);
   const txB64 = Buffer.from(tx).toString("base64");
-
   const sendRes = await fetch(RPC, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -441,3 +424,4 @@ export async function sendSPLToken(
   if (sendData.error) throw new Error(sendData.error.message);
   return sendData.result;
 }
+

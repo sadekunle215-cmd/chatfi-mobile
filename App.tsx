@@ -68,7 +68,7 @@ async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amou
   const msgLen=3+1+(numAccounts*32)+32+1+1+1+3+1+9;
   const msg=new Uint8Array(msgLen);
   let o=0;
-  msg[o++]=1;msg[o++]=0;msg[o++]=2; // header: 1 sig, 0 readonly signed, 2 readonly unsigned
+  msg[o++]=1;msg[o++]=0;msg[o++]=1; // header: 1 sig, 0 readonly signed, 1 readonly unsigned
   msg[o++]=numAccounts;
   msg.set(fp,o);o+=32; // account[0] = signer/owner
   msg.set(fa,o);o+=32; // account[1] = source ATA
