@@ -1202,10 +1202,14 @@ export default function App() {
   const searchJupTokens = async (query: string, setResults: any) => {
     if (!query || query.length < 1) { setResults([]); return; }
     try {
-      const res = await fetch('https://lite-api.jup.ag/tokens/v1/search?query=' + encodeURIComponent(query) + '&limit=6');
+      const res = await fetch('https://chatfi.pro/api/jupiter', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({url: 'https://api.jup.ag/tokens/v2/search?query=' + encodeURIComponent(query) + '&limit=6', method: 'GET'})
+      });
       const data = await res.json();
       const tokens = Array.isArray(data) ? data : (data.tokens || []);
-      setResults(tokens.map((t:any) => ({...t, logoURI: t.logoURI || t.icon || ''})));
+      setResults(tokens.map((t:any) => ({...t, address: t.id || t.address, logoURI: t.logoURI || t.icon || ''})));
     } catch { setResults([]); }
   };
 
