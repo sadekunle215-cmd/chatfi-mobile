@@ -977,20 +977,23 @@ export default function App() {
           amount: t.amount,
           logoURI: t.logoURI || 'https://img.jup.ag/tokens/'+t.mint,
           price: t.price || 0,
-          isVerified: t.isVerified || verifiedMints.has(t.mint) || false,
+          isVerified: false,
         }));
         const sol = tokens.find((t:any) => t.symbol === 'SOL');
         setSolBalance(sol?.amount || 0);
         setSolPrice(sol?.price || 0);
         setTokenBalances(tokens);
-        // Fetch logos for tokens missing them
+        // Force-fetch logo + verified + name for every token
         tokens.forEach(async (t:any) => {
           try {
             const r = await fetch('https://lite-api.jup.ag/tokens/v1/token/'+t.mint);
             const d = await r.json();
-            if (d.logoURI) {
-              setTokenBalances(prev => prev.map(tok => tok.mint === t.mint ? {...tok, logoURI: d.logoURI} : tok));
-            }
+            setTokenBalances(prev => prev.map(tok => tok.mint === t.mint ? {
+              ...tok,
+              logoURI: d.logoURI || tok.logoURI,
+              name: d.name || tok.name,
+              isVerified: Array.isArray(d.tags) && d.tags.includes('verified'),
+            } : tok));
           } catch(e) {}
         });
       }
