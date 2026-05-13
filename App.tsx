@@ -1185,20 +1185,6 @@ export default function App() {
     return {sig:sig.signature,time,failed:!!sig.err,type,amount,token};
   };
 
-  const fetchTxHistory = async () => {
-    if (!pubkey) return;
-    setTxLoading(true);
-    try {
-      const RPC="https://api.mainnet-beta.solana.com";
-      const sr = await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getSignaturesForAddress",params:[pubkey,{limit:10}]})});
-      const sigs = (await sr.json()).result||[];
-      const results = await Promise.allSettled(sigs.map(async(sig:any)=>{
-        const r=await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getTransaction",params:[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]})});
-        return parseTx((await r.json()).result,sig,pubkey);
-      }));
-      setTxHistory(results.filter((r:any)=>r.status==="fulfilled"&&r.value).map((r:any)=>r.value));
-    } catch(e){console.error(e);} finally{setTxLoading(false);}
-  };
 
   const searchJupTokens = async (query: string, setResults: any) => {
     if (!query || query.length < 1) { setResults([]); return; }
