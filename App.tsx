@@ -1882,11 +1882,35 @@ export default function App() {
                   <View style={{width:22,height:22,borderRadius:11,backgroundColor:'#fff',alignSelf:fingerprintEnabled?'flex-end':'flex-start'}}/>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={()=>{setShowSecurityModal(false);setPasscode('');setChangingPasscode(true);}} style={{paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <TouchableOpacity onPress={()=>{setPasscode('');setChangingPasscode(true);}} style={{paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
                 <Text style={{color:C.green,fontSize:15}}>Change Passcode →</Text>
               </TouchableOpacity>
             </>)}
-            <TouchableOpacity style={[s.closeBtn,{marginTop:20}]} onPress={()=>setShowSecurityModal(false)}>
+            {changingPasscode && (
+              <View style={{alignItems:'center',paddingTop:16}}>
+                <Text style={{color:C.text,fontSize:18,fontWeight:'bold',marginBottom:8}}>Enter new passcode</Text>
+                <View style={{flexDirection:'row',gap:12,marginBottom:24}}>
+                  {[0,1,2,3,4,5].map(i=>(
+                    <View key={i} style={{width:14,height:14,borderRadius:7,backgroundColor:passcode.length>i?C.green:C.border}}/>
+                  ))}
+                </View>
+                {[[1,2,3],[4,5,6],[7,8,9],['cancel',0,'<']].map((row,ri)=>(
+                  <View key={ri} style={{flexDirection:'row',gap:12,marginBottom:12}}>
+                    {row.map(k=>(
+                      <TouchableOpacity key={String(k)} onPress={async()=>{
+                        const kk=String(k);
+                        if(kk==='cancel'){setChangingPasscode(false);setPasscode('');return;}
+                        if(kk==='<'){setPasscode(p=>p.slice(0,-1));return;}
+                        if(passcode.length<6){const np=passcode+kk;setPasscode(np);if(np.length===6){await AsyncStorage.setItem('passcode',np);setChangingPasscode(false);setPasscode('');showToast('Passcode updated!','success');}}
+                      }} style={{width:64,height:64,borderRadius:32,backgroundColor:C.card2,alignItems:'center',justifyContent:'center'}}>
+                        <Text style={{color:C.text,fontSize:kk==='cancel'?11:kk==='<'?18:22,fontWeight:'500'}}>{kk==='<'?'⌫':kk==='cancel'?'Cancel':k}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            )}
+            <TouchableOpacity style={[s.closeBtn,{marginTop:20}]} onPress={()=>{setShowSecurityModal(false);setChangingPasscode(false);setPasscode('');}}>
               <Text style={s.closeBtnTxt}>Done</Text>
             </TouchableOpacity>
           </View>
