@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WebView } from 'react-native-webview';
-import Svg, { Line as SvgLine } from 'react-native-svg';
+import Svg, { Line as SvgLine, Rect as SvgRect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -59,6 +59,95 @@ const POPULAR_DAPPS = [
 ];
 
 
+
+function NativeChart({ mint }: { mint: string }) {
+  const [candles, setCandles] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [interval, setIntervalType] = React.useState('15m');
+  const W = 340; const H = 200; const PAD = 8;
+
+  React.useEffect(() => {
+    setLoading(true);
+    setCandles([]);
+    const limit = 40;
+    const resolution = interval === '1m'?1:interval==='5m'?5:interval==='15m'?15:interval==='1h'?60:interval==='4h'?240:1440;
+    fetch('https://chatfi.pro/api/jupiter', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({url:`https://public-api.birdeye.so/defi/ohlcv?address=${mint}&type=${interval}&limit=${limit}`, method:'GET'})
+    })
+    .then(r=>r.json())
+    .then(d=>{
+      const items = d?.data?.items || [];
+      setCandles(items);
+    })
+    .catch(()=>{})
+    .finally(()=>setLoading(false));
+  }, [mint, interval]);
+
+  const intervals = ['5m','15m','1h','4h','1D'];
+
+  if (loading) return (
+    <View style={{height:240,alignItems:'center',justifyContent:'center',backgroundColor:C.card,borderRadius:14,marginBottom:16}}>
+      <ActivityIndicator color={C.green}/>
+      <Text style={{color:C.muted,fontSize:12,marginTop:8}}>Loading chart...</Text>
+    </View>
+  );
+
+  if (!candles.length) return (
+    <View style={{height:240,alignItems:'center',justifyContent:'center',backgroundColor:C.card,borderRadius:14,marginBottom:16}}>
+      <Text style={{color:C.muted,fontSize:13}}>No chart data available</Text>
+    </View>
+  );
+
+  const highs = candles.map(c=>c.h||c.high||0);
+  const lows = candles.map(c=>c.l||c.low||0);
+  const maxP = Math.max(...highs);
+  const minP = Math.min(...lows);
+  const range = maxP - minP || 1;
+  const chartW = W - PAD*2;
+  const chartH = H - PAD*2;
+  const cw = chartW / candles.length;
+
+  const toY = (p:number) => PAD + (1-(p-minP)/range)*chartH;
+
+  return (
+    <View style={{backgroundColor:C.card,borderRadius:14,padding:8,marginBottom:16}}>
+      {/* Interval selector */}
+      <View style={{flexDirection:'row',gap:6,marginBottom:8,justifyContent:'center'}}>
+        {intervals.map(iv=>(
+          <TouchableOpacity key={iv} onPress={()=>setIntervalType(iv)}
+            style={{paddingHorizontal:10,paddingVertical:4,borderRadius:8,backgroundColor:interval===iv?C.green:C.card2}}>
+            <Text style={{color:interval===iv?'#0d1117':C.muted,fontSize:11,fontWeight:'600'}}>{iv}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <Svg width={W} height={H}>
+        {candles.map((c,i)=>{
+          const o = c.o||c.open||0; const cl = c.c||c.close||0;
+          const h = c.h||c.high||0; const l = c.l||c.low||0;
+          const x = PAD + i*cw + cw*0.1;
+          const bw = cw*0.8;
+          const isGreen = cl >= o;
+          const color = isGreen ? '#39ff14' : '#ff5555';
+          const bodyTop = toY(Math.max(o,cl));
+          const bodyBot = toY(Math.min(o,cl));
+          const bodyH = Math.max(1, bodyBot-bodyTop);
+          return (
+            <React.Fragment key={i}>
+              <SvgLine x1={x+bw/2} y1={toY(h)} x2={x+bw/2} y2={toY(l)} stroke={color} strokeWidth={1}/>
+              <SvgRect x={x} y={bodyTop} width={bw} height={bodyH} fill={color} />
+            </React.Fragment>
+          );
+        })}
+      </Svg>
+      <View style={{flexDirection:'row',justifyContent:'space-between',paddingHorizontal:4}}>
+        <Text style={{color:C.muted,fontSize:10}}>${minP.toFixed(4)}</Text>
+        <Text style={{color:C.muted,fontSize:10}}>${maxP.toFixed(4)}</Text>
+      </View>
+    </View>
+  );
+}
 
 function TokenModal({ token, pubkey, onClose, onSend }) {
   const [view, setView] = React.useState('main');
@@ -136,7 +225,10 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               </View>
 
 
-              {/* DexScreener Chart */}
+              {/* Native Chart */}
+              <NativeChart mint={token.mint} />
+
+              {/* DexScreener Chart - HIDDEN
               <View style={{ borderRadius:14, overflow:'hidden', marginBottom:16, height:380 }}>
                 <WebView
                   source={{ uri: 'https://dexscreener.com/solana/'+token.mint+'?embed=1&theme=dark&trades=0&info=0' }}
@@ -150,6 +242,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                   )}
                 />
               </View>
+              */}
 
               {/* Action Buttons */}
               <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
