@@ -730,6 +730,12 @@ export default function App() {
   const [showPrivKeyModal, setShowPrivKeyModal] = useState(false);
   const [privKey, setPrivKey] = useState('');
   const [showSendModal, setShowSendModal] = useState(false);
+  const [portfolioTab, setPortfolioTab] = useState('crypto');
+  const [nftData, setNftData] = useState([]);
+  const [txHistory, setTxHistory] = useState([]);
+  const [predictions, setPredictions] = useState([]);
+  const [defiPositions, setDefiPositions] = useState([]);
+  const [subTabLoading, setSubTabLoading] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [selectedToken, setSelectedToken] = useState<any>(null);
   const [userName, setUserName] = useState('');
@@ -1265,6 +1271,60 @@ export default function App() {
     } finally { setSendLoading(false); }
   };
 
+  const HELIUS_KEY = RPC_URL.includes('api-key=') ? RPC_URL.split('api-key=')[1] : '';
+
+  const fetchNFTs = async () => {
+    if (!pubkey) return;
+    setSubTabLoading(true);
+    try {
+      const r = await fetch(`https://api.helius.xyz/v0/addresses/${pubkey}/nfts?api-key=${HELIUS_KEY}&limit=20`);
+      const d = await r.json();
+      setNftData(Array.isArray(d) ? d : []);
+    } catch(e) { setNftData([]); }
+    setSubTabLoading(false);
+  };
+
+  const fetchTxHistory = async () => {
+    if (!pubkey) return;
+    setSubTabLoading(true);
+    try {
+      const r = await fetch(`https://api.helius.xyz/v0/addresses/${pubkey}/transactions?api-key=${HELIUS_KEY}&limit=20`);
+      const d = await r.json();
+      setTxHistory(Array.isArray(d) ? d : []);
+    } catch(e) { setTxHistory([]); }
+    setSubTabLoading(false);
+  };
+
+  const fetchPredictions = async () => {
+    if (!pubkey) return;
+    setSubTabLoading(true);
+    try {
+      const r = await fetch(`https://perps-api.jup.ag/v1/positions?walletAddress=${pubkey}`);
+      const d = await r.json();
+      setPredictions(Array.isArray(d?.dataList) ? d.dataList : []);
+    } catch(e) { setPredictions([]); }
+    setSubTabLoading(false);
+  };
+
+  const fetchDefi = async () => {
+    if (!pubkey) return;
+    setSubTabLoading(true);
+    try {
+      const r = await fetch(`https://api.helius.xyz/v0/addresses/${pubkey}/balances?api-key=${HELIUS_KEY}`);
+      const d = await r.json();
+      setDefiPositions(d?.tokens ? d.tokens.filter(t => t.amount > 0) : []);
+    } catch(e) { setDefiPositions([]); }
+    setSubTabLoading(false);
+  };
+
+  const handlePortfolioTab = (tab) => {
+    setPortfolioTab(tab);
+    if (tab === 'nft') fetchNFTs();
+    else if (tab === 'history') fetchTxHistory();
+    else if (tab === 'prediction') fetchPredictions();
+    else if (tab === 'defi') fetchDefi();
+  };
+
   const copyAddress = () => {
     if (pubkey) {
       Clipboard.setString(pubkey);
@@ -1740,8 +1800,24 @@ export default function App() {
                   </TouchableOpacity>
                 </View>
 
-              {/* Token List */}
-              <Text style={s.pfSectionLbl}>Tokens</Text>
+              {/* Sub Tab Bar */}
+              <View style={{flexDirection:'row',alignItems:'center',marginTop:8,marginBottom:4,borderBottomWidth:1,borderBottomColor:'rgba(199,242,132,0.1)'}}>
+                {[{id:'crypto',label:'Crypto'},{id:'prediction',label:'Prediction'},{id:'nft',label:'NFTs'},{id:'defi',label:'DeFi'}].map(t=>(
+                  <TouchableOpacity key={t.id} onPress={()=>handlePortfolioTab(t.id)} style={{flex:1,alignItems:'center',paddingVertical:10}}>
+                    <Text style={{color: portfolioTab===t.id ? '#c7f284' : 'rgba(255,255,255,0.4)', fontSize:12, fontWeight: portfolioTab===t.id ? '700' : '400'}}>{t.label}</Text>
+                    {portfolioTab===t.id && <View style={{height:2,width:'60%',backgroundColor:'#c7f284',borderRadius:1,marginTop:4}}/>}
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity onPress={()=>handlePortfolioTab('history')} style={{paddingHorizontal:12,paddingVertical:10}}>
+                  <Text style={{fontSize:16, color: portfolioTab==='history' ? '#c7f284' : 'rgba(255,255,255,0.4)'}}>🕐</Text>
+                </TouchableOpacity>
+              </View>
+
+              {subTabLoading && <ActivityIndicator color='#c7f284' style={{marginTop:20}}/>}
+
+              {/* CRYPTO TAB */}
+              {portfolioTab==='crypto' && <Text style={s.pfSectionLbl}>Tokens</Text>}
+              {portfolioTab==='crypto' &&
               {tokenBalances.length===0&&!portfolioLoading&&(
                 <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
               )}
@@ -1770,6 +1846,83 @@ export default function App() {
                   <Text style={s.pfTokenVal}>{t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               ))}
+
+              {/* PREDICTION TAB */}
+              {portfolioTab==='prediction' && !subTabLoading && (
+                <View style={{marginTop:8}}>
+                  {predictions.length===0
+                    ? <Text style={{color:'rgba(255,255,255,0.4)',textAlign:'center',marginTop:32}}>No open positions found</Text>
+                    : predictions.map((p,i)=>(
+                      <View key={i} style={{backgroundColor:'rgba(199,242,132,0.06)',borderRadius:12,padding:16,marginBottom:10,borderWidth:1,borderColor:'rgba(199,242,132,0.15)'}}>
+                        <Text style={{color:'#c7f284',fontWeight:'700',fontSize:14}}>{p.marketSymbol || p.inputMint?.slice(0,8)}</Text>
+                        <Text style={{color:'rgba(255,255,255,0.6)',fontSize:12,marginTop:4}}>Side: {p.side || '—'} | Size: ${(p.sizeUsd||0).toFixed(2)}</Text>
+                        <Text style={{color: (p.pnl||0)>=0 ? '#39ff14':'#ff4444', fontSize:13,marginTop:4}}>PnL: ${(p.pnl||0).toFixed(4)}</Text>
+                      </View>
+                    ))
+                  }
+                </View>
+              )}
+
+              {/* NFT TAB */}
+              {portfolioTab==='nft' && !subTabLoading && (
+                <View style={{flexDirection:'row',flexWrap:'wrap',gap:10,marginTop:8}}>
+                  {nftData.length===0
+                    ? <Text style={{color:'rgba(255,255,255,0.4)',textAlign:'center',marginTop:32,width:'100%'}}>No NFTs found</Text>
+                    : nftData.map((nft,i)=>(
+                      <View key={i} style={{width:'47%',backgroundColor:'rgba(199,242,132,0.06)',borderRadius:12,padding:10,borderWidth:1,borderColor:'rgba(199,242,132,0.1)'}}>
+                        {nft.content?.links?.image
+                          ? <Image source={{uri:nft.content.links.image}} style={{width:'100%',height:100,borderRadius:8,marginBottom:6}} />
+                          : <View style={{width:'100%',height:100,borderRadius:8,backgroundColor:'rgba(199,242,132,0.1)',marginBottom:6,justifyContent:'center',alignItems:'center'}}><Text style={{fontSize:28}}>🖼</Text></View>
+                        }
+                        <Text style={{color:'#fff',fontSize:12,fontWeight:'600'}} numberOfLines={1}>{nft.content?.metadata?.name || 'NFT'}</Text>
+                        <Text style={{color:'rgba(255,255,255,0.4)',fontSize:10}} numberOfLines={1}>{nft.content?.metadata?.collection?.name || ''}</Text>
+                      </View>
+                    ))
+                  }
+                </View>
+              )}
+
+              {/* DEFI TAB */}
+              {portfolioTab==='defi' && !subTabLoading && (
+                <View style={{marginTop:8}}>
+                  {defiPositions.length===0
+                    ? <Text style={{color:'rgba(255,255,255,0.4)',textAlign:'center',marginTop:32}}>No DeFi positions found</Text>
+                    : defiPositions.map((p,i)=>(
+                      <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:14,borderBottomWidth:1,borderBottomColor:'rgba(255,255,255,0.06)'}}>
+                        <View style={{flex:1}}>
+                          <Text style={{color:'#fff',fontWeight:'600'}}>{p.symbol || p.mint?.slice(0,8)}</Text>
+                          <Text style={{color:'rgba(255,255,255,0.4)',fontSize:12}}>{(p.amount||0).toFixed(4)} tokens</Text>
+                        </View>
+                        <Text style={{color:'#c7f284',fontWeight:'600'}}>${((p.amount||0)*(p.price||0)).toFixed(2)}</Text>
+                      </View>
+                    ))
+                  }
+                </View>
+              )}
+
+              {/* HISTORY TAB */}
+              {portfolioTab==='history' && !subTabLoading && (
+                <View style={{marginTop:8}}>
+                  {txHistory.length===0
+                    ? <Text style={{color:'rgba(255,255,255,0.4)',textAlign:'center',marginTop:32}}>No transactions found</Text>
+                    : txHistory.map((tx,i)=>(
+                      <View key={i} style={{paddingVertical:14,borderBottomWidth:1,borderBottomColor:'rgba(255,255,255,0.06)'}}>
+                        <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+                          <Text style={{color:'#c7f284',fontSize:12,fontWeight:'600'}}>{tx.type || 'TRANSACTION'}</Text>
+                          <Text style={{color:'rgba(255,255,255,0.4)',fontSize:11}}>{tx.timestamp ? new Date(tx.timestamp*1000).toLocaleDateString() : ''}</Text>
+                        </View>
+                        <Text style={{color:'rgba(255,255,255,0.6)',fontSize:11,marginTop:4}} numberOfLines={1}>{tx.signature?.slice(0,20)}...</Text>
+                        {tx.nativeTransfers?.length>0 && (
+                          <Text style={{color: tx.nativeTransfers[0].toUserAccount===pubkey ? '#39ff14':'#ff4444', fontSize:12,marginTop:2}}>
+                            {tx.nativeTransfers[0].toUserAccount===pubkey ? '+':'-'}{((tx.nativeTransfers[0].amount||0)/1e9).toFixed(4)} SOL
+                          </Text>
+                        )}
+                      </View>
+                    ))
+                  }
+                </View>
+              )}
+
             </View>
           )}
         </ScrollView>
