@@ -63,12 +63,26 @@ async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amou
   const tp=bs58.decode('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
   const ix=new Uint8Array(9);ix[0]=3;
   new DataView(ix.buffer).setBigUint64(1,BigInt(amountRaw),true);
-  const parts=[new Uint8Array([1,0,2]),new Uint8Array([4]),fa,ta,fp,tp,bhb,new Uint8Array([1]),new Uint8Array([3]),new Uint8Array([3,0,1,2]),new Uint8Array([9]),ix];
-  const len=parts.reduce((s,p)=>s+p.length,0);
-  const msg=new Uint8Array(len);
-  let off=0;for(const p of parts){msg.set(p,off);off+=p.length;}
+  // Correct legacy message: header(3) + numAccounts(1) + accounts(4x32) + blockhash(32) + numIx(1) + progIdx(1) + numAccIdx(1) + accIdx(3) + dataLen(1) + data(9)
+  const numAccounts=4;
+  const msgLen=3+1+(numAccounts*32)+32+1+1+1+3+1+9;
+  const msg=new Uint8Array(msgLen);
+  let o=0;
+  msg[o++]=1;msg[o++]=0;msg[o++]=2; // header: 1 sig, 0 readonly signed, 2 readonly unsigned
+  msg[o++]=numAccounts;
+  msg.set(fp,o);o+=32; // account[0] = signer/owner
+  msg.set(fa,o);o+=32; // account[1] = source ATA
+  msg.set(ta,o);o+=32; // account[2] = dest ATA
+  msg.set(tp,o);o+=32; // account[3] = token program (readonly)
+  msg.set(bhb,o);o+=32; // recent blockhash
+  msg[o++]=1; // num instructions
+  msg[o++]=3; // program id index = token program (index 3)
+  msg[o++]=3; // num account indices
+  msg[o++]=1;msg[o++]=2;msg[o++]=0; // source ATA, dest ATA, owner
+  msg[o++]=9; // data length
+  msg.set(ix,o);
   const sig=nacl.sign.detached(msg,secretKey);
-  const tx=new Uint8Array(1+64+len);tx[0]=1;tx.set(sig,1);tx.set(msg,65);
+  const tx=new Uint8Array(1+64+msgLen);tx[0]=1;tx.set(sig,1);tx.set(msg,65);
   const r=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'sendTransaction',params:[Buffer.from(tx).toString('base64'),{encoding:'base64',preflightCommitment:'confirmed'}]})})).json();
   if(r.error)throw new Error(r.error.message);
   return r.result;
