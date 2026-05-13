@@ -88,18 +88,66 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
           </View>
 
           {view === 'main' && (
-            <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
-              <TouchableOpacity onPress={() => setView('receive')}
-                style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                <Ionicons name="arrow-down-outline" size={24} color={C.text} />
-                <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setView('send')}
-                style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                <Ionicons name="arrow-up-outline" size={24} color="#0d1117" />
-                <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
-              </TouchableOpacity>
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* USD Value */}
+              <View style={{ alignItems:'center', marginBottom:20 }}>
+                <Text style={{ color:C.text, fontSize:32, fontWeight:'bold' }}>
+                  ${((token.amount||0)*(token.price||0)).toFixed(2)}
+                </Text>
+                <Text style={{ color:C.muted, fontSize:13, marginTop:2 }}>
+                  {(token.amount||0).toFixed(6)} {token.symbol}
+                </Text>
+              </View>
+
+              {/* Stats Row */}
+              <View style={{ flexDirection:'row', gap:10, marginBottom:16 }}>
+                <View style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:14, alignItems:'center' }}>
+                  <Text style={{ color:C.muted, fontSize:11, marginBottom:4 }}>Price</Text>
+                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:15 }}>
+                    {token.price ? '$'+Number(token.price).toFixed(4) : '—'}
+                  </Text>
+                </View>
+                <View style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:14, alignItems:'center' }}>
+                  <Text style={{ color:C.muted, fontSize:11, marginBottom:4 }}>Holdings</Text>
+                  <Text style={{ color:C.green, fontWeight:'bold', fontSize:15 }}>
+                    ${((token.amount||0)*(token.price||0)).toFixed(2)}
+                  </Text>
+                </View>
+                <View style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:14, alignItems:'center' }}>
+                  <Text style={{ color:C.muted, fontSize:11, marginBottom:4 }}>Status</Text>
+                  <View style={{ flexDirection:'row', alignItems:'center', gap:3 }}>
+                    {token.isVerified
+                      ? <><Ionicons name="checkmark-circle" size={14} color={C.green}/><Text style={{ color:C.green, fontWeight:'bold', fontSize:13 }}>Verified</Text></>
+                      : <Text style={{ color:'#ff9900', fontWeight:'bold', fontSize:13 }}>Unverified</Text>}
+                  </View>
+                </View>
+              </View>
+
+              {/* Mint Address */}
+              <View style={{ backgroundColor:C.card, borderRadius:14, padding:14, marginBottom:16 }}>
+                <Text style={{ color:C.muted, fontSize:11, marginBottom:6 }}>Contract Address</Text>
+                <TouchableOpacity onPress={() => Alert.alert('Mint Address', token.mint)}>
+                  <Text style={{ color:C.text, fontSize:12, fontFamily:'monospace' }} numberOfLines={1}>
+                    {token.mint ? token.mint.slice(0,16)+'...'+token.mint.slice(-8) : '—'}
+                  </Text>
+                  <Text style={{ color:C.green, fontSize:11, marginTop:4 }}>Tap to view full address</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
+                <TouchableOpacity onPress={() => setView('receive')}
+                  style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                  <Ionicons name="arrow-down-outline" size={24} color={C.text} />
+                  <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setView('send')}
+                  style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                  <Ionicons name="arrow-up-outline" size={24} color="#0d1117" />
+                  <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           )}
 
           {view === 'receive' && (
