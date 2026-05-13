@@ -1612,7 +1612,10 @@ export default function App() {
               {tab === 'swap' && (
         <ScrollView style={s.pad} keyboardShouldPersistTaps="handled">
           <View style={s.swapCard}>
-            <Text style={s.swapCardLabel}>You Pay</Text>
+            <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+              <Text style={s.swapCardLabel}>You Pay</Text>
+              <Text style={{color:C.muted,fontSize:12}}>Balance: {tokenBalances.find(t=>t.symbol===fromToken)?.amount?.toFixed(4) ?? (fromToken==='SOL'?(solBalance||0).toFixed(4):'0')} {fromToken}</Text>
+            </View>
             <View style={s.swapCardRow}>
               <TextInput style={s.swapAmtInput} value={amt} onChangeText={setAmt} placeholder="0" placeholderTextColor={C.border} keyboardType="numeric" />
               <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowFromSearch(!showFromSearch);setShowToSearch(false);}}>
@@ -1642,7 +1645,10 @@ export default function App() {
           </TouchableOpacity>
 
           <View style={s.swapCard}>
-            <Text style={s.swapCardLabel}>You Receive</Text>
+            <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+              <Text style={s.swapCardLabel}>You Receive</Text>
+              <Text style={{color:C.muted,fontSize:12}}>Balance: {tokenBalances.find(t=>t.symbol===toToken)?.amount?.toFixed(4) ?? (toToken==='SOL'?(solBalance||0).toFixed(4):'0')} {toToken}</Text>
+            </View>
             <View style={s.swapCardRow}>
               <Text style={s.swapAmtOut}>{quote?Number(quote.outAmount).toFixed(6):'—'}</Text>
               <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowToSearch(!showToSearch);setShowFromSearch(false);}}>
