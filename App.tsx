@@ -49,44 +49,50 @@ async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamp
 
 async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amountRaw:number,mint:string):Promise<string>{
   const bs58=require('bs58');
+  const {PublicKey}=require('@solana/web3.js');
   const bh=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getLatestBlockhash',params:[{commitment:'confirmed'}]})})).json();
   const blockhash=bh.result.value.blockhash;
+  // Get mint info to detect token program
+  const mintInfo=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:4,method:'getAccountInfo',params:[mint,{encoding:'base64'}]})})).json();
+  const mintOwner=mintInfo.result?.value?.owner||'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+  const TOKEN_PROG_STR=mintOwner;
+  const TOKEN_PROG=new PublicKey(TOKEN_PROG_STR);
+  const ATA_PROG_STR='ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bv';
+  const SYS_PROG_STR='11111111111111111111111111111111';
+  const SYSVAR_RENT_STR='SysvarRent111111111111111111111111111111111';
   const sa=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:2,method:'getTokenAccountsByOwner',params:[pubkey,{mint},{encoding:'jsonParsed'}]})})).json();
   const sATA=sa.result?.value?.[0]?.pubkey;
   if(!sATA)throw new Error('No token account for '+mint);
   const ra=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:3,method:'getTokenAccountsByOwner',params:[recipient,{mint},{encoding:'jsonParsed'}]})})).json();
   const rATA=ra.result?.value?.[0]?.pubkey;
-  const fp=bs58.decode(pubkey);
-  const fa=bs58.decode(sATA);
-  const mintPk=bs58.decode(mint);
-  const bhb=bs58.decode(blockhash);
-  const tp=bs58.decode('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-  const ATA_PROG=bs58.decode('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bv');
-  const SYS_PROG=bs58.decode('11111111111111111111111111111111');
-  const SYSVAR_RENT=bs58.decode('SysvarRent111111111111111111111111111111111');
-  const {PublicKey}=require('@solana/web3.js');
   const recipientPk=new PublicKey(recipient);
   const mintKey=new PublicKey(mint);
-  const TOKEN_PROG=new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-  const [rATAKey]=await PublicKey.findProgramAddress([recipientPk.toBytes(),TOKEN_PROG.toBytes(),mintKey.toBytes()],new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bv'));
+  const [rATAKey]=await PublicKey.findProgramAddress([recipientPk.toBytes(),TOKEN_PROG.toBytes(),mintKey.toBytes()],new PublicKey(ATA_PROG_STR));
+  const fp=bs58.decode(pubkey);
+  const fa=bs58.decode(sATA);
   const rATABytes=rATAKey.toBytes();
-  const accounts=[fp,fa,rATABytes,bs58.decode(mint)];
+  const mintPk=bs58.decode(mint);
+  const bhb=bs58.decode(blockhash);
+  const tp=bs58.decode(TOKEN_PROG_STR);
+  const ATA_PROG=bs58.decode(ATA_PROG_STR);
+  const SYS_PROG=bs58.decode(SYS_PROG_STR);
+  const SYSVAR_RENT=bs58.decode(SYSVAR_RENT_STR);
+  const accounts:Uint8Array[]=[fp,fa,rATABytes,mintPk];
   const acctIdxMap=new Map(accounts.map((a,i)=>[Buffer.from(a).toString('hex'),i]));
-  const getIdx=(b:Uint8Array)=>acctIdxMap.get(Buffer.from(b).toString('hex'));
-  const instructions=[];
+  const addAcc=(a:Uint8Array)=>{const k=Buffer.from(a).toString('hex');if(!acctIdxMap.has(k)){acctIdxMap.set(k,accounts.length);accounts.push(a);}};
+  const getIdx=(a:Uint8Array)=>acctIdxMap.get(Buffer.from(a).toString('hex'))??0;
+  const instructions:any[]=[];
   if(!rATA){
-    const ataAccounts=[fp,rATABytes,recipientPk.toBytes(),mintPk,SYS_PROG,tp,SYSVAR_RENT,ATA_PROG];
-    ataAccounts.forEach(a=>{if(!acctIdxMap.has(Buffer.from(a).toString('hex'))){acctIdxMap.set(Buffer.from(a).toString('hex'),accounts.length);accounts.push(a);}});
-    const ataProgIdx=getIdx(ATA_PROG);
-    instructions.push({progIdx:ataProgIdx,accs:[getIdx(fp),getIdx(rATABytes),getIdx(recipientPk.toBytes()),getIdx(mintPk),getIdx(SYS_PROG),getIdx(tp),getIdx(SYSVAR_RENT)],data:new Uint8Array(0)});
+    [fp,rATABytes,recipientPk.toBytes(),mintPk,bs58.decode(SYS_PROG_STR),tp,SYSVAR_RENT,ATA_PROG].forEach(addAcc);
+    instructions.push({progIdx:getIdx(ATA_PROG),accs:[getIdx(fp),getIdx(rATABytes),getIdx(recipientPk.toBytes()),getIdx(mintPk),getIdx(bs58.decode(SYS_PROG_STR)),getIdx(tp),getIdx(SYSVAR_RENT)],data:new Uint8Array(0)});
   }
-  [tp].forEach(a=>{if(!acctIdxMap.has(Buffer.from(a).toString('hex'))){acctIdxMap.set(Buffer.from(a).toString('hex'),accounts.length);accounts.push(a);}});
+  addAcc(tp);
   const ix=new Uint8Array(9);ix[0]=3;
   new DataView(ix.buffer).setBigUint64(1,BigInt(amountRaw),true);
   instructions.push({progIdx:getIdx(tp),accs:[getIdx(fa),getIdx(rATABytes),getIdx(fp)],data:ix});
   const numSigners=1;const numReadonlySigned=0;const numReadonlyUnsigned=accounts.length-numSigners;
-  const ixBytes=instructions.map(({progIdx,accs,data})=>{const b=[progIdx,accs.length,...accs.map((x:number|undefined)=>x??0),data.length,...data];return new Uint8Array(b);});
-  const totalIxLen=ixBytes.reduce((s,b)=>s+b.length,0);
+  const ixBytes=instructions.map(({progIdx,accs,data}:any)=>{const b=[progIdx,accs.length,...accs,data.length,...data];return new Uint8Array(b);});
+  const totalIxLen=ixBytes.reduce((s:number,b:Uint8Array)=>s+b.length,0);
   const msgLen=3+1+(accounts.length*32)+32+1+totalIxLen;
   const msg=new Uint8Array(msgLen);
   let o=0;
@@ -95,12 +101,9 @@ async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amou
   accounts.forEach(a=>{msg.set(a,o);o+=32;});
   msg.set(bhb,o);o+=32;
   msg[o++]=instructions.length;
-  ixBytes.forEach(b=>{msg.set(b,o);o+=b.length;});
+  ixBytes.forEach((b:Uint8Array)=>{msg.set(b,o);o+=b.length;});
   const sig=nacl.sign.detached(msg,secretKey);
   const tx=new Uint8Array(1+64+msgLen);tx[0]=1;tx.set(sig,1);tx.set(msg,65);
-  const r=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'sendTransaction',params:[Buffer.from(tx).toString('base64'),{encoding:'base64',preflightCommitment:'confirmed'}]})})).json();
-  if(r.error)throw new Error(r.error.message);
-  return r.result;
 }
 
 const TABS = [
