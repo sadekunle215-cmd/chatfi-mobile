@@ -1208,8 +1208,20 @@ export default function App() {
         body: JSON.stringify({url: 'https://api.jup.ag/tokens/v2/search?query=' + encodeURIComponent(query) + '&limit=6', method: 'GET'})
       });
       const data = await res.json();
-      const tokens = Array.isArray(data) ? data : (data.tokens || []);
-      setResults(tokens.map((t:any) => ({...t, address: t.id || t.address, logoURI: t.logoURI || t.icon || ''})));
+      const tokens = (Array.isArray(data) ? data : (data.tokens || [])).map((t:any) => ({...t, address: t.id || t.address, logoURI: t.logoURI || t.icon || ''}));
+      setResults(tokens);
+      // Force fetch logos for tokens missing them
+      tokens.forEach(async (t:any) => {
+        if (!t.logoURI && (t.address || t.id)) {
+          try {
+            const lr = await fetch('https://lite-api.jup.ag/tokens/v1/token/' + (t.address || t.id));
+            const ld = await lr.json();
+            if (ld.logoURI) {
+              setResults((prev:any) => prev.map((p:any) => (p.address||p.id) === (t.address||t.id) ? {...p, logoURI: ld.logoURI} : p));
+            }
+          } catch(e) {}
+        }
+      });
     } catch { setResults([]); }
   };
 
