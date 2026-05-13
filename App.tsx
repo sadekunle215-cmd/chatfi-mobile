@@ -229,9 +229,14 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
 }
 
 
-function TokLogo({uri, symbol, style, fallback}: {uri:string, symbol:string, style:any, fallback?:string}) {
+function TokLogo({uri, symbol, style, fallback, mint}: {uri:string, symbol:string, style:any, fallback?:string, mint?:string}) {
   const [tries, setTries] = React.useState(0);
-  const sources = [uri, fallback || ''].filter(Boolean);
+  const sources = [
+    uri,
+    fallback || '',
+    mint ? 'https://img.birdeye.so/icon/v1/?address='+mint : '',
+    mint ? 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/'+mint+'/logo.png' : '',
+  ].filter(Boolean);
   if(tries >= sources.length) return <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2a1a'}]}><Text style={{color:'#39ff14',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
   return <Image source={{uri:sources[tries]}} style={style} onError={()=>setTries(t=>t+1)} />;
 }
@@ -1645,7 +1650,7 @@ export default function App() {
               )}
               {tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').map((t,i)=>(
                 <TouchableOpacity key={i} style={s.pfTokenRow} onPress={() => setSelectedToken(t)}>
-                  <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/'+t.mint+'/logo.png'} symbol={t.symbol} style={s.pfTokenLogo} />
+                  <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/'+t.mint+'/logo.png'} symbol={t.symbol} style={s.pfTokenLogo} mint={t.mint} />
                   <View style={{flex:1,marginLeft:12}}>
                     <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
                       <Text style={s.pfTokenName}>{t.symbol}</Text>
