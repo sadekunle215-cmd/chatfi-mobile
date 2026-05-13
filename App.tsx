@@ -1338,32 +1338,7 @@ export default function App() {
       );
     }
 
-    if (changingPasscode) return (
-      <View style={{flex:1,backgroundColor:C.bg,alignItems:'center',justifyContent:'center',padding:32}}>
-        <StatusBar barStyle="light-content" backgroundColor={C.bg}/>
-        <Text style={{color:C.text,fontSize:24,fontWeight:'bold',marginBottom:8}}>Change Passcode</Text>
-        <Text style={{color:C.muted,fontSize:14,marginBottom:40,textAlign:'center'}}>Enter a new 6-digit passcode</Text>
-        <View style={{flexDirection:'row',gap:16,marginBottom:48}}>
-          {[0,1,2,3,4,5].map(i=>(
-            <View key={i} style={{width:16,height:16,borderRadius:8,backgroundColor:passcode.length>i?C.green:C.border}}/>
-          ))}
-        </View>
-        {[[1,2,3],[4,5,6],[7,8,9],['cancel',0,'<']].map((row,ri)=>(
-          <View key={ri} style={{flexDirection:'row',gap:16,marginBottom:16}}>
-            {row.map(k=>(
-              <TouchableOpacity key={String(k)} onPress={async()=>{
-                const kk=String(k);
-                if(kk==='cancel'){setChangingPasscode(false);setPasscode('');return;}
-                if(kk==='<'){setPasscode(p=>p.slice(0,-1));return;}
-                if(passcode.length<6){const np=passcode+kk;setPasscode(np);if(np.length===6){await AsyncStorage.setItem('passcode',np);setChangingPasscode(false);setPasscode('');showToast('Passcode updated!','success');}}
-              }} style={{width:72,height:72,borderRadius:36,backgroundColor:C.card,alignItems:'center',justifyContent:'center'}}>
-                <Text style={{color:C.text,fontSize:kk==='cancel'?12:kk==='<'?20:24,fontWeight:'500'}}>{kk==='<'?'⌫':kk==='cancel'?'Cancel':k}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ))}
-      </View>
-    );
+
 
     if (onboardStep === 'passcode') return (
       <GradBg>
