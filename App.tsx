@@ -612,7 +612,7 @@ function DappBrowser({ walletAddress }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState('chat');
+  const [tab, setTab] = useState('portfolio');
   const [splashDone, setSplashDone] = useState(false);
   const [onboardStep, setOnboardStep] = useState<'passcode'|'fingerprint'|'wordcount'|'seedphrase'|'username'|null>(null);
   const [passcode, setPasscode] = useState('');
