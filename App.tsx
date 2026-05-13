@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WebView } from 'react-native-webview';
+import Svg, { Line as SvgLine } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1616,11 +1617,12 @@ export default function App() {
             <View>
               {/* Big Balance */}
               <View style={s.pfBalanceSection}>
-                <View style={s.pfGlowOuter}>
-                  <View style={s.pfGlowMid}>
-                    <View style={s.pfGlowInner} />
-                  </View>
-                </View>
+                {/* Diagonal stripe pattern background */}
+                <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+                  {Array.from({length:30}).map((_,i)=>(
+                    <SvgLine key={i} x1={i*24-200} y1="0" x2={i*24+200} y2="300" stroke="rgba(199,242,132,0.07)" strokeWidth="12" />
+                  ))}
+                </Svg>
                 <Text style={s.pfBalanceAmt}>
                   {portfolioLoading ? '...' : '$'+(tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
                 </Text>
@@ -2095,11 +2097,8 @@ const s = StyleSheet.create({
   tokenResTxt:{ color:C.text, fontSize:14, fontWeight:'600' },
   tokenResSub:{ color:C.muted, fontSize:12, marginTop:2 },
   swapDirBtn:{ alignSelf:'center', backgroundColor:C.card, borderRadius:22, padding:12, marginVertical:6, borderWidth:3, borderColor:C.bg },
-  pfBalanceSection:{ alignItems:'center', paddingVertical:32, overflow:'hidden', position:'relative' },
-  pfGlowOuter:{ position:'absolute', width:320, height:320, borderRadius:160, backgroundColor:'rgba(199,242,132,0.04)', alignSelf:'center', top:-60 },
-  pfGlowMid:{ position:'absolute', width:220, height:220, borderRadius:110, backgroundColor:'rgba(199,242,132,0.07)', alignSelf:'center', top:50, left:50 },
-  pfGlowInner:{ position:'absolute', width:130, height:130, borderRadius:65, backgroundColor:'rgba(199,242,132,0.11)', alignSelf:'center', top:45, left:45 },
-  pfBalanceAmt:{ color:C.text, fontSize:40, fontWeight:'700', letterSpacing:-1 },
+  pfBalanceSection:{ alignItems:'center', paddingVertical:36, overflow:'hidden', borderRadius:20, backgroundColor:'#0f1e0f', marginBottom:16, borderWidth:1, borderColor:'rgba(199,242,132,0.15)' },
+  pfBalanceAmt:{ color:C.text, fontSize:40, fontWeight:'700', letterSpacing:-1, zIndex:1 },
   pfAddressTxt:{ color:C.muted, fontSize:13, marginTop:6 },
   pfActions:{ flexDirection:'row', justifyContent:'space-around', marginBottom:24 },
   pfActionBtn:{ alignItems:'center', gap:6 },
