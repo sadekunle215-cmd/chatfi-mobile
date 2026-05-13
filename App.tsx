@@ -1240,27 +1240,8 @@ export default function App() {
         const { sendSolana } = require("./sendMsg");
         txSig = await sendSolana(pk, secretKey, sendTo.trim(), amountNum);
       } else {
-        const res = await fetch("https://chatfi.pro/api/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sender: pk, recipient: sendTo.trim(), amount: String(amountNum), mint }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.tx) throw new Error(data.error || "Failed to build transaction");
-        const txBytes = Uint8Array.from(Buffer.from(data.tx, "base64"));
-        const numSigs = txBytes[0];
-        const msgBytes = txBytes.slice(1 + numSigs * 64);
-        const userSig = nacl.sign.detached(msgBytes, secretKey);
-        txBytes.set(userSig, 1);
-        const txB64 = Buffer.from(txBytes).toString("base64");
-        const rpcRes = await fetch("https://api.mainnet-beta.solana.com", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sendTransaction", params: [txB64, { encoding: "base64", preflightCommitment: "confirmed" }] }),
-        });
-        const rpcData = await rpcRes.json();
-        if (rpcData.error) throw new Error(rpcData.error.message);
-        txSig = rpcData.result;
+        const { sendSPLToken } = require("./sendMsg");
+        txSig = await sendSPLToken(pk, secretKey, sendTo.trim(), amountNum, mint, decimals);
       }
       showToast(`Sent ${sendAmt} ${sendToken} ✓`,'success');
       setShowSendModal(false); setSendAmt(''); setSendTo('');
@@ -1721,6 +1702,15 @@ export default function App() {
             </View>
           ) : (
             <View>
+              {/* Balance */}
+              <View style={{alignItems:'center',paddingTop:16,paddingBottom:8}}>
+                <Text style={s.pfBalanceAmt}>
+                  {portfolioLoading ? '...' : '$'+((tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(4)}
+                </Text>
+                <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:4}}>
+                  <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
+                </TouchableOpacity>
+              </View>
               {/* Action Buttons */}
               <View style={{flexDirection:'row',justifyContent:'space-around',paddingVertical:16}}>
                 <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowSendModal(true)}>

@@ -363,3 +363,81 @@ export async function getTokenLogo(mint: string): Promise<string> {
     return '';
   }
 }
+
+export async function sendSPLToken(
+  pubkey: string,
+  secretKey: Uint8Array,
+  recipient: string,
+  amountRaw: number,
+  mint: string,
+  decimals: number
+): Promise<string> {
+  const bs58 = require("bs58");
+
+  // Get latest blockhash
+  const bhRes = await fetch(RPC, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getLatestBlockhash", params: [{ commitment: "confirmed" }] }),
+  });
+  const bhData = await bhRes.json();
+  const blockhash = bhData.result.value.blockhash;
+
+  // Get sender's ATA
+  const ataRes = await fetch(RPC, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "getTokenAccountsByOwner", params: [pubkey, { mint }, { encoding: "jsonParsed" }] }),
+  });
+  const ataData = await ataRes.json();
+  const senderATA = ataData.result?.value?.[0]?.pubkey;
+  if (!senderATA) throw new Error("No token account found for " + mint);
+
+  // Get recipient's ATA
+  const rataRes = await fetch(RPC, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "getTokenAccountsByOwner", params: [recipient, { mint }, { encoding: "jsonParsed" }] }),
+  });
+  const rataData = await rataRes.json();
+  const recipientATA = rataData.result?.value?.[0]?.pubkey;
+  if (!recipientATA) throw new Error("Recipient has no token account for this token");
+
+  // Build SPL transfer instruction manually
+  const fromPk = bs58.decode(pubkey);
+  const fromATA = bs58.decode(senderATA);
+  const toATA = bs58.decode(recipientATA);
+  const bhBytes = bs58.decode(blockhash);
+  const TOKEN_PROGRAM = bs58.decode("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+
+  // instruction data: [3 (transfer), amount as u64 LE]
+  const ixData = new Uint8Array(9);
+  ixData[0] = 3;
+  const view = new DataView(ixData.buffer);
+  view.setBigUint64(1, BigInt(amountRaw), true);
+
+  // Message: header + accounts + blockhash + instructions
+  const msg = new Uint8Array([
+    1, 0, 1, // num sigs, readonly signed, readonly unsigned
+    4,       // num accounts
+    ...fromATA, ...toATA, ...fromPk, ...TOKEN_PROGRAM,
+    ...bhBytes,
+    1,       // num instructions
+    3,       // program id index (TOKEN_PROGRAM)
+    3, 0, 1, 2, // num accounts, account indices
+    9, ...ixData, // data length + data
+  ]);
+
+  const sig = nacl.sign.detached(msg, secretKey);
+  const tx = new Uint8Array([1, ...sig, ...msg]);
+  const txB64 = Buffer.from(tx).toString("base64");
+
+  const sendRes = await fetch(RPC, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sendTransaction", params: [txB64, { encoding: "base64", preflightCommitment: "confirmed" }] }),
+  });
+  const sendData = await sendRes.json();
+  if (sendData.error) throw new Error(sendData.error.message);
+  return sendData.result;
+}
