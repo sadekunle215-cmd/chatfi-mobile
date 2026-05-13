@@ -816,6 +816,8 @@ export default function App() {
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [accountView, setAccountView] = useState('main');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannerPermission, requestScannerPermission] = (require('expo-camera').useCameraPermissions)();
   const [seedPhrase, setSeedPhrase] = useState('');
   const [importSeed, setImportSeed] = useState('');
   const [msgs, setMsgs] = useState([
@@ -1783,9 +1785,9 @@ export default function App() {
                   <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↓</Text></View>
                   <Text style={s.pfActionLbl}>Receive</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.pfActionBtn} onPress={copyAddress}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⧉</Text></View>
-                  <Text style={s.pfActionLbl}>Copy</Text>
+                <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowScanner(true)}>
+                  <View style={s.pfActionIcon}><Ionicons name="scan-outline" size={18} color={C.text}/></View>
+                  <Text style={s.pfActionLbl}>Scan</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1914,6 +1916,39 @@ export default function App() {
           );
         })}
       </View>
+
+      {/* QR SCANNER MODAL */}
+      <Modal visible={showScanner} animationType="slide" onRequestClose={()=>setShowScanner(false)}>
+        <View style={{flex:1,backgroundColor:'#000'}}>
+          <View style={{flexDirection:'row',alignItems:'center',padding:16,paddingTop:48}}>
+            <TouchableOpacity onPress={()=>setShowScanner(false)} style={{marginRight:16}}>
+              <Ionicons name="close" size={28} color="#fff"/>
+            </TouchableOpacity>
+            <Text style={{color:'#fff',fontSize:18,fontWeight:'bold'}}>Scan Wallet Address</Text>
+          </View>
+          {!scannerPermission?.granted ? (
+            <View style={{flex:1,alignItems:'center',justifyContent:'center',padding:32}}>
+              <Text style={{color:'#fff',textAlign:'center',marginBottom:24}}>Camera permission is required to scan QR codes.</Text>
+              <TouchableOpacity onPress={requestScannerPermission} style={{backgroundColor:C.green,padding:16,borderRadius:12}}>
+                <Text style={{color:'#000',fontWeight:'bold'}}>Grant Permission</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <CameraView
+              style={{flex:1}}
+              facing="back"
+              barcodeScannerSettings={{barcodeTypes:['qr']}}
+              onBarcodeScanned={(result)=>{
+                const addr = result.data;
+                setShowScanner(false);
+                setShowSendModal(true);
+                setSendTo(addr);
+                showToast('Address scanned!','success');
+              }}
+            />
+          )}
+        </View>
+      </Modal>
 
       {/* WALLET MODAL */}
       <Modal visible={showWalletModal} animationType="slide" transparent>

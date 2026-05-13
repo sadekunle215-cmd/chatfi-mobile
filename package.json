@@ -18,6 +18,7 @@
     "buffer": "^6.0.3",
     "ed25519-hd-key": "^2.0.0",
     "expo": "~54.0.33",
+    "expo-camera": "~17.0.10",
     "expo-local-authentication": "~17.0.8",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
