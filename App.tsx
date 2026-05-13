@@ -790,7 +790,7 @@ export default function App() {
           name: t.name || t.symbol,
           mint: t.mint,
           amount: t.amount,
-          logoURI: t.logoURI || '',
+          logoURI: t.logoURI || 'https://img.jup.ag/tokens/'+t.mint,
           price: t.price || 0,
           isVerified: t.isVerified || verifiedMints.has(t.mint) || false,
         }));
