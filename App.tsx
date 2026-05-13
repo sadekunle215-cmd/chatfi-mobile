@@ -777,7 +777,11 @@ export default function App() {
     try {
       let verifiedMints = new Set<string>();
       try {
-        const vr = await fetch('https://api.jup.ag/tokens/v1/tagged/verified');
+        const vr = await fetch('https://chatfi.pro/api/jupiter', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({url: 'https://api.jup.ag/tokens/v1/tagged/verified', method: 'GET'})
+        });
         const vd = await vr.json();
         verifiedMints = new Set(
           Array.isArray(vd) ? vd.map((x: any) => typeof x === 'string' ? x : x.mint).filter(Boolean) : []
