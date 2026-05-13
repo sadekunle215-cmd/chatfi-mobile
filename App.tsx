@@ -287,7 +287,22 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
 
 
               {/* Native Chart */}
-              <NativeChart mint={token.mint} />
+              {/* DexScreener Chart */}
+              <View style={{ borderRadius:14, overflow:'hidden', marginBottom:16, height:380 }}>
+                <WebView
+                  source={{ uri: 'https://dexscreener.com/solana/'+token.mint+'?embed=1&theme=dark&trades=0&info=0' }}
+                  style={{ flex:1, backgroundColor:'#161b22' }}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  startInLoadingState={true}
+                  renderLoading={() => (
+                    <View style={{ flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#161b22' }}>
+                      <ActivityIndicator color={'#39ff14'} />
+                      <Text style={{ color:'#888', fontSize:12, marginTop:8 }}>Loading chart...</Text>
+                    </View>
+                  )}
+                />
+              </View>
 
               {/* DexScreener Chart - HIDDEN
               <View style={{ borderRadius:14, overflow:'hidden', marginBottom:16, height:380 }}>
