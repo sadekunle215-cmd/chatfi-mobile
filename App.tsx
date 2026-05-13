@@ -1778,7 +1778,7 @@ export default function App() {
               {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
               {/* SOL Row */}
               {solBalance !== null && solBalance > 0 && (
-                <TouchableOpacity style={s.pfTokenRow} onPress={()=>{}}>
+                <TouchableOpacity style={s.pfTokenRow} onPress={()=>setSelectedToken({symbol:'SOL',mint:'So11111111111111111111111111111111111111112',amount:solBalance||0,logoURI:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112',price:solPrice||0,isVerified:true})}>
                   <TokLogo uri={'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112'} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'} symbol={'SOL'} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
                     <Text style={s.pfTokenName}>SOL</Text>
