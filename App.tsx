@@ -225,10 +225,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               </View>
 
 
-              {/* Native Chart */}
-              <NativeChart mint={token.mint} />
-
-              {/* DexScreener Chart - HIDDEN
+              {/* DexScreener Chart - HIDDEN - NativeChart replaced
               <View style={{ borderRadius:14, overflow:'hidden', marginBottom:16, height:380 }}>
                 <WebView
                   source={{ uri: 'https://dexscreener.com/solana/'+token.mint+'?embed=1&theme=dark&trades=0&info=0' }}
@@ -242,7 +239,6 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                   )}
                 />
               </View>
-              */}
 
               {/* Action Buttons */}
               <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
