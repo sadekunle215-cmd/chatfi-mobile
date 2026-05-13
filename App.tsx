@@ -2041,7 +2041,7 @@ export default function App() {
                 </TouchableOpacity>
               </View>
               <TouchableOpacity onPress={()=>{setPasscode('');setChangingPasscode(true);}} style={{paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
-                <Text style={{color:C.green,fontSize:15}}>Change Passcode →</Text>
+                <Text style={{color:C.green,fontSize:15}}></Text>
               </TouchableOpacity>
             </>)}
             {changingPasscode && (
