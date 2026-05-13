@@ -2208,7 +2208,7 @@ const s = StyleSheet.create({
   tokenResTxt:{ color:C.text, fontSize:14, fontWeight:'600' },
   tokenResSub:{ color:C.muted, fontSize:12, marginTop:2 },
   swapDirBtn:{ alignSelf:'center', backgroundColor:C.card, borderRadius:22, padding:12, marginVertical:6, borderWidth:3, borderColor:C.bg },
-  pfHeroCard:{ overflow:'hidden', borderRadius:20, backgroundColor:'#0a1a0a', marginBottom:16, borderWidth:1, borderColor:'rgba(199,242,132,0.15)' },
+  pfHeroCard:{ overflow:'hidden', borderRadius:20, backgroundColor:'#1C2936', marginBottom:16, borderWidth:1, borderColor:'rgba(199,242,132,0.15)' },
   pfBalanceSection:{ alignItems:'center', paddingVertical:36, overflow:'hidden', borderRadius:20, backgroundColor:'#0f1e0f', marginBottom:16, borderWidth:1, borderColor:'rgba(199,242,132,0.15)' },
   pfBalanceAmt:{ color:C.text, fontSize:40, fontWeight:'700', letterSpacing:-1, zIndex:1 },
   pfAddressTxt:{ color:C.muted, fontSize:13, marginTop:6 },
