@@ -1616,10 +1616,16 @@ export default function App() {
             <View>
               {/* Big Balance */}
               <View style={s.pfBalanceSection}>
+                <View style={s.pfGlowOuter}>
+                  <View style={s.pfGlowMid}>
+                    <View style={s.pfGlowInner} />
+                  </View>
+                </View>
                 <Text style={s.pfBalanceAmt}>
                   {portfolioLoading ? '...' : '$'+(tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
                 </Text>
-                <TouchableOpacity onPress={copyAddress}>
+                <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:6}}>
+                  <Image source={{uri:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112'}} style={{width:16,height:16,borderRadius:8}} />
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
                 </TouchableOpacity>
               </View>
@@ -2089,7 +2095,10 @@ const s = StyleSheet.create({
   tokenResTxt:{ color:C.text, fontSize:14, fontWeight:'600' },
   tokenResSub:{ color:C.muted, fontSize:12, marginTop:2 },
   swapDirBtn:{ alignSelf:'center', backgroundColor:C.card, borderRadius:22, padding:12, marginVertical:6, borderWidth:3, borderColor:C.bg },
-  pfBalanceSection:{ alignItems:'center', paddingVertical:24 },
+  pfBalanceSection:{ alignItems:'center', paddingVertical:32, overflow:'hidden', position:'relative' },
+  pfGlowOuter:{ position:'absolute', width:320, height:320, borderRadius:160, backgroundColor:'rgba(199,242,132,0.04)', alignSelf:'center', top:-60 },
+  pfGlowMid:{ position:'absolute', width:220, height:220, borderRadius:110, backgroundColor:'rgba(199,242,132,0.07)', alignSelf:'center', top:50, left:50 },
+  pfGlowInner:{ position:'absolute', width:130, height:130, borderRadius:65, backgroundColor:'rgba(199,242,132,0.11)', alignSelf:'center', top:45, left:45 },
   pfBalanceAmt:{ color:C.text, fontSize:40, fontWeight:'700', letterSpacing:-1 },
   pfAddressTxt:{ color:C.muted, fontSize:13, marginTop:6 },
   pfActions:{ flexDirection:'row', justifyContent:'space-around', marginBottom:24 },
