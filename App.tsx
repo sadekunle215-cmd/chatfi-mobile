@@ -732,7 +732,6 @@ export default function App() {
   const [showSendModal, setShowSendModal] = useState(false);
   const [portfolioTab, setPortfolioTab] = useState('crypto');
   const [nftData, setNftData] = useState([]);
-  const [txHistory, setTxHistory] = useState([]);
   const [predictions, setPredictions] = useState([]);
   const [defiPositions, setDefiPositions] = useState([]);
   const [subTabLoading, setSubTabLoading] = useState(false);
