@@ -56,32 +56,46 @@ async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amou
   if(!sATA)throw new Error('No token account for '+mint);
   const ra=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:3,method:'getTokenAccountsByOwner',params:[recipient,{mint},{encoding:'jsonParsed'}]})})).json();
   const rATA=ra.result?.value?.[0]?.pubkey;
-  if(!rATA)throw new Error('Recipient has no account for this token');
   const fp=bs58.decode(pubkey);
   const fa=bs58.decode(sATA);
-  const ta=bs58.decode(rATA);
+  const mintPk=bs58.decode(mint);
   const bhb=bs58.decode(blockhash);
   const tp=bs58.decode('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+  const ATA_PROG=bs58.decode('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bv');
+  const SYS_PROG=bs58.decode('11111111111111111111111111111111');
+  const SYSVAR_RENT=bs58.decode('SysvarRent111111111111111111111111111111111');
+  const {PublicKey}=require('@solana/web3.js');
+  const recipientPk=new PublicKey(recipient);
+  const mintKey=new PublicKey(mint);
+  const TOKEN_PROG=new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+  const [rATAKey]=await PublicKey.findProgramAddress([recipientPk.toBytes(),TOKEN_PROG.toBytes(),mintKey.toBytes()],new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bv'));
+  const rATABytes=rATAKey.toBytes();
+  const accounts=[fp,fa,rATABytes,bs58.decode(mint)];
+  const acctIdxMap=new Map(accounts.map((a,i)=>[Buffer.from(a).toString('hex'),i]));
+  const getIdx=(b:Uint8Array)=>acctIdxMap.get(Buffer.from(b).toString('hex'));
+  const instructions=[];
+  if(!rATA){
+    const ataAccounts=[fp,rATABytes,recipientPk.toBytes(),mintPk,SYS_PROG,tp,SYSVAR_RENT,ATA_PROG];
+    ataAccounts.forEach(a=>{if(!acctIdxMap.has(Buffer.from(a).toString('hex'))){acctIdxMap.set(Buffer.from(a).toString('hex'),accounts.length);accounts.push(a);}});
+    const ataProgIdx=getIdx(ATA_PROG);
+    instructions.push({progIdx:ataProgIdx,accs:[getIdx(fp),getIdx(rATABytes),getIdx(recipientPk.toBytes()),getIdx(mintPk),getIdx(SYS_PROG),getIdx(tp),getIdx(SYSVAR_RENT)],data:new Uint8Array(0)});
+  }
+  [tp].forEach(a=>{if(!acctIdxMap.has(Buffer.from(a).toString('hex'))){acctIdxMap.set(Buffer.from(a).toString('hex'),accounts.length);accounts.push(a);}});
   const ix=new Uint8Array(9);ix[0]=3;
   new DataView(ix.buffer).setBigUint64(1,BigInt(amountRaw),true);
-  // Correct legacy message: header(3) + numAccounts(1) + accounts(4x32) + blockhash(32) + numIx(1) + progIdx(1) + numAccIdx(1) + accIdx(3) + dataLen(1) + data(9)
-  const numAccounts=4;
-  const msgLen=3+1+(numAccounts*32)+32+1+1+1+3+1+9;
+  instructions.push({progIdx:getIdx(tp),accs:[getIdx(fa),getIdx(rATABytes),getIdx(fp)],data:ix});
+  const numSigners=1;const numReadonlySigned=0;const numReadonlyUnsigned=accounts.length-numSigners;
+  const ixBytes=instructions.map(({progIdx,accs,data})=>{const b=[progIdx,accs.length,...accs.map((x:number|undefined)=>x??0),data.length,...data];return new Uint8Array(b);});
+  const totalIxLen=ixBytes.reduce((s,b)=>s+b.length,0);
+  const msgLen=3+1+(accounts.length*32)+32+1+totalIxLen;
   const msg=new Uint8Array(msgLen);
   let o=0;
-  msg[o++]=1;msg[o++]=0;msg[o++]=1; // header: 1 sig, 0 readonly signed, 1 readonly unsigned
-  msg[o++]=numAccounts;
-  msg.set(fp,o);o+=32; // account[0] = signer/owner
-  msg.set(fa,o);o+=32; // account[1] = source ATA
-  msg.set(ta,o);o+=32; // account[2] = dest ATA
-  msg.set(tp,o);o+=32; // account[3] = token program (readonly)
-  msg.set(bhb,o);o+=32; // recent blockhash
-  msg[o++]=1; // num instructions
-  msg[o++]=3; // program id index = token program (index 3)
-  msg[o++]=3; // num account indices
-  msg[o++]=1;msg[o++]=2;msg[o++]=0; // source ATA, dest ATA, owner
-  msg[o++]=9; // data length
-  msg.set(ix,o);
+  msg[o++]=numSigners;msg[o++]=numReadonlySigned;msg[o++]=numReadonlyUnsigned;
+  msg[o++]=accounts.length;
+  accounts.forEach(a=>{msg.set(a,o);o+=32;});
+  msg.set(bhb,o);o+=32;
+  msg[o++]=instructions.length;
+  ixBytes.forEach(b=>{msg.set(b,o);o+=b.length;});
   const sig=nacl.sign.detached(msg,secretKey);
   const tx=new Uint8Array(1+64+msgLen);tx[0]=1;tx.set(sig,1);tx.set(msg,65);
   const r=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'sendTransaction',params:[Buffer.from(tx).toString('base64'),{encoding:'base64',preflightCommitment:'confirmed'}]})})).json();
