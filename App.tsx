@@ -2243,7 +2243,7 @@ const s = StyleSheet.create({
   tabIcon: { fontSize: 22, color: 'rgba(255,255,255,0.4)' },
   tabIconActive: { color: '#39FF82', textShadowColor: '#39FF82', textShadowOffset: {width:0,height:0}, textShadowRadius: 8 },
   tabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 },
-  tabLabelActive: { color: '#39FF82', fontWeight: '600' },
+  tabLabelActive: { color: '#C7F284', fontWeight: '600' },
   swapCard:{ backgroundColor:C.card, borderRadius:16, padding:16, marginBottom:4 },
   swapCardLabel:{ color:C.muted, fontSize:13, marginBottom:10 },
   swapCardRow:{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' },
