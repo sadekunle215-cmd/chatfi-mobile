@@ -8,6 +8,14 @@ import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWall
 import nacl from 'tweetnacl';
 import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices } from './wallet';
+const TOKEN_LOGOS: Record<string, string> = {
+  SOL: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+  USDC: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
+  USDT: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.png',
+  JUP: 'https://img.jup.ag/tokens/JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+  BONK: 'https://img.jup.ag/tokens/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+  WIF: 'https://img.jup.ag/tokens/EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
+};
 
 const C = {
   bg: '#0d1117', card: '#1C2936', card2: '#162030',
@@ -1370,7 +1378,7 @@ export default function App() {
             <View style={s.swapCardRow}>
               <TextInput style={s.swapAmtInput} value={amt} onChangeText={setAmt} placeholder="0" placeholderTextColor={C.border} keyboardType="numeric" />
               <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowFromSearch(!showFromSearch);setShowToSearch(false);}}>
-                <TokLogo uri={'https://img.jup.ag/tokens/'+(TOKENS[fromToken]||'')} symbol={fromToken} style={s.tokenLogo} />
+                <TokLogo uri={TOKEN_LOGOS[fromToken]||'https://img.jup.ag/tokens/'+(TOKENS[fromToken]||'')} fallback={'https://img.jup.ag/tokens/'+(TOKENS[fromToken]||'')} symbol={fromToken} style={s.tokenLogo} />
                 <Text style={s.tokenSelTxt}>{fromToken}</Text>
                 <Text style={{color:C.muted,marginLeft:4,fontSize:12}}>▾</Text>
               </TouchableOpacity>
@@ -1379,7 +1387,7 @@ export default function App() {
               <View style={s.tokenDropdown}>
                 <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setFromResults); else setFromResults([]);}} />
                 {fromResults.slice(0,5).map(t=>(
-                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setFromToken(t.symbol);TOKENS[t.symbol]=t.address;if(t.decimals!=null)DECIMALS[t.symbol]=t.decimals;setShowFromSearch(false);setQuote(null);}}>
+                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setFromToken(t.symbol);TOKENS[t.symbol]=t.address;if(t.decimals!=null)DECIMALS[t.symbol]=t.decimals;if(t.logoURI)TOKEN_LOGOS[t.symbol]=t.logoURI;setShowFromSearch(false);setQuote(null);}}>
                     <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
                     <View style={{flex:1,marginLeft:8}}>
                       <Text style={s.tokenResTxt}>{t.symbol}</Text>
@@ -1400,7 +1408,7 @@ export default function App() {
             <View style={s.swapCardRow}>
               <Text style={s.swapAmtOut}>{quote?Number(quote.outAmount).toFixed(6):'—'}</Text>
               <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowToSearch(!showToSearch);setShowFromSearch(false);}}>
-                <TokLogo uri={'https://img.jup.ag/tokens/'+(TOKENS[toToken]||'')} symbol={toToken} style={s.tokenLogo} />
+                <TokLogo uri={TOKEN_LOGOS[toToken]||'https://img.jup.ag/tokens/'+(TOKENS[toToken]||'')} fallback={'https://img.jup.ag/tokens/'+(TOKENS[toToken]||'')} symbol={toToken} style={s.tokenLogo} />
                 <Text style={s.tokenSelTxt}>{toToken}</Text>
                 <Text style={{color:C.muted,marginLeft:4,fontSize:12}}>▾</Text>
               </TouchableOpacity>
@@ -1409,7 +1417,7 @@ export default function App() {
               <View style={s.tokenDropdown}>
                 <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setToResults); else setToResults([]);}} />
                 {toResults.slice(0,5).map(t=>(
-                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setToToken(t.symbol);TOKENS[t.symbol]=t.address;if(t.decimals!=null)DECIMALS[t.symbol]=t.decimals;setShowToSearch(false);setQuote(null);}}>
+                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setToToken(t.symbol);TOKENS[t.symbol]=t.address;if(t.decimals!=null)DECIMALS[t.symbol]=t.decimals;if(t.logoURI)TOKEN_LOGOS[t.symbol]=t.logoURI;setShowToSearch(false);setQuote(null);}}>
                     <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
                     <View style={{flex:1,marginLeft:8}}>
                       <Text style={s.tokenResTxt}>{t.symbol}</Text>
