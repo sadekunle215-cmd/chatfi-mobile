@@ -817,7 +817,7 @@ export default function App() {
   const [newPubkey, setNewPubkey] = useState('');
   const [onboardName, setOnboardName] = useState('');
   const [subtitleText, setSubtitleText] = useState('');
-  const letterAnims = 'CHATFI'.split('').map(() => new Animated.Value(0));
+  const letterAnims = React.useRef('CHATFI'.split('').map(() => new Animated.Value(0))).current;
   const [wallet, setWallet] = useState<string | null>(null);
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<{id:number,name:string,mnemonic:string,pubkey:string}[]>([]);
@@ -905,17 +905,20 @@ export default function App() {
       Animated.timing(anim, { toValue: 1, duration: 300, delay: i * 80, useNativeDriver: true })
     );
     Animated.stagger(120, anims).start(() => {
-      setTimeout(async () => {
-        const stored = await AsyncStorage.getItem('accounts');
-        if (!stored) setOnboardStep('passcode');
-      }, 400);
-    const full = 'DeFi, but conversational...';
-    let idx = 0;
-    const typer = setInterval(() => {
-      idx++;
-      setSubtitleText(full.slice(0, idx));
-      if(idx >= full.length){ clearInterval(typer); setTimeout(()=>setSplashDone(true), 1000); }
-    }, 60);
+      const full = 'DeFi, but conversational...';
+      let idx = 0;
+      const typer = setInterval(() => {
+        idx++;
+        setSubtitleText(full.slice(0, idx));
+        if(idx >= full.length){
+          clearInterval(typer);
+          setTimeout(async () => {
+            const stored = await AsyncStorage.getItem('accounts');
+            if (!stored) setOnboardStep('passcode');
+            setSplashDone(true);
+          }, 800);
+        }
+      }, 50);
     });
   }, []);
 
