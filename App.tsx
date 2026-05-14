@@ -931,7 +931,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (pubkey && tab === 'portfolio') fetchPortfolio();
+    if (pubkey && tab === 'portfolio') { fetchPortfolio(); fetchTxHistory(); }
   }, [pubkey, tab]);
 
   const addAccount = async () => {
@@ -1834,6 +1834,31 @@ export default function App() {
                   <Text style={s.pfTokenVal}>{privacyMode ? '****' : t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               ))}
+              {/* Transaction History */}
+              <View style={{marginTop:24}}>
+                <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                  <Text style={s.pfSectionLbl}>Transaction History</Text>
+                  <TouchableOpacity onPress={fetchTxHistory}>
+                    <Text style={{color:C.green,fontSize:13}}>Refresh</Text>
+                  </TouchableOpacity>
+                </View>
+                {txLoading && <ActivityIndicator color={C.green} style={{marginTop:8}} />}
+                {!txLoading && txHistory.length===0 && (
+                  <Text style={{color:C.muted,textAlign:"center",marginTop:8}}>No transactions yet</Text>
+                )}
+                {txHistory.map((tx,i)=>(
+                  <View key={i} style={{flexDirection:"row",alignItems:"center",paddingVertical:12,borderBottomWidth:1,borderBottomColor:C.border}}>
+                    <View style={{width:40,height:40,borderRadius:20,backgroundColor:tx.failed?"#3a1a1a":tx.type==="RECEIVE"?"#1a2a1a":"#1a1a2a",alignItems:"center",justifyContent:"center",marginRight:12}}>
+                      <Text style={{fontSize:18}}>{tx.failed?"❌":tx.type==="RECEIVE"?"↓":tx.type==="SWAP"?"⇄":"↑"}</Text>
+                    </View>
+                    <View style={{flex:1}}>
+                      <Text style={{color:C.text,fontWeight:"600",fontSize:14}}>{tx.failed?"Failed":tx.type} {tx.token}</Text>
+                      <Text style={{color:C.muted,fontSize:12}}>{tx.time}</Text>
+                    </View>
+                    <Text style={{color:tx.failed?"#ff4444":tx.type==="RECEIVE"?C.green:C.text,fontWeight:"600"}}>{tx.amount}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
           )}
         </ScrollView>
