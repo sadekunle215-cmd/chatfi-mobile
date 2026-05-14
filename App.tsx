@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WebView } from 'react-native-webview';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import Svg, { Line as SvgLine, Rect as SvgRect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState } from 'react-native';
@@ -1813,7 +1814,7 @@ export default function App() {
                   <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↓</Text></View>
                   <Text style={s.pfActionLbl}>Receive</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowScanModal(true)}>
+                <TouchableOpacity style={s.pfActionBtn} onPress={async()=>{if(!cameraPermission?.granted){await requestCameraPermission();}setShowScanModal(true);}}>
                   <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⊡</Text></View>
                   <Text style={s.pfActionLbl}>Scan</Text>
                 </TouchableOpacity>
