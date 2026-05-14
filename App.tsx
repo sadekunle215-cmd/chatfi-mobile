@@ -30,7 +30,7 @@ const RPC = 'https://solana-mainnet.g.alchemy.com/v2/demo';
 
 async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamports:number):Promise<string>{
   const bs58=require('bs58');
-  const bh=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getLatestBlockhash',params:[{commitment:'confirmed'}]})})).json();
+  const bh=await rpcFetch('getLatestBlockhash',[{commitment:'confirmed'}]);
   const blockhash=bh.result.value.blockhash;
   const from=bs58.decode(pubkey);
   const to=bs58.decode(recipient);
@@ -42,7 +42,7 @@ async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamp
   const msg=new Uint8Array([1,0,1,3,...from,...to,...sys,...bhb,1,2,2,0,1,12,...ix]);
   const sig=nacl.sign.detached(msg,secretKey);
   const tx=new Uint8Array([1,...sig,...msg]);
-  const r=await(await fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'sendTransaction',params:[Buffer.from(tx).toString('base64'),{encoding:'base64',preflightCommitment:'confirmed'}]})})).json();
+  const r=await rpcFetch('sendTransaction',[Buffer.from(tx).toString('base64'),{encoding:'base64',preflightCommitment:'confirmed'}]);
   if(r.error)throw new Error(r.error.message);
   return r.result;
 }
@@ -1283,11 +1283,11 @@ export default function App() {
     setTxLoading(true);
     try {
       const RPC="https://api.mainnet-beta.solana.com";
-      const sr = await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getSignaturesForAddress",params:[pubkey,{limit:10}]})});
-      const sigs = (await sr.json()).result||[];
+      const sr = await rpcFetch("getSignaturesForAddress",[pubkey,{limit:10}]);
+      const sigs = sr.result||[];
       const results = await Promise.allSettled(sigs.map(async(sig:any)=>{
-        const r=await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getTransaction",params:[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]})});
-        return parseTx((await r.json()).result,sig,pubkey);
+        const r=await rpcFetch("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
+        return parseTx(r.result,sig,pubkey);
       }));
       setTxHistory(results.filter((r:any)=>r.status==="fulfilled"&&r.value).map((r:any)=>r.value));
     } catch(e){console.error(e);} finally{setTxLoading(false);}

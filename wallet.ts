@@ -100,20 +100,9 @@ export async function fetchTokenLogos(mints: string[]): Promise<Record<string, s
 export async function getWalletBalances(pubkey: string) {
   await ensureJupList();
 
-  const solRes = await fetch(RPC, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [pubkey] }),
-  });
-  const solBalance = ((await solRes.json()).result?.value || 0) / 1e9;
+  const solBalance = ((await rpcFetch('getBalance', [pubkey])).result?.value || 0) / 1e9;
 
-  const tokenRes = await fetch(RPC, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0', id: 2, method: 'getTokenAccountsByOwner',
-      params: [pubkey, { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }, { encoding: 'jsonParsed' }],
-    }),
-  });
-  const accounts = (await tokenRes.json()).result?.value || [];
+  const accounts = (await rpcFetch('getTokenAccountsByOwner', [pubkey, { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }, { encoding: 'jsonParsed' }])).result?.value || [];
   const tokens: { symbol: string; name: string; mint: string; amount: number; logoURI: string }[] = [];
 
   for (const { account } of accounts) {
@@ -150,11 +139,7 @@ export async function sendSOL(secretKey: Uint8Array, recipient: string, lamports
   const { Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
   const keypair = nacl.sign.keyPair.fromSecretKey(secretKey);
   const fromPubkey = new PublicKey(bs58.encode(keypair.publicKey));
-  const bhRes = await fetch(RPC, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getLatestBlockhash', params: [{ commitment: 'confirmed' }] }),
-  });
-  const blockhash = (await bhRes.json()).result.value.blockhash;
+  const blockhash = (await rpcFetch('getLatestBlockhash', [{ commitment: 'confirmed' }])).result.value.blockhash;
   const tx = new Transaction();
   tx.add(SystemProgram.transfer({ fromPubkey, toPubkey: new PublicKey(recipient), lamports }));
   tx.feePayer = fromPubkey;
@@ -162,11 +147,7 @@ export async function sendSOL(secretKey: Uint8Array, recipient: string, lamports
   const sig = nacl.sign.detached(tx.serializeMessage(), secretKey);
   tx.addSignature(fromPubkey, Buffer.from(sig));
   const raw = tx.serialize().toString('base64');
-  const sendRes = await fetch(RPC, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [raw, { encoding: 'base64', preflightCommitment: 'confirmed' }] }),
-  });
-  const result = await sendRes.json();
+  const result = await rpcFetch('sendTransaction', [raw, { encoding: 'base64', preflightCommitment: 'confirmed' }]);
   if (result.error) throw new Error(result.error.message);
   return result.result;
 }
