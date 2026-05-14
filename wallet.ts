@@ -7,7 +7,7 @@ import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 
 
-const RPC = 'https://api.mainnet-beta.solana.com';
+const RPC = 'https://solana-mainnet.g.alchemy.com/v2/demo';
 const SOLANA_PATH = "m/44'/501'/0'/0'";
 
 export const TOKENS: Record<string, string> = {

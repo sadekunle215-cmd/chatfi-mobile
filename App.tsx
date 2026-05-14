@@ -26,7 +26,7 @@ const C = {
   gradTop: '#1C2936', gradBot: '#0d1117',
 };
 
-const RPC = 'https://api.mainnet-beta.solana.com';
+const RPC = 'https://solana-mainnet.g.alchemy.com/v2/demo';
 
 async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamports:number):Promise<string>{
   const bs58=require('bs58');
@@ -1128,7 +1128,7 @@ export default function App() {
     }
     try {
       const { publicKey: pk, secretKey } = deriveWallet(wallet!);
-      const RPC_URL = 'https://api.mainnet-beta.solana.com';
+      const RPC_URL = 'https://solana-mainnet.g.alchemy.com/v2/demo';
 
       switch (action) {
         case 'SWAP': {
@@ -1241,7 +1241,7 @@ export default function App() {
     if (!authed) return;
     try {
       const { mnemonic, publicKey: pk, secretKey } = deriveWallet(wallet);
-      const RPC = 'https://api.mainnet-beta.solana.com';
+      const RPC = 'https://solana-mainnet.g.alchemy.com/v2/demo';
       showToast(`Swapping ${fromToken} → ${toToken}...`,'info');
       const txSig = await executeSwapTx(
         TOKENS[fromToken], TOKENS[toToken],
@@ -1279,7 +1279,7 @@ export default function App() {
     if (!pubkey) return;
     setTxLoading(true);
     try {
-      const RPC="https://api.mainnet-beta.solana.com";
+      const RPC="https://solana-mainnet.g.alchemy.com/v2/demo";
       const sr = await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getSignaturesForAddress",params:[pubkey,{limit:10}]})});
       const sigs = (await sr.json()).result||[];
       const results = await Promise.allSettled(sigs.map(async(sig:any)=>{
