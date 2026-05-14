@@ -1,0 +1,39 @@
+---
+format_version: '26'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: react-native
+workflows:
+  primary:
+    description: Build Android APK
+    steps:
+    - git-clone@8: {}
+    - restore-npm-cache@3: {}
+    - npm@3:
+        title: npm install
+        inputs:
+        - command: install --legacy-peer-deps
+    - script@1:
+        title: Build Android APK
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -ex
+            cd android
+            chmod +x gradlew
+            ./gradlew assembleRelease -x createBundleReleaseJsAndAssets
+    - save-npm-cache@1: {}
+    - deploy-to-bitrise-io@2: {}
+triggers:
+  push:
+  - branch: main
+  pull_request:
+  - source_branch: "*"
+meta:
+  bitrise.io:
+    stack: ubuntu-noble-24.04-bitrise-2025-android
+    machine_type_id: elite
+app:
+  envs:
+  - PLATFORM: android
+    opts:
+      is_expand: false
