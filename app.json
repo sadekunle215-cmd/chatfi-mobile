@@ -32,9 +32,12 @@
     },
     "extra": {
       "eas": {
-        "projectId": "b8fa8922-5a4d-40b1-8ba2-535b5766bf2f"
+        "projectId": "300ea8d7-184d-4e82-9f74-1d969e091b0f"
       }
     },
-    "owner": "goviral"
+    "owner": "earnnews",
+    "eas": {
+      "projectId": "300ea8d7-184d-4e82-9f74-1d969e091b0f"
+    }
   }
 }
