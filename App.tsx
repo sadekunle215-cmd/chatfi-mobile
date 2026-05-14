@@ -1981,13 +1981,49 @@ export default function App() {
               {/* Earn Tab */}
               {portfolioTab === 'earn' && (
                 <View style={{marginTop:8}}>
-                  <Text style={{color:C.muted,textAlign:'center',marginTop:8,fontSize:13}}>Earn yield on your tokens via Jupiter</Text>
-                  {[{name:'SOL Staking',apy:'7.2%',provider:'Marinade',desc:'Liquid staking SOL'},{name:'USDC Lending',apy:'5.8%',provider:'Kamino',desc:'Lend USDC for yield'},{name:'JUP-SOL LP',apy:'12.4%',provider:'Raydium',desc:'Provide liquidity'},{name:'BONK Vault',apy:'18.6%',provider:'Drift',desc:'Auto-compound vault'}].map((e,i)=>(
-                    <TouchableOpacity key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}
-                      onPress={()=>Linking.openURL('https://jup.ag/earn')}>
-                      <View style={{width:44,height:44,borderRadius:22,backgroundColor:C.card,alignItems:'center',justifyContent:'center',marginRight:12}}>
-                        <Text style={{fontSize:20}}>💰</Text>
-                      </View>
+                  {earnLoading && <ActivityIndicator color={C.green} style={{marginTop:20}} />}
+                  {earnPositions.length>0 && (
+                    <View style={{marginBottom:12,padding:12,backgroundColor:C.card,borderRadius:12}}>
+                      <Text style={{color:C.text,fontWeight:'700',fontSize:13,marginBottom:8}}>Your Positions</Text>
+                      {earnPositions.map((p:any,i:number)=>{
+                        const dec = p.token?.decimals ?? p.asset?.decimals ?? p.decimals ?? 6;
+                        const amt = parseFloat(p.underlyingAssets??0)/Math.pow(10,dec);
+                        const apy = ((p.apy||p.supplyApy||0)*100).toFixed(2);
+                        const sym = p.token?.symbol || p.asset?.symbol || p.symbol || '?';
+                        return (
+                          <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderTopWidth:i>0?1:0,borderTopColor:C.border}}>
+                            <Text style={{color:C.text,fontSize:13}}>{sym}</Text>
+                            <Text style={{color:C.green,fontSize:13}}>{amt.toFixed(4)} · {apy}% APY</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                  {!earnLoading && earnMarkets.length===0 && earnPositions.length===0 && (
+                    <Text style={{color:C.muted,textAlign:'center',marginTop:20}}>No earn data yet</Text>
+                  )}
+                  {earnMarkets.map((e:any,i:number)=>{
+                    const apy = ((e.supplyApy||e.apy||0)*100).toFixed(2);
+                    const tvl = e.tvl ? '$'+(e.tvl/1e6).toFixed(1)+'M TVL' : '';
+                    const sym = e.symbol || e.asset?.symbol || e.tokenSymbol || '?';
+                    const logo = e.logoURI || e.asset?.logoURI || `https://img.jup.ag/tokens/${e.mint||e.assetMint||''}`;
+                    return (
+                      <TouchableOpacity key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}
+                        onPress={()=>Linking.openURL('https://jup.ag/earn')}>
+                        <TokLogo uri={logo} fallback={''} symbol={sym} style={s.pfTokenLogo} mint={e.mint||e.assetMint||''} />
+                        <View style={{flex:1,marginLeft:12}}>
+                          <Text style={s.pfTokenName}>{sym}</Text>
+                          <Text style={{color:C.muted,fontSize:12}}>{tvl}</Text>
+                        </View>
+                        <View style={{alignItems:'flex-end'}}>
+                          <Text style={{color:C.green,fontWeight:'700',fontSize:15}}>{apy}%</Text>
+                          <Text style={{color:C.muted,fontSize:11}}>APY</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
                       <View style={{flex:1}}>
                         <Text style={s.pfTokenName}>{e.name}</Text>
                         <Text style={{color:C.muted,fontSize:12}}>{e.provider} · {e.desc}</Text>
