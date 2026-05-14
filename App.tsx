@@ -843,6 +843,7 @@ export default function App() {
   const [accountView, setAccountView] = useState('main');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [privacyMode, setPrivacyMode] = useState(false);
   const [scanResult, setScanResult] = useState('');
   const [seedPhrase, setSeedPhrase] = useState('');
