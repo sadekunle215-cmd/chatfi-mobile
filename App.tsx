@@ -3,7 +3,7 @@ import { WebView } from 'react-native-webview';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Svg, { Line as SvgLine, Rect as SvgRect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState } from 'react-native';
+import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
@@ -1578,7 +1578,7 @@ export default function App() {
                 <Text style={{color:C.muted,textAlign:"center",marginTop:20}}>No transactions yet</Text>
               )}
               {txHistory.map((tx,i)=>(
-                <TouchableOpacity key={i} onPress={()=>{const {Linking}=require("react-native");Linking.openURL("https://solscan.io/tx/"+tx.sig);}}
+                <TouchableOpacity key={i} onPress={()=>{Linking.openURL("https://solscan.io/tx/"+tx.sig);}}
                   style={{flexDirection:"row",alignItems:"center",paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
                   <View style={{width:42,height:42,borderRadius:21,backgroundColor:tx.failed?"#3a1a1a":tx.type==="RECEIVE"?"#1a2a1a":"#1a1a2a",alignItems:"center",justifyContent:"center",marginRight:12}}>
                     <Text style={{fontSize:20}}>{tx.failed?"❌":tx.type==="RECEIVE"?"↓":tx.type==="SWAP"?"⇄":"↑"}</Text>
