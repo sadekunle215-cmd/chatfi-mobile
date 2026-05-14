@@ -842,6 +842,7 @@ export default function App() {
   const [accountView, setAccountView] = useState('main');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
+  const [privacyMode, setPrivacyMode] = useState(false);
   const [scanResult, setScanResult] = useState('');
   const [seedPhrase, setSeedPhrase] = useState('');
   const [importSeed, setImportSeed] = useState('');
@@ -1789,9 +1790,11 @@ export default function App() {
             <View>
               {/* Balance */}
               <View style={{alignItems:'center',paddingTop:16,paddingBottom:8}}>
+                <TouchableOpacity onPress={()=>setPrivacyMode(p=>!p)}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : '$'+((tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(4)}
+                  {portfolioLoading ? '...' : privacyMode ? '****' : '$'+((tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(4)}
                 </Text>
+                </TouchableOpacity>
                 <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:4}}>
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
                 </TouchableOpacity>
@@ -1828,9 +1831,9 @@ export default function App() {
                   <TokLogo uri={'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112'} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'} symbol={'SOL'} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
                     <Text style={s.pfTokenName}>SOL</Text>
-                    <Text style={s.pfTokenAmt}>{(solBalance||0).toFixed(4)} SOL</Text>
+                    <Text style={s.pfTokenAmt}>{privacyMode ? "****" : (solBalance||0).toFixed(4)} SOL</Text>
                   </View>
-                  <Text style={s.pfTokenVal}>{solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
+                  <Text style={s.pfTokenVal}>{privacyMode ? '****' : solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               )}
               {tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').map((t,i)=>(
@@ -1841,9 +1844,9 @@ export default function App() {
                       <Text style={s.pfTokenName}>{t.symbol}</Text>
                       {t.isVerified && <Ionicons name="checkmark-circle" size={14} color="#39ff14" />}
                     </View>
-                    <Text style={s.pfTokenAmt}>{(Number(t.amount)||0).toFixed(4)} {t.symbol}</Text>
+                    <Text style={s.pfTokenAmt}>{privacyMode ? "****" : (Number(t.amount)||0).toFixed(4)} {t.symbol}</Text>
                   </View>
-                  <Text style={s.pfTokenVal}>{t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
+                  <Text style={s.pfTokenVal}>{privacyMode ? '****' : t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               ))}
             </View>
