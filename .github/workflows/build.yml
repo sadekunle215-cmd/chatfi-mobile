@@ -15,15 +15,20 @@ jobs:
         with:
           node-version: 18
 
-      - name: Setup Expo
-        uses: expo/expo-github-action@v8
+      - uses: actions/setup-java@v4
         with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-          packager: npm
+          distribution: temurin
+          java-version: 17
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
       - name: Build APK
-        run: EAS_SKIP_AUTO_FINGERPRINT=1 eas build --profile preview --platform android --non-interactive
+        run: cd android && chmod +x gradlew && ./gradlew assembleRelease -x createBundleReleaseJsAndAssets
+        env:
+          EXPO_NO_TELEMETRY: 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: android/app/build/outputs/apk/release/app-release.apk
