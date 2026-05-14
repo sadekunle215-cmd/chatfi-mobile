@@ -989,10 +989,10 @@ export default function App() {
     try {
       let verifiedMints = new Set<string>();
       try {
-        const vr = await fetch('https://lite-api.jup.ag/tokens/v1/tagged/verified');
+        const vr = await fetch('https://tokens.jup.ag/tokens?tags=verified');
         const vd = await vr.json();
         verifiedMints = new Set(
-          Array.isArray(vd) ? vd.map((x: any) => typeof x === 'string' ? x : (x.mint || x.address)).filter(Boolean) : []
+          Array.isArray(vd) ? vd.map((x: any) => typeof x === 'string' ? x : (x.address || x.mint)).filter(Boolean) : []
         );
       } catch(e) {}
       const res = await fetch('https://chatfi.pro/api/portfolio?wallet=' + pubkey);
