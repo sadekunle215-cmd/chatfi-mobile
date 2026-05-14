@@ -856,6 +856,11 @@ export default function App() {
   const [txLoading, setTxLoading] = useState(false);
   const [showTxModal, setShowTxModal] = useState(false);
   const [portfolioTab, setPortfolioTab] = useState<'tokens'|'predictions'|'earn'>('tokens');
+  const [predictions, setPredictions] = useState<Record<string,any>>({});
+  const [predictionsLoading, setPredictionsLoading] = useState(false);
+  const [earnMarkets, setEarnMarkets] = useState<any[]>([]);
+  const [earnPositions, setEarnPositions] = useState<any[]>([]);
+  const [earnLoading, setEarnLoading] = useState(false);
 
   // Toast system
   const [toast, setToast] = useState<{msg:string,type:'success'|'error'|'info'}|null>(null);
@@ -1277,6 +1282,47 @@ export default function App() {
       }
     }
     return {sig:sig.signature,time,failed:!!sig.err,type,amount,token};
+  };
+
+  const fetchPredictions = async () => {
+    if (!tokenBalances.length && !solBalance) return;
+    setPredictionsLoading(true);
+    try {
+      const mints = ['So11111111111111111111111111111111111111112',...tokenBalances.map((t:any)=>t.mint)].join(',');
+      const res = await fetch('https://chatfi.pro/api/jupiter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:`https://lite-api.jup.ag/price/v2?ids=${mints}&showExtraInfo=true`,method:'GET'})});
+      const data = await res.json();
+      const preds:Record<string,any> = {};
+      for (const [mint, info] of Object.entries(data?.data||{})) {
+        const d = info as any;
+        const buyImpact = d.extraInfo?.depth?.buyPriceImpactRatio?.depth100 ?? 0.5;
+        const sellImpact = d.extraInfo?.depth?.sellPriceImpactRatio?.depth100 ?? 0.5;
+        const confidence = d.extraInfo?.confidenceLevel || 'low';
+        preds[mint] = { bullish: buyImpact <= sellImpact, confidence, price: d.price };
+      }
+      setPredictions(preds);
+    } catch(e) { console.error('fetchPredictions',e); }
+    setPredictionsLoading(false);
+  };
+
+  const fetchEarnData = async () => {
+    if (!pubkey) return;
+    setEarnLoading(true);
+    try {
+      const [posRes, mktRes] = await Promise.allSettled([
+        fetch('https://chatfi.pro/api/jupiter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:`https://api.jup.ag/lend/v1/earn/positions?users=${pubkey}`,method:'GET'})}).then(r=>r.json()),
+        fetch('https://chatfi.pro/api/jupiter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:'https://api.jup.ag/lend/v1/earn/markets',method:'GET'})}).then(r=>r.json()),
+      ]);
+      if (posRes.status==='fulfilled') {
+        const pd = posRes.value;
+        setEarnPositions(Array.isArray(pd)?pd:(pd?.data||pd?.positions||[]));
+      }
+      if (mktRes.status==='fulfilled') {
+        const md = mktRes.value;
+        const arr = Array.isArray(md)?md:(md?.data||md?.markets||[]);
+        setEarnMarkets(arr.sort((a:any,b:any)=>((b.supplyApy||b.apy||0)-(a.supplyApy||a.apy||0))).slice(0,8));
+      }
+    } catch(e) { console.error('fetchEarnData',e); }
+    setEarnLoading(false);
   };
 
   const fetchTxHistory = async () => {
@@ -1846,7 +1892,7 @@ export default function App() {
               <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
                 <View style={{flexDirection:"row",gap:8}}>
                   {(['tokens','predictions','earn'] as const).map(t=>(
-                    <TouchableOpacity key={t} onPress={()=>setPortfolioTab(t)}
+                    <TouchableOpacity key={t} onPress={()=>{setPortfolioTab(t);if(t==='predictions')fetchPredictions();if(t==='earn')fetchEarnData();}}
                       style={{paddingHorizontal:14,paddingVertical:6,borderRadius:20,backgroundColor:portfolioTab===t?C.green:'transparent',borderWidth:1,borderColor:portfolioTab===t?C.green:C.border}}>
                       <Text style={{color:portfolioTab===t?'#0d1117':C.text,fontWeight:'600',fontSize:13,textTransform:'capitalize'}}>{t}</Text>
                     </TouchableOpacity>
