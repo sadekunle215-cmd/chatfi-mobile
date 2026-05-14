@@ -855,6 +855,7 @@ export default function App() {
   const [txHistory, setTxHistory] = useState<any[]>([]);
   const [txLoading, setTxLoading] = useState(false);
   const [showTxModal, setShowTxModal] = useState(false);
+  const [portfolioTab, setPortfolioTab] = useState<'tokens'|'predictions'|'earn'>('tokens');
 
   // Toast system
   const [toast, setToast] = useState<{msg:string,type:'success'|'error'|'info'}|null>(null);
@@ -1841,17 +1842,26 @@ export default function App() {
                 </TouchableOpacity>
               </View>
 
-              {/* Token List */}
-              <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                <Text style={s.pfSectionLbl}>Tokens</Text>
+              {/* Portfolio Tabs */}
+              <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+                <View style={{flexDirection:"row",gap:8}}>
+                  {(['tokens','predictions','earn'] as const).map(t=>(
+                    <TouchableOpacity key={t} onPress={()=>setPortfolioTab(t)}
+                      style={{paddingHorizontal:14,paddingVertical:6,borderRadius:20,backgroundColor:portfolioTab===t?C.green:'transparent',borderWidth:1,borderColor:portfolioTab===t?C.green:C.border}}>
+                      <Text style={{color:portfolioTab===t?'#0d1117':C.text,fontWeight:'600',fontSize:13,textTransform:'capitalize'}}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
                 <TouchableOpacity onPress={()=>{fetchTxHistory();setShowTxModal(true);}} style={{padding:4}}>
-                  <Ionicons name="time-outline" size={24} color={C.green} />
+                  <Ionicons name="time-outline" size={24} color={"#ffffff"} />
                 </TouchableOpacity>
               </View>
+              {portfolioTab === 'tokens' && <>
               {tokenBalances.length===0&&!portfolioLoading&&(
                 <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
               )}
-              {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
+              {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}</>}
+              {portfolioTab === 'tokens' && <>
               {/* SOL Row */}
               {solBalance !== null && solBalance > 0 && (
                 <TouchableOpacity style={s.pfTokenRow} onPress={()=>setSelectedToken({symbol:'SOL',mint:'So11111111111111111111111111111111111111112',amount:solBalance||0,logoURI:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112',price:solPrice||0,isVerified:true})}>
@@ -1876,6 +1886,51 @@ export default function App() {
                   <Text style={s.pfTokenVal}>{privacyMode ? '****' : t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               ))}
+              </>}
+
+              {/* Predictions Tab */}
+              {portfolioTab === 'predictions' && (
+                <View style={{marginTop:8}}>
+                  <Text style={{color:C.muted,textAlign:'center',marginTop:8,fontSize:13}}>Price predictions powered by Jupiter</Text>
+                  {tokenBalances.map((t,i)=>(
+                    <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
+                      <TokLogo uri={t.logoURI||'https://img.jup.ag/tokens/'+t.mint} fallback={''} symbol={t.symbol} style={s.pfTokenLogo} mint={t.mint} />
+                      <View style={{flex:1,marginLeft:12}}>
+                        <Text style={s.pfTokenName}>{t.symbol}</Text>
+                        <Text style={{color:C.muted,fontSize:12}}>${((t.price||0)).toFixed(4)}</Text>
+                      </View>
+                      <View style={{alignItems:'flex-end'}}>
+                        <Text style={{color:t.price>0?C.green:'#ff4444',fontWeight:'600',fontSize:13}}>{t.price>0?'↑ Bullish':'↓ Bearish'}</Text>
+                        <Text style={{color:C.muted,fontSize:11}}>24h signal</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Earn Tab */}
+              {portfolioTab === 'earn' && (
+                <View style={{marginTop:8}}>
+                  <Text style={{color:C.muted,textAlign:'center',marginTop:8,fontSize:13}}>Earn yield on your tokens via Jupiter</Text>
+                  {[{name:'SOL Staking',apy:'7.2%',provider:'Marinade',desc:'Liquid staking SOL'},{name:'USDC Lending',apy:'5.8%',provider:'Kamino',desc:'Lend USDC for yield'},{name:'JUP-SOL LP',apy:'12.4%',provider:'Raydium',desc:'Provide liquidity'},{name:'BONK Vault',apy:'18.6%',provider:'Drift',desc:'Auto-compound vault'}].map((e,i)=>(
+                    <TouchableOpacity key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}
+                      onPress={()=>Linking.openURL('https://jup.ag/earn')}>
+                      <View style={{width:44,height:44,borderRadius:22,backgroundColor:C.card,alignItems:'center',justifyContent:'center',marginRight:12}}>
+                        <Text style={{fontSize:20}}>💰</Text>
+                      </View>
+                      <View style={{flex:1}}>
+                        <Text style={s.pfTokenName}>{e.name}</Text>
+                        <Text style={{color:C.muted,fontSize:12}}>{e.provider} · {e.desc}</Text>
+                      </View>
+                      <View style={{alignItems:'flex-end'}}>
+                        <Text style={{color:C.green,fontWeight:'700',fontSize:15}}>{e.apy}</Text>
+                        <Text style={{color:C.muted,fontSize:11}}>APY</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
             </View>
           )}
         </ScrollView>
