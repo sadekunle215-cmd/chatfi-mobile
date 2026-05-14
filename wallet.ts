@@ -7,7 +7,16 @@ import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 
 
-const RPC = 'https://solana-mainnet.g.alchemy.com/v2/demo';
+const PROXY = 'https://chatfi.pro/api/jupiter';
+
+export async function rpcFetch(method: string, params: any[]): Promise<any> {
+  const res = await fetch(PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: 'SOLANA_RPC', jsonrpc: '2.0', id: 1, method, params })
+  });
+  return res.json();
+}
 const SOLANA_PATH = "m/44'/501'/0'/0'";
 
 export const TOKENS: Record<string, string> = {

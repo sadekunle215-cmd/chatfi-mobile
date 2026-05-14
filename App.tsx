@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
+import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction , rpcFetch } from './wallet';
 import nacl from 'tweetnacl';
 import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices } from './wallet';
@@ -26,7 +26,7 @@ const C = {
   gradTop: '#1C2936', gradBot: '#0d1117',
 };
 
-const RPC = 'https://solana-mainnet.g.alchemy.com/v2/demo';
+
 
 async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamports:number):Promise<string>{
   const bs58=require('bs58');
@@ -1285,10 +1285,10 @@ export default function App() {
     try {
       const RPC="https://api.mainnet-beta.solana.com";
       const sr = await rpcFetch("getSignaturesForAddress",[pubkey,{limit:10}]);
-      const sigs = sr.result||[];
+      const sigs = Array.isArray(sr) ? sr : (sr?.result ?? []);
       const results = await Promise.allSettled(sigs.map(async(sig:any)=>{
         const r=await rpcFetch("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
-        return parseTx(r.result,sig,pubkey);
+        const txData = r?.result ?? r; return parseTx(txData,sig,pubkey);
       }));
       setTxHistory(results.filter((r:any)=>r.status==="fulfilled"&&r.value).map((r:any)=>r.value));
     } catch(e){console.error(e);} finally{setTxLoading(false);}
