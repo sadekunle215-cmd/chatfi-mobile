@@ -533,7 +533,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 <TouchableOpacity onPress={() => setView('main')} style={{ marginRight:12 }}>
                   <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
                 </TouchableOpacity>
-                <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>Profile</Text>
+                <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1, flexShrink:1 }}>Profile</Text>
                 <TouchableOpacity onPress={onClose}>
                   <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
                 </TouchableOpacity>
@@ -1282,7 +1282,7 @@ export default function App() {
     if (!pubkey) return;
     setTxLoading(true);
     try {
-      const RPC="https://solana-mainnet.g.alchemy.com/v2/demo";
+      const RPC="https://api.mainnet-beta.solana.com";
       const sr = await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getSignaturesForAddress",params:[pubkey,{limit:10}]})});
       const sigs = (await sr.json()).result||[];
       const results = await Promise.allSettled(sigs.map(async(sig:any)=>{
@@ -2247,12 +2247,12 @@ const s = StyleSheet.create({
   pad: { padding: 16, backgroundColor: C.bg, flex: 1 },
   msgs: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   bubble: { marginBottom: 12, maxWidth: '85%' },
-  userBubble: { alignSelf: 'flex-end', backgroundColor: C.card2, borderRadius: 16, borderBottomRightRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border },
-  botBubble: { alignSelf: 'flex-start', backgroundColor: C.card, borderRadius: 16, borderBottomLeftRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border },
+  userBubble: { alignSelf: 'flex-end', backgroundColor: C.card2, borderRadius: 16, borderBottomRightRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border, maxWidth: '80%' },
+  botBubble: { alignSelf: 'flex-start', backgroundColor: C.card, borderRadius: 16, borderBottomLeftRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border, maxWidth: '80%' },
   botTag: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
   botDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.green },
   botTagTxt: { color: C.green, fontSize: 11, fontWeight: '600' },
-  bubbleTxt: { color: C.text, fontSize: 14, lineHeight: 21 },
+  bubbleTxt: { color: C.text, fontSize: 14, lineHeight: 21, flexShrink: 1, flexWrap: 'wrap' },
   inputRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   input: { flex: 1, backgroundColor: C.card, color: C.text, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 11, fontSize: 14, borderWidth: 1, borderColor: C.border },
   sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center' },
