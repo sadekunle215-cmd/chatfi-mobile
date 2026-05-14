@@ -234,7 +234,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               {/* Stats Row */}
               <View style={{ flexDirection:'row', gap:10, marginBottom:16 }}>
                 <View style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:14, alignItems:'center' }}>
-                  <Text style={{ color:C.muted, fontSize:11, marginBottom:4 }}>Price</Text>
+                  <Text style={{ color:C.muted, fontSize:11, marginBottom:4, flexShrink:1 }}>Price</Text>
                   <Text style={{ color:C.text, fontWeight:'bold', fontSize:15 }}>
                     {token.price ? '$'+Number(token.price).toFixed(4) : '—'}
                   </Text>
@@ -1363,7 +1363,7 @@ export default function App() {
             }}>{letter}</Animated.Text>
           ))}
         </View>
-        <Text style={{ color: '#888', fontSize: 14, marginTop: 12, textAlign: 'center', paddingHorizontal: 32, flexWrap: 'wrap' }}>{subtitleText}</Text>
+        <Text style={{ color: '#888', fontSize: 14, marginTop: 12, textAlign: 'center', paddingHorizontal: 32, flexWrap: 'wrap', width: '100%' }}>{subtitleText}</Text>
       </View>
     );
   }
@@ -2303,11 +2303,11 @@ const s = StyleSheet.create({
   dangerBtnTxt: { color: C.red, fontWeight: '600', fontSize: 14 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: C.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, borderWidth: 1, borderColor: C.border, maxHeight: '90%' },
-  modalTitle: { color: C.text, fontSize: 20, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
+  modalTitle: { color: C.text, fontSize: 20, fontWeight: 'bold', marginBottom: 16, textAlign: 'center', width: '100%' },
   orText: { color: C.muted, fontSize: 13, textAlign: 'center', marginVertical: 12 },
   seedInput: { backgroundColor: C.bg, color: C.text, borderRadius: 12, padding: 14, fontSize: 14, borderWidth: 1, borderColor: C.border, minHeight: 80, textAlignVertical: 'top' },
   closeBtn: { padding: 14, alignItems: 'center', marginTop: 8, minWidth: 80 },
-  closeBtnTxt: { color: C.muted, fontSize: 14, textAlign: 'center' },
+  closeBtnTxt: { color: C.muted, fontSize: 14, textAlign: 'center', width: '100%' },
   seedWarning: { color: C.orange, fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 20 },
   seedGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   seedWord: { width: '30%', flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: 8, padding: 8, borderWidth: 1, borderColor: C.border, gap: 6 },
@@ -2353,8 +2353,8 @@ const s = StyleSheet.create({
   stGroup:{ backgroundColor:C.card, borderRadius:16, marginBottom:12, overflow:'hidden' },
   stGroupLabel:{ color:C.muted, fontSize:12, fontWeight:'600', paddingHorizontal:16, paddingTop:12, paddingBottom:4, textTransform:'uppercase', letterSpacing:0.5 },
   stRow:{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:16, paddingVertical:14, borderBottomWidth:1, borderBottomColor:C.border },
-  stRowTxt:{ color:C.text, fontSize:15 },
-  stRowVal:{ color:C.green, fontSize:15 },
+  stRowTxt:{ color:C.text, fontSize:15, flex:1 },
+  stRowVal:{ color:C.green, fontSize:15, textAlign:"right" },
   stProfileRow:{ flexDirection:'row', alignItems:'center', padding:16 },
   stAvatar:{ width:44, height:44, borderRadius:22, backgroundColor:C.border, alignItems:'center', justifyContent:'center' },
   stAvatarTxt:{ color:C.green, fontSize:20 },
