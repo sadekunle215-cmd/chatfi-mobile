@@ -49,7 +49,7 @@ async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamp
 
 async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amountRaw:number,mint:string):Promise<string>{
   const {Connection,PublicKey,Transaction,SystemProgram} = require('@solana/web3.js');
-  const conn = new Connection('https://rpc.ankr.com/solana','confirmed');
+  const conn = new Connection('https://solana-mainnet.g.alchemy.com/v2/demo','confirmed');
   const TOKEN_PROG = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
   const ASSOC_PROG = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bw');
   const mintPk = new PublicKey(mint);
