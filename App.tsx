@@ -501,7 +501,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 />
                 <TouchableOpacity
                   onPress={async () => {
-                    const words = importSeedInput.trim().split(/\s+/);
+                    const authed = await requireAuth(); if(!authed) return; const words = importSeedInput.trim().split(/\s+/);
                     if (words.length !== 12 && words.length !== 24) {
                       Alert.alert('Invalid', 'Enter a valid 12 or 24 word seed phrase');
                       return;
@@ -627,7 +627,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 <Text style={{ color:C.text,flex:1,fontSize:15 }}>View Seed Phrase</Text>
                 <Text style={{ color:C.muted }}>›</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={()=>{ Alert.alert('Remove Wallet','Are you sure?',[{text:'Cancel'},{text:'Remove',style:'destructive',onPress:onRemoveWallet}]); }}
+              <TouchableOpacity onPress={()=>{ requireAuth().then(ok=>{ if(ok) Alert.alert('Remove Wallet','Are you sure?',[{text:'Cancel'},{text:'Remove',style:'destructive',onPress:onRemoveWallet}]); }); }}
                 style={{ flexDirection:'row', alignItems:'center', padding:16 }}>
                 <Text style={{ color:C.red,flex:1,fontSize:15 }}>Remove Wallet</Text>
                 <Text style={{ color:C.muted }}>›</Text>
@@ -895,6 +895,8 @@ export default function App() {
           setTimeout(async () => {
             const stored = await AsyncStorage.getItem('accounts');
             if (!stored) setOnboardStep('passcode');
+            const pc = await AsyncStorage.getItem('passcode');
+            if (pc) setShowLockScreen(true);
             setSplashDone(true);
           }, 800);
         }
