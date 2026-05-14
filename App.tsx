@@ -841,6 +841,8 @@ export default function App() {
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [accountView, setAccountView] = useState('main');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scanResult, setScanResult] = useState('');
   const [seedPhrase, setSeedPhrase] = useState('');
   const [importSeed, setImportSeed] = useState('');
   const [msgs, setMsgs] = useState([
@@ -1808,9 +1810,9 @@ export default function App() {
                   <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↓</Text></View>
                   <Text style={s.pfActionLbl}>Receive</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.pfActionBtn} onPress={copyAddress}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⧉</Text></View>
-                  <Text style={s.pfActionLbl}>Copy</Text>
+                <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowScanModal(true)}>
+                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⊡</Text></View>
+                  <Text style={s.pfActionLbl}>Scan</Text>
                 </TouchableOpacity>
               </View>
 
@@ -2144,6 +2146,29 @@ export default function App() {
       </Modal>
 
       {/* RECEIVE MODAL */}
+      <Modal visible={showScanModal} animationType="slide" transparent={false}>
+        <View style={{flex:1,backgroundColor:'#000'}}>
+          <CameraView
+            style={{flex:1}}
+            facing="back"
+            onBarcodeScanned={({data})=>{
+              setScanResult(data);
+              setShowScanModal(false);
+              if(data.startsWith('solana:') || data.length===44){
+                setSendTo(data.replace('solana:','').split('?')[0]);
+                setShowSendModal(true);
+              } else {
+                Alert.alert('QR Scanned', data, [{text:'Copy',onPress:()=>Clipboard.setString(data)},{text:'OK'}]);
+              }
+            }}
+          />
+          <TouchableOpacity onPress={()=>setShowScanModal(false)}
+            style={{position:'absolute',top:50,right:20,backgroundColor:'rgba(0,0,0,0.6)',borderRadius:20,padding:10}}>
+            <Text style={{color:'#fff',fontSize:18}}>✕</Text>
+          </TouchableOpacity>
+          <Text style={{position:'absolute',bottom:60,alignSelf:'center',color:'#fff',fontSize:14,opacity:0.8}}>Point at a Solana wallet QR code</Text>
+        </View>
+      </Modal>
       <Modal visible={showReceiveModal} animationType="slide" transparent>
         <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
         <View style={s.modalOverlay}>
