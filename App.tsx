@@ -1937,23 +1937,47 @@ export default function App() {
               {/* Predictions Tab */}
               {portfolioTab === 'predictions' && (
                 <View style={{marginTop:8}}>
-                  <Text style={{color:C.muted,textAlign:'center',marginTop:8,fontSize:13}}>Price predictions powered by Jupiter</Text>
-                  {tokenBalances.map((t,i)=>(
-                    <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
-                      <TokLogo uri={t.logoURI||'https://img.jup.ag/tokens/'+t.mint} fallback={''} symbol={t.symbol} style={s.pfTokenLogo} mint={t.mint} />
-                      <View style={{flex:1,marginLeft:12}}>
-                        <Text style={s.pfTokenName}>{t.symbol}</Text>
-                        <Text style={{color:C.muted,fontSize:12}}>${((t.price||0)).toFixed(4)}</Text>
-                      </View>
-                      <View style={{alignItems:'flex-end'}}>
-                        <Text style={{color:t.price>0?C.green:'#ff4444',fontWeight:'600',fontSize:13}}>{t.price>0?'↑ Bullish':'↓ Bearish'}</Text>
-                        <Text style={{color:C.muted,fontSize:11}}>24h signal</Text>
-                      </View>
-                    </View>
-                  ))}
+                  {predictionsLoading && <ActivityIndicator color={C.green} style={{marginTop:20}} />}
+                  {!predictionsLoading && (!predictions.events || predictions.events.length===0) && (
+                    <Text style={{color:C.muted,textAlign:'center',marginTop:20}}>No prediction markets found</Text>
+                  )}
+                  {(predictions.events||[]).map((ev:any,i:number)=>{
+                    const title = ev.metadata?.title || ev.title || 'Unknown Event';
+                    const category = ev.category || '';
+                    const vol = ev.volumeUsd ? '$'+(parseFloat(ev.volumeUsd)/1000).toFixed(1)+'K vol' : '';
+                    const close = ev.metadata?.closeTime ? new Date(ev.metadata.closeTime*1000).toLocaleDateString() : '';
+                    const markets = ev.markets || [];
+                    return (
+                      <TouchableOpacity key={i} style={{paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}
+                        onPress={()=>Linking.openURL('https://jup.ag/prediction')}>
+                        <View style={{flexDirection:'row',justifyContent:'space-between',marginBottom:6}}>
+                          <Text style={{color:C.text,fontWeight:'700',fontSize:14,flex:1,marginRight:8}}>{title}</Text>
+                          <Text style={{color:C.muted,fontSize:11,textTransform:'capitalize'}}>{category}</Text>
+                        </View>
+                        <View style={{flexDirection:'row',gap:8,marginBottom:6}}>
+                          {vol ? <Text style={{color:C.muted,fontSize:11}}>{vol}</Text> : null}
+                          {close ? <Text style={{color:C.muted,fontSize:11}}>Closes {close}</Text> : null}
+                        </View>
+                        {markets.slice(0,3).map((mk:any,j:number)=>{
+                          const mkTitle = mk.metadata?.title || mk.title || '';
+                          const yes = mk.pricing?.buyYesPriceUsd ? (parseFloat(mk.pricing.buyYesPriceUsd)*100).toFixed(0)+'c' : '-';
+                          const no  = mk.pricing?.buyNoPriceUsd  ? (parseFloat(mk.pricing.buyNoPriceUsd)*100).toFixed(0)+'c'  : '-';
+                          const yesProb = mk.pricing?.buyYesPriceUsd ? Math.round(parseFloat(mk.pricing.buyYesPriceUsd)*100) : null;
+                          const probColor = yesProb ? (yesProb>=60?C.green:yesProb<=40?'#ff4444':C.orange) : C.muted;
+                          return (
+                            <View key={j} style={{flexDirection:'row',alignItems:'center',backgroundColor:C.card,borderRadius:8,padding:8,marginTop:4}}>
+                              <Text style={{color:C.text,fontSize:12,flex:1}} numberOfLines={1}>{mkTitle}</Text>
+                              <Text style={{color:C.green,fontSize:12,marginLeft:8}}>Y {yes}</Text>
+                              <Text style={{color:'#ff4444',fontSize:12,marginLeft:8}}>N {no}</Text>
+                              {yesProb!==null && <Text style={{color:probColor,fontSize:12,fontWeight:'700',marginLeft:8}}>{yesProb}%</Text>}
+                            </View>
+                          );
+                        })}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               )}
-
               {/* Earn Tab */}
               {portfolioTab === 'earn' && (
                 <View style={{marginTop:8}}>
