@@ -854,6 +854,7 @@ export default function App() {
 
   const [txHistory, setTxHistory] = useState<any[]>([]);
   const [txLoading, setTxLoading] = useState(false);
+  const [showTxModal, setShowTxModal] = useState(false);
 
   // Toast system
   const [toast, setToast] = useState<{msg:string,type:'success'|'error'|'info'}|null>(null);
