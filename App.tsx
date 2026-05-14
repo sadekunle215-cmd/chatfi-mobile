@@ -2032,7 +2032,6 @@ export default function App() {
                         <Text style={{color:C.green,fontWeight:'700',fontSize:15}}>{e.apy}</Text>
                         <Text style={{color:C.muted,fontSize:11}}>APY</Text>
                       </View>
-                    </TouchableOpacity>
                   ))}
                 </View>
               )}
