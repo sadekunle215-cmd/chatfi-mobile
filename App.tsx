@@ -557,17 +557,23 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 />
                 <TouchableOpacity
                   onPress={async () => {
-                      setUserName(nameInput);
-                      await AsyncStorage.setItem('user_name', nameInput);
-                      const raw = await AsyncStorage.getItem('accounts');
-                      if(raw){
-                        const accs = JSON.parse(raw);
-                        if(accs[activeAccIdx]) accs[activeAccIdx].name = nameInput;
-                        setAccounts(accs);
-                        await AsyncStorage.setItem('accounts', JSON.stringify(accs));
+                      try {
+                        setUserName(nameInput);
+                        await AsyncStorage.setItem('user_name', nameInput);
+                        const raw = await AsyncStorage.getItem('accounts');
+                        if(raw){
+                          const accs = JSON.parse(raw);
+                          const idx = accs.findIndex((a:any) => a.publicKey === pubkey || a.address === pubkey);
+                          const target = idx >= 0 ? idx : activeAccIdx;
+                          if(accs[target]) accs[target].name = nameInput;
+                          setAccounts(accs);
+                          await AsyncStorage.setItem('accounts', JSON.stringify(accs));
+                        }
+                        Alert.alert('Saved!', 'Name saved!');
+                        setView('main');
+                      } catch(e:any) {
+                        Alert.alert('Error', e?.message || 'Failed to save name');
                       }
-                      Alert.alert('Saved!', 'Name saved!');
-                      setView('main');
                     }}
                   style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
                   <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:15 }}>Save Name</Text>
