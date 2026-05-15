@@ -556,7 +556,19 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:15, marginBottom:16 }}
                 />
                 <TouchableOpacity
-                  onPress={async () => { setUserName(nameInput); await AsyncStorage.setItem('user_name', nameInput); Alert.alert('Saved!', 'Name saved!'); setView('main'); }}
+                  onPress={async () => {
+                      setUserName(nameInput);
+                      await AsyncStorage.setItem('user_name', nameInput);
+                      const raw = await AsyncStorage.getItem('accounts');
+                      if(raw){
+                        const accs = JSON.parse(raw);
+                        if(accs[activeAccIdx]) accs[activeAccIdx].name = nameInput;
+                        setAccounts(accs);
+                        await AsyncStorage.setItem('accounts', JSON.stringify(accs));
+                      }
+                      Alert.alert('Saved!', 'Name saved!');
+                      setView('main');
+                    }}
                   style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
                   <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:15 }}>Save Name</Text>
                 </TouchableOpacity>
@@ -819,6 +831,7 @@ export default function App() {
   const [privKey, setPrivKey] = useState('');
   const [showSendModal, setShowSendModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showAccDropdown, setShowAccDropdown] = useState(false);
   const [selectedToken, setSelectedToken] = useState<any>(null);
   const [userName, setUserName] = useState('');
   const [showNameEdit, setShowNameEdit] = useState(false);
@@ -971,6 +984,7 @@ export default function App() {
 
   const switchAccount = async (idx:number) => {
     const acc = accounts[idx];
+    if(acc.name) setUserName(acc.name);
     setActiveAccIdx(idx); setWallet(acc.mnemonic); setPubkey(acc.pubkey);
     await AsyncStorage.setItem('active_acc', String(idx));
     await AsyncStorage.setItem('wallet_mnemonic', acc.mnemonic);
