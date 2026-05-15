@@ -1753,7 +1753,7 @@ export default function App() {
                     </View>
                   ))}
                 </View>
-                <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16 }}>
+                <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }}>
               {msgs.map(m => (
                 <View key={m.id} style={[s.bubble, m.from === 'user' ? s.userBubble : s.botBubble]}>
                   {m.from === 'bot' && <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>}
@@ -2331,7 +2331,7 @@ const s = StyleSheet.create({
   botTag: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
   botDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.green },
   botTagTxt: { color: C.green, fontSize: 11, fontWeight: '600' },
-  bubbleTxt: { color: C.text, fontSize: 14, lineHeight: 21, flexShrink: 1, flexWrap: 'wrap', width: '100%' },
+  bubbleTxt: { color: C.text, fontSize: 14, lineHeight: 21, flexShrink: 1, flexWrap: 'wrap' },
   inputRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   input: { flex: 1, backgroundColor: C.card, color: C.text, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 11, fontSize: 14, borderWidth: 1, borderColor: C.border },
   sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center' },
