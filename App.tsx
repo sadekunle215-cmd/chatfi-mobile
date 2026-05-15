@@ -895,6 +895,8 @@ export default function App() {
   const [txHistory, setTxHistory] = useState<any[]>([]);
   const [txLoading, setTxLoading] = useState(false);
   const [showTxModal, setShowTxModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmData, setConfirmData] = useState<any>(null);
 
   // Toast system
   const [toast, setToast] = useState<{msg:string,type:'success'|'error'|'info'}|null>(null);
@@ -1280,22 +1282,38 @@ export default function App() {
   const executeSwap = async () => {
     if (!wallet) { showToast('Create or connect a wallet first','error'); return; }
     if (!quote) { showToast('Get a quote first before swapping','error'); return; }
-    const authed = await requireAuth();
-    if (!authed) return;
-    try {
-      const { mnemonic, publicKey: pk, secretKey } = deriveWallet(wallet);
-      const RPC = 'https://solana-mainnet.g.alchemy.com/v2/demo';
-      showToast(`Swapping ${fromToken} → ${toToken}...`,'info');
-      const txSig = await executeSwapTx(
-        TOKENS[fromToken], TOKENS[toToken],
-        parseFloat(amt), DECIMALS[fromToken] || 6,
-        pk, secretKey, RPC
-      );
-      showToast('Swap complete! ✓','success');
-      fetchPortfolio();
-    } catch (e) {
-      showToast('Swap failed: '+(e.message||'Unknown error'),'error');
-    }
+    const outAmt = quote ? (parseInt(quote.outAmount) / Math.pow(10, DECIMALS[toToken]||6)).toFixed(4) : '?';
+    const priceImpact = quote?.priceImpactPct ? (parseFloat(quote.priceImpactPct)*100).toFixed(2) : '0.00';
+    setConfirmData({
+      type: 'swap',
+      title: 'Confirm Swap',
+      summary: `Swap ${amt} ${fromToken} → ${outAmt} ${toToken}`,
+      details: [
+        {label:'You pay', value:`${amt} ${fromToken}`},
+        {label:'You receive', value:`~${outAmt} ${toToken}`},
+        {label:'Price impact', value:`${priceImpact}%`},
+        {label:'Network fee', value:'~0.000005 SOL'},
+      ],
+      onConfirm: async () => {
+        setShowConfirmModal(false);
+        const authed = await requireAuth();
+        if (!authed) return;
+        try {
+          const { publicKey: pk, secretKey } = deriveWallet(wallet);
+          showToast(`Swapping ${fromToken} → ${toToken}...`,'info');
+          const txSig = await executeSwapTx(
+            TOKENS[fromToken], TOKENS[toToken],
+            parseFloat(amt), DECIMALS[fromToken] || 6,
+            pk, secretKey, 'https://solana-mainnet.g.alchemy.com/v2/demo'
+          );
+          showToast('Swap complete! ✓','success');
+          fetchPortfolio();
+        } catch (e:any) {
+          showToast('Swap failed: '+(e.message||'Unknown error'),'error');
+        }
+      }
+    });
+    setShowConfirmModal(true);
   };
 
   const parseTx = (tx:any, sig:any, myPk:string) => {
@@ -1322,12 +1340,12 @@ export default function App() {
     if (!pubkey) return;
     setTxLoading(true);
     try {
-      const RPC="https://api.mainnet-beta.solana.com";
-      const sr = await rpcFetch("getSignaturesForAddress",[pubkey,{limit:10}]);
-      const sigs = sr.result||[];
+      const sr = await rpcFetch("getSignaturesForAddress",[pubkey,{limit:20}]);
+      const sigs = Array.isArray(sr.result) ? sr.result : (sr.result?.value || []);
       const results = await Promise.allSettled(sigs.map(async(sig:any)=>{
         const r=await rpcFetch("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
-        return parseTx(r.result,sig,pubkey);
+        const tx = r.result || r.result?.value || null;
+        return parseTx(tx,sig,pubkey);
       }));
       setTxHistory(results.filter((r:any)=>r.status==="fulfilled"&&r.value).map((r:any)=>r.value));
     } catch(e){console.error(e);} finally{setTxLoading(false);}
@@ -1638,6 +1656,28 @@ export default function App() {
           </View>
         </View>
       </Modal>
+
+      {/* Transaction Confirm Modal */}
+      <Modal visible={showConfirmModal} animationType="slide" transparent onRequestClose={()=>setShowConfirmModal(false)}>
+        <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.7)",justifyContent:"flex-end"}}>
+          <View style={{backgroundColor:"#161b22",borderTopLeftRadius:20,borderTopRightRadius:20,padding:24,paddingBottom:36}}>
+            <Text style={{color:C.text,fontSize:18,fontWeight:"700",marginBottom:4}}>{confirmData?.title}</Text>
+            <Text style={{color:C.muted,fontSize:14,marginBottom:20}}>{confirmData?.summary}</Text>
+            {(confirmData?.details||[]).map((d:any,i:number)=>(
+              <View key={i} style={{flexDirection:"row",justifyContent:"space-between",paddingVertical:8,borderBottomWidth:1,borderBottomColor:C.border}}>
+                <Text style={{color:C.muted,fontSize:14}}>{d.label}</Text>
+                <Text style={{color:C.text,fontSize:14,fontWeight:"600"}}>{d.value}</Text>
+              </View>
+            ))}
+            <TouchableOpacity onPress={confirmData?.onConfirm} style={{backgroundColor:C.green,borderRadius:12,padding:16,alignItems:"center",marginTop:20}}>
+              <Text style={{color:"#0d1117",fontWeight:"700",fontSize:16}}>Confirm</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={()=>setShowConfirmModal(false)} style={{borderRadius:12,padding:14,alignItems:"center",marginTop:8}}>
+              <Text style={{color:C.muted,fontSize:15}}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
   onSend={async (mint, recipient, amount, symbol, decimals) => {
     const { secretKey, publicKey: pk } = deriveWallet(wallet);
@@ -1851,7 +1891,7 @@ export default function App() {
           ) : (
             <View>
               {/* Balance */}
-              <View style={{alignItems:'center',paddingTop:28,paddingBottom:8}}>
+              <View style={{alignItems:'center',paddingTop:16,paddingBottom:8}}>
                 <TouchableOpacity onPress={()=>setPrivacyMode(p=>!p)}>
                 <Text style={s.pfBalanceAmt}>
                   {portfolioLoading ? '...' : privacyMode ? '****' : '$'+((tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(4)}
