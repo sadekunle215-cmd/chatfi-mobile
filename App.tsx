@@ -1851,7 +1851,7 @@ export default function App() {
           ) : (
             <View>
               {/* Balance */}
-              <View style={{alignItems:'center',paddingTop:16,paddingBottom:8}}>
+              <View style={{alignItems:'center',paddingTop:28,paddingBottom:8}}>
                 <TouchableOpacity onPress={()=>setPrivacyMode(p=>!p)}>
                 <Text style={s.pfBalanceAmt}>
                   {portfolioLoading ? '...' : privacyMode ? '****' : '$'+((tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(4)}
@@ -1885,7 +1885,7 @@ export default function App() {
               <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <Text style={s.pfSectionLbl}>Tokens</Text>
                 <TouchableOpacity onPress={()=>{fetchTxHistory();setShowTxModal(true);}} style={{padding:4}}>
-                  <Ionicons name="time-outline" size={24} color={C.green} />
+                  <Ionicons name="time-outline" size={24} color={C.text} />
                 </TouchableOpacity>
               </View>
               {tokenBalances.length===0&&!portfolioLoading&&(
