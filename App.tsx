@@ -1340,7 +1340,14 @@ export default function App() {
       for (const pb of post) { if(pb.owner===myPk){const prev=pre.find((p:any)=>p.accountIndex===pb.accountIndex); const d=parseFloat(pb.uiTokenAmount.uiAmountString||"0")-(prev?parseFloat(prev.uiTokenAmount.uiAmountString||"0"):0); if(Math.abs(d)>0){type=d>0?"RECEIVE":"SEND";amount=(d>0?"+":"")+d.toFixed(4);token=pb.mint.slice(0,6)+"..";}}
       }
     }
-    return {sig:sig.signature,time,failed:!!sig.err,type,amount,token};
+    let mint = '';
+    if (token === 'SOL') mint = 'So11111111111111111111111111111111111111112';
+    else {
+      const allPost = tx.meta?.postTokenBalances||[];
+      const pb = allPost.find((p:any)=>p.owner===myPk);
+      if (pb) mint = pb.mint;
+    }
+    return {sig:sig.signature,time,failed:!!sig.err,type,amount,token,mint};
   };
 
   const fetchTxHistory = async () => {
@@ -1646,8 +1653,11 @@ export default function App() {
               {txHistory.map((tx,i)=>(
                 <TouchableOpacity key={i} onPress={()=>{Linking.openURL("https://solscan.io/tx/"+tx.sig);}}
                   style={{flexDirection:"row",alignItems:"center",paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
-                  <View style={{width:42,height:42,borderRadius:21,backgroundColor:tx.failed?"#3a1a1a":tx.type==="RECEIVE"?"#1a2a1a":"#1a1a2a",alignItems:"center",justifyContent:"center",marginRight:12}}>
-                    <Text style={{fontSize:20}}>{tx.failed?"❌":tx.type==="RECEIVE"?"↓":tx.type==="SWAP"?"⇄":"↑"}</Text>
+                  <View style={{width:42,height:42,borderRadius:21,marginRight:12,position:'relative'}}>
+                    <TokLogo uri={tx.mint?'https://img.jup.ag/tokens/'+tx.mint:''} fallback={''} symbol={tx.token} style={{width:42,height:42,borderRadius:21}} mint={tx.mint||''} />
+                    <View style={{position:'absolute',bottom:0,right:0,width:16,height:16,borderRadius:8,backgroundColor:tx.failed?"#3a1a1a":tx.type==="RECEIVE"?"#1a2a1a":"#1a1a2a",alignItems:"center",justifyContent:"center"}}>
+                      <Text style={{fontSize:10}}>{tx.failed?"❌":tx.type==="RECEIVE"?"↓":tx.type==="SWAP"?"⇄":"↑"}</Text>
+                    </View>
                   </View>
                   <View style={{flex:1}}>
                     <Text style={{color:C.text,fontWeight:"600",fontSize:14}}>{tx.failed?"Failed":tx.type} {tx.token}</Text>
