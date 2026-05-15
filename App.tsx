@@ -1977,7 +1977,23 @@ export default function App() {
                     );
                   })}
                 </View>
-              )} · {apy}% APY</Text>
+              )}
+              {/* Earn Tab */}
+              {portfolioTab === 'earn' && (
+                <View style={{marginTop:8}}>
+                  {earnLoading && <ActivityIndicator color={C.green} style={{marginTop:20}} />}
+                  {earnPositions.length>0 && (
+                    <View style={{marginBottom:12,padding:12,backgroundColor:C.card,borderRadius:12}}>
+                      <Text style={{color:C.text,fontWeight:'700',fontSize:13,marginBottom:8}}>Your Positions</Text>
+                      {earnPositions.map((p:any,i:number)=>{
+                        const dec = p.token?.decimals ?? p.asset?.decimals ?? p.decimals ?? 6;
+                        const amt = parseFloat(p.underlyingAssets??0)/Math.pow(10,dec);
+                        const apy = ((p.apy||p.supplyApy||0)*100).toFixed(2);
+                        const sym = p.token?.symbol || p.asset?.symbol || p.symbol || '?';
+                        return (
+                          <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderTopWidth:i>0?1:0,borderTopColor:C.border}}>
+                            <Text style={{color:C.text,fontSize:13}}>{sym}</Text>
+                            <Text style={{color:C.green,fontSize:13}}>{amt.toFixed(4)} · {apy}% APY</Text>
                           </View>
                         );
                       })}
@@ -2008,10 +2024,6 @@ export default function App() {
                   })}
                 </View>
               )}
-            </View>
-        </ScrollView>
-      )}
-
             {/* DAPP BROWSER */}
         {tab === 'dapp' && (
           <DappBrowser walletAddress={pubkey} />
