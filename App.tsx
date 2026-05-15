@@ -1155,7 +1155,7 @@ export default function App() {
     }
     try {
       const { publicKey: pk, secretKey } = deriveWallet(wallet!);
-      const RPC_URL = 'https://solana-mainnet.g.alchemy.com/v2/demo';
+      const RPC_URL = process.env.EXPO_PUBLIC_SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
 
       switch (action) {
         case 'SWAP': {
@@ -1270,7 +1270,287 @@ https://solscan.io/tx/${txSig}`, from: 'bot' }]);
           break;
         }
         case 'SHOW_STUDIO': {
-          setMsgs(p => [...p, { id: Date.now(), text: '🎨 Jupiter Studio — Create a Token\n\nTo create a token, tell me:\n• Token name\n• Token symbol\n• Total supply\n• Decimals (default 6)\n• Description\n\nExample: create token named "MyToken" symbol "MTK" supply 1000000', from: 'bot' }]);
+          const { name, symbol, supply, decimals: dec, description } = data;
+          if (!name || !symbol || !supply) {
+            let prompt = '🎨 Jupiter Studio — Create a Token\n\n';
+            if (name) prompt += `Name: ${name}\n`; else prompt += '• What is the token name?\n';
+            if (symbol) prompt += `Symbol: ${symbol}\n`; else prompt += '• What is the token symbol? (e.g. MTK)\n';
+            if (supply) prompt += `Supply: ${supply}\n`; else prompt += '• What is the total supply? (e.g. 1000000000)\n';
+            if (!dec) prompt += '• Decimals? (default 9)\n';
+            if (!description) prompt += '• Short description?\n';
+            prompt += '\nReply with all details and I will create it.';
+            setMsgs(p => [...p, { id: Date.now(), text: prompt, from: 'bot' }]);
+            break;
+          }
+          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Creating token ${name} (${symbol})...`, from: 'bot' }]);
+          try {
+            const studioRes = await fetch('https://chatfi.pro/api/studio', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name, symbol, supply: parseInt(supply), decimals: parseInt(dec || '9'), description: description || '', creator: pk })
+            });
+            const studioData = await studioRes.json();
+            if (studioData.error) throw new Error(studioData.error);
+            if (studioData.transaction) {
+              const txSig = await signAndSendTx(studioData.transaction, secretKey);
+              setMsgs(p => [...p, { id: Date.now(), text: `✅ Token created!\nName: ${name} (${symbol})\nSupply: ${supply}\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
+            } else {
+              setMsgs(p => [...p, { id: Date.now(), text: `✅ Token ${name} (${symbol}) submitted!\n${studioData.message || 'Check Jupiter Studio for status.'}`, from: 'bot' }]);
+            }
+          } catch(e: any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Token creation failed: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
+
+        case 'BASKET_SWAP': {
+          const trades = data.trades || [];
+          if (!trades.length) { setMsgs(p => [...p, { id: Date.now(), text: 'No trades specified.', from: 'bot' }]); break; }
+          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Preparing ${trades.length} swap${trades.length>1?'s':''}...`, from: 'bot' }]);
+          let done = 0, failed = 0;
+          for (const t of trades) {
+            const from = (t.from||'USDC').toUpperCase();
+            const to = (t.to||'SOL').toUpperCase();
+            const amount = t.amount || t.amountUSD;
+            if (!TOKENS[from] || !TOKENS[to] || !amount) { failed++; continue; }
+            try {
+              const txSig = await executeSwapTx(TOKENS[from], TOKENS[to], parseFloat(amount), DECIMALS[from]||6, pk, secretKey, RPC_URL);
+              setMsgs(p => [...p, { id: Date.now(), text: `✅ ${from}→${to}: ${txSig.slice(0,16)}...
+https://solscan.io/tx/${txSig}`, from: 'bot' }]);
+              done++;
+            } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ ${from}→${to} failed: ${e.message}`, from: 'bot' }]); failed++; }
+          }
+          setMsgs(p => [...p, { id: Date.now(), text: `Basket done: ${done} succeeded, ${failed} failed`, from: 'bot' }]);
+          fetchPortfolio();
+          break;
+        }
+
+        case 'SWAP_ALL_WALLET': {
+          const to = (data.to||'USDC').toUpperCase();
+          const exclude = (data.exclude||[]).map((s:string)=>s.toUpperCase());
+          exclude.push(to);
+          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Swapping all wallet tokens to ${to}...`, from: 'bot' }]);
+          // Fetch portfolio then swap each token
+          try {
+            const rpcConn = { url: RPC_URL };
+            const balRes = await fetch(`https://lite-api.jup.ag/ultra/v1/balances/${pk}`);
+            const balData = await balRes.json();
+            const tokens = Object.entries(balData?.tokenBalances||{}) as [string,any][];
+            let done = 0, failed = 0;
+            for (const [mint, bal] of tokens) {
+              if (!bal?.uiAmount || bal.uiAmount <= 0) continue;
+              const sym = Object.entries(TOKENS).find(([s,m])=>m===mint)?.[0];
+              if (!sym || exclude.includes(sym.toUpperCase())) continue;
+              try {
+                const txSig = await executeSwapTx(mint, TOKENS[to], bal.uiAmount, bal.decimals||6, pk, secretKey, RPC_URL);
+                setMsgs(p => [...p, { id: Date.now(), text: `✅ ${sym}→${to}: ${txSig.slice(0,16)}...
+https://solscan.io/tx/${txSig}`, from: 'bot' }]);
+                done++;
+              } catch(e:any) { failed++; }
+            }
+            setMsgs(p => [...p, { id: Date.now(), text: `Done: ${done} swapped, ${failed} failed`, from: 'bot' }]);
+            fetchPortfolio();
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
+
+        case 'FETCH_LOCKS': {
+          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your token locks...', from: 'bot' }]);
+          try {
+            const lockRes = await fetch(`https://chatfi.pro/api/lock?wallet=${pk}`);
+            const lockData = await lockRes.json();
+            const locks = lockData.locks || lockData.positions || [];
+            if (!locks.length) {
+              setMsgs(p => [...p, { id: Date.now(), text: '🔒 No active locks found.
+Use "lock 100 JUP for 30 days" to create one.', from: 'bot' }]);
+            } else {
+              const txt = locks.map((l:any) => {
+                const sym = l.symbol || l.token || '?';
+                const amt = l.amount || l.lockedAmount || '?';
+                const cliff = l.cliffDays || l.cliff || '?';
+                const vesting = l.vestingDays || l.vesting || '?';
+                const claimable = l.claimableAmount ? `
+  Claimable: ${l.claimableAmount}` : '';
+                return `• ${amt} ${sym}
+  Cliff: ${cliff}d · Vesting: ${vesting}d${claimable}`;
+              }).join('
+
+');
+              setMsgs(p => [...p, { id: Date.now(), text: `🔒 Your Token Locks:
+
+${txt}`, from: 'bot' }]);
+            }
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch locks: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
+
+        case 'FETCH_TRIGGER_ORDERS': {
+          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your limit orders...', from: 'bot' }]);
+          try {
+            const trigRes = await fetch(`https://trigger.jup.ag/v1/orders?wallet=${pk}&status=active`);
+            const trigData = await trigRes.json();
+            const orders = trigData.orders || trigData || [];
+            if (!orders.length) {
+              setMsgs(p => [...p, { id: Date.now(), text: '📋 No active limit orders.
+Say "buy SOL when price drops below $140" to create one.', from: 'bot' }]);
+            } else {
+              const txt = orders.slice(0,10).map((o:any) => {
+                const inSym = o.inputMint?.slice(0,6) || '?';
+                const outSym = o.outputMint?.slice(0,6) || '?';
+                const amt = o.inAmount ? (parseFloat(o.inAmount)/1e6).toFixed(2) : '?';
+                const price = o.triggerPrice || o.price || '?';
+                return `• ${amt} ${inSym}→${outSym} @ $${price}`;
+              }).join('
+');
+              setMsgs(p => [...p, { id: Date.now(), text: `📋 Active Limit Orders:
+${txt}`, from: 'bot' }]);
+            }
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch orders: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
+
+        case 'FETCH_RECURRING_ORDERS': {
+          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your DCA orders...', from: 'bot' }]);
+          try {
+            const dcaRes = await fetch(`https://dca.jup.ag/v2/dca?user=${pk}&status=active`);
+            const dcaData = await dcaRes.json();
+            const orders = dcaData.dcaAccounts || dcaData || [];
+            if (!orders.length) {
+              setMsgs(p => [...p, { id: Date.now(), text: '📅 No active DCA orders.
+Say "DCA $10 USDC to SOL daily for 7 days" to create one.', from: 'bot' }]);
+            } else {
+              const txt = orders.slice(0,10).map((o:any) => {
+                const inSym = o.inputMint?.slice(0,6) || '?';
+                const outSym = o.outputMint?.slice(0,6) || '?';
+                const amt = o.inAmountPerCycle ? (parseFloat(o.inAmountPerCycle)/1e6).toFixed(2) : '?';
+                const interval = o.cycleFrequency === 86400 ? 'daily' : o.cycleFrequency === 3600 ? 'hourly' : `every ${o.cycleFrequency}s`;
+                const remaining = o.remainingCycles || '?';
+                return `• ${amt} ${inSym}→${outSym} ${interval} · ${remaining} left`;
+              }).join('
+');
+              setMsgs(p => [...p, { id: Date.now(), text: `📅 Active DCA Orders:
+${txt}`, from: 'bot' }]);
+            }
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch DCA orders: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
+
+        case 'FETCH_STUDIO_FEES': {
+          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your creator fees...', from: 'bot' }]);
+          try {
+            const feeRes = await fetch(`https://chatfi.pro/api/studio/fees?wallet=${pk}`);
+            const feeData = await feeRes.json();
+            if (feeData.error) throw new Error(feeData.error);
+            const fees = feeData.fees || [];
+            if (!fees.length) {
+              setMsgs(p => [...p, { id: Date.now(), text: '🎨 No creator fees found for your wallet.', from: 'bot' }]);
+            } else {
+              const txt = fees.map((f:any) => `• ${f.symbol || '?'}: ${f.amount || '?'} ($${f.valueUSD?.toFixed(2)||'?'})`).join('
+');
+              setMsgs(p => [...p, { id: Date.now(), text: `🎨 Your Creator Fees:
+${txt}`, from: 'bot' }]);
+            }
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch creator fees: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
+
+        case 'FETCH_SEND_HISTORY': {
+          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your send history...', from: 'bot' }]);
+          try {
+            const sendRes = await fetch(`https://chatfi.pro/api/send-history?wallet=${pk}`);
+            const sendData = await sendRes.json();
+            const history = sendData.history || [];
+            if (!history.length) {
+              setMsgs(p => [...p, { id: Date.now(), text: '📨 No send history found.', from: 'bot' }]);
+            } else {
+              const txt = history.slice(0,10).map((h:any) => `• ${h.amount} ${h.token} — ${h.status||'?'}
+  ${h.tx?.slice(0,20)||''}...`).join('
+
+');
+              setMsgs(p => [...p, { id: Date.now(), text: `📨 Send History:
+
+${txt}`, from: 'bot' }]);
+            }
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch send history: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
+
+        case 'FETCH_PERPS_POSITIONS':
+        case 'SHOW_PERPS': {
+          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your perpetuals positions...', from: 'bot' }]);
+          try {
+            const perpRes = await fetch(`https://lite-api.jup.ag/perps/v1/positions?wallet=${pk}`);
+            const perpData = await perpRes.json();
+            const positions = perpData.positions || perpData || [];
+            if (!positions.length) {
+              setMsgs(p => [...p, { id: Date.now(), text: '📊 No open perps positions.
+Say "open 5x long SOL perp with 10 USDC" to start.', from: 'bot' }]);
+            } else {
+              const txt = positions.map((p:any) => {
+                const side = p.side || '?';
+                const market = p.market || p.symbol || '?';
+                const size = p.sizeUsd ? `$${parseFloat(p.sizeUsd).toFixed(2)}` : '?';
+                const pnl = p.unrealizedPnl ? `PnL: $${parseFloat(p.unrealizedPnl).toFixed(2)}` : '';
+                const lev = p.leverage ? `${parseFloat(p.leverage).toFixed(1)}x` : '';
+                return `• ${side.toUpperCase()} ${market} ${lev}
+  Size: ${size} ${pnl}`;
+              }).join('
+
+');
+              setMsgs(p => [...p, { id: Date.now(), text: `📊 Your Perps Positions:
+
+${txt}`, from: 'bot' }]);
+            }
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch perps: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
+
+        case 'SET_PRICE_ALERT': {
+          const alertToken = (data.token||'SOL').toUpperCase();
+          const alertCond = data.condition||'below';
+          const alertPrice = parseFloat(data.price||data.triggerPrice||0);
+          if (!alertPrice) { setMsgs(p => [...p, { id: Date.now(), text: 'Please specify a price. Example: alert me when SOL drops below $140', from: 'bot' }]); break; }
+          setMsgs(p => [...p, { id: Date.now(), text: `🔔 Price alert set!
+${alertToken} ${alertCond} $${alertPrice}
+I will notify you in chat when it triggers.`, from: 'bot' }]);
+          break;
+        }
+
+        case 'CHAINED_ACTIONS': {
+          const steps = data.steps || [];
+          if (!steps.length) { setMsgs(p => [...p, { id: Date.now(), text: 'No steps found in chain.', from: 'bot' }]); break; }
+          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Executing ${steps.length} actions in sequence...`, from: 'bot' }]);
+          for (let i = 0; i < steps.length; i++) {
+            const step = steps[i];
+            setMsgs(p => [...p, { id: Date.now(), text: `▶ Step ${i+1}/${steps.length}: ${step.action?.replace(/_/g,' ').toLowerCase()}...`, from: 'bot' }]);
+            await new Promise(r => setTimeout(r, 600));
+            await dispatchAction(step.action, step.actionData || {});
+          }
+          break;
+        }
+
+        case 'FETCH_TOKEN_INFO': {
+          const sym = (data.symbol||data.token||'').toUpperCase();
+          if (!sym) { setMsgs(p => [...p, { id: Date.now(), text: 'Please specify a token symbol.', from: 'bot' }]); break; }
+          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Fetching info for ${sym}...`, from: 'bot' }]);
+          try {
+            const mint = TOKENS[sym];
+            const infoRes = await fetch(`https://lite-api.jup.ag/tokens/v1/token/${mint||sym}`);
+            const info = await infoRes.json();
+            if (!info?.address) throw new Error('Token not found');
+            const priceRes = await fetch(`https://lite-api.jup.ag/price/v2?ids=${info.address}`);
+            const priceData = await priceRes.json();
+            const price = priceData?.[info.address]?.price || priceData?.data?.[info.address]?.price;
+            let msg = `🪙 ${info.name} (${info.symbol})
+`;
+            msg += `Mint: ${info.address?.slice(0,20)}...
+`;
+            if (price) msg += `Price: $${parseFloat(price).toFixed(6)}
+`;
+            if (info.decimals != null) msg += `Decimals: ${info.decimals}
+`;
+            if (info.tags?.length) msg += `Tags: ${info.tags.slice(0,3).join(', ')}
+`;
+            setMsgs(p => [...p, { id: Date.now(), text: msg, from: 'bot' }]);
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch token info: ${e.message}`, from: 'bot' }]); }
           break;
         }
       }
