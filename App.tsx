@@ -403,10 +403,10 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
-        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:'90%', paddingBottom:72 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:'90%', paddingBottom:72 }}>
 
           {view === 'main' && (
-            <ScrollView>
+            <ScrollView keyboardShouldPersistTaps='handled'>
               {/* Header */}
               <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <View style={{ width:48, height:48, borderRadius:24, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
@@ -657,7 +657,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
             </ScrollView>
           )}
 
-        </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -1132,11 +1132,12 @@ export default function App() {
   };
 
   const sendMsg = async (overrideText?: string) => {
-    const q = (overrideText || input).trim();
+    const q = (overrideText || inputRef.current || input).trim();
     if (!q || aiLoading) return;
     setMsgs(p => [...p, { id: Date.now(), text: q, from: 'user' }]);
     const msgText = q;
     setInput('');
+    inputRef.current = '';
     setAiLoading(true);
     try {
       const response = await askAI(q, pubkey);
@@ -1703,6 +1704,7 @@ export default function App() {
         addAccount={addAccount}
         userName={userName}
         setUserName={setUserName}
+        setAccounts={setAccounts}
         onRemoveWallet={async () => {
           const updated = accounts.filter((_:any, i:number) => i !== activeAccIdx);
           if (updated.length === 0) {
@@ -1769,8 +1771,8 @@ export default function App() {
               )}
             </ScrollView>
             <View style={s.inputRow}>
-              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(input)} editable={!aiLoading} />
-              <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(input)} disabled={aiLoading}>
+              <TextInput style={s.input} value={input} onChangeText={(t)=>{setInput(t);inputRef.current=t;}} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current||input)} editable={!aiLoading} />
+              <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current||input)} disabled={aiLoading}>
                 <Ionicons name="send" size={20} color="#0d1117" />
               </TouchableOpacity>
             </View>
