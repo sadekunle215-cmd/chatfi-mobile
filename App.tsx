@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
+import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction, rpcFetch } from './wallet';
 import nacl from 'tweetnacl';
 import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices } from './wallet';
