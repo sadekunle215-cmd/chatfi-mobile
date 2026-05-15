@@ -50,7 +50,7 @@ async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamp
 async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amountRaw:number,mint:string):Promise<string>{
   const {PublicKey,Transaction,SystemProgram} = require('@solana/web3.js');
   const TOKEN_PROG = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-  const ASSOC_PROG = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bw');
+  const ASSOC_PROG = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bS4');
   const mintPk = new PublicKey(mint);
   const fromPk = new PublicKey(pubkey);
   const toPk = new PublicKey(recipient);

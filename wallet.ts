@@ -160,3 +160,75 @@ export async function sendSOL(secretKey: Uint8Array, recipient: string, lamports
   if (result.error) throw new Error(result.error.message);
   return result.result;
 }
+
+export async function sendSPLToken(
+  secretKey: Uint8Array,
+  mint: string,
+  recipient: string,
+  amount: number,
+  decimals: number
+): Promise<string> {
+  const { Transaction, PublicKey, TransactionInstruction } = require('@solana/web3.js');
+  const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+  const ASSOC_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bS4');
+  const SYS_PROGRAM_ID   = new PublicKey('11111111111111111111111111111111');
+  const keypair    = nacl.sign.keyPair.fromSecretKey(secretKey);
+  const fromPubkey = new PublicKey(bs58.encode(keypair.publicKey));
+  const mintPubkey = new PublicKey(mint);
+  const toPubkey   = new PublicKey(recipient);
+
+  // Derive ATAs
+  const [fromATA] = await PublicKey.findProgramAddress(
+    [fromPubkey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintPubkey.toBuffer()],
+    ASSOC_PROGRAM_ID
+  );
+  const [toATA] = await PublicKey.findProgramAddress(
+    [toPubkey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintPubkey.toBuffer()],
+    ASSOC_PROGRAM_ID
+  );
+
+  const tx = new Transaction();
+
+  // Create recipient ATA if it doesn't exist
+  const toATAInfo = await rpcFetch('getAccountInfo', [toATA.toString(), { encoding: 'base64' }]);
+  if (!toATAInfo?.result?.value) {
+    tx.add(new TransactionInstruction({
+      keys: [
+        { pubkey: fromPubkey,   isSigner: true,  isWritable: true  },
+        { pubkey: toATA,        isSigner: false, isWritable: true  },
+        { pubkey: toPubkey,     isSigner: false, isWritable: false },
+        { pubkey: mintPubkey,   isSigner: false, isWritable: false },
+        { pubkey: SYS_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      ],
+      programId: ASSOC_PROGRAM_ID,
+      data: Buffer.alloc(0),
+    }));
+  }
+
+  // Token transfer instruction
+  const amountRaw = BigInt(Math.floor(amount * Math.pow(10, decimals)));
+  const data = Buffer.alloc(9);
+  data.writeUInt8(3, 0);
+  data.writeBigUInt64LE(amountRaw, 1);
+
+  tx.add(new TransactionInstruction({
+    keys: [
+      { pubkey: fromATA,   isSigner: false, isWritable: true  },
+      { pubkey: toATA,     isSigner: false, isWritable: true  },
+      { pubkey: fromPubkey, isSigner: true, isWritable: false },
+    ],
+    programId: TOKEN_PROGRAM_ID,
+    data,
+  }));
+
+  const blockhash = (await rpcFetch('getLatestBlockhash', [{ commitment: 'confirmed' }])).result.value.blockhash;
+  tx.feePayer = fromPubkey;
+  tx.recentBlockhash = blockhash;
+  const sig = nacl.sign.detached(tx.serializeMessage(), secretKey);
+  tx.addSignature(fromPubkey, Buffer.from(sig));
+  const raw = tx.serialize().toString('base64');
+  const result = await rpcFetch('sendTransaction', [raw, { encoding: 'base64', preflightCommitment: 'confirmed' }]);
+  if (result.error) throw new Error(result.error.message);
+  return result.result;
+}
