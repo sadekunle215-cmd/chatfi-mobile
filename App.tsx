@@ -1261,96 +1261,20 @@ https://solscan.io/tx/${txSig}`, from: 'bot' }]);
             if (earnData.error) throw new Error(earnData.error);
             const positions = earnData.positions || [];
             if (positions.length === 0) {
-              setMsgs(p => [...p, { id: Date.now(), text: 'No active earn positions found.
-
-To start earning, deposit tokens on jup.ag/earn', from: 'bot' }]);
+              setMsgs(p => [...p, { id: Date.now(), text: 'No active earn positions found.\nTo start earning, deposit tokens on jup.ag/earn', from: 'bot' }]);
             } else {
-              const posText = positions.map((p:any) => `• ${p.symbol}: $${p.valueUSD?.toFixed(2)} @ ${p.apy?.toFixed(2)}% APY`).join('
-');
-              setMsgs(p => [...p, { id: Date.now(), text: `📈 Your Earn Positions:
-${posText}`, from: 'bot' }]);
+              const posText = positions.map((p:any) => `• ${p.symbol}: $${p.valueUSD?.toFixed(2)} @ ${p.apy?.toFixed(2)}% APY`).join('\n');
+              setMsgs(p => [...p, { id: Date.now(), text: `📈 Your Earn Positions:\n${posText}`, from: 'bot' }]);
             }
           } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch earn positions: ${e.message}`, from: 'bot' }]); }
           break;
         }
         case 'SHOW_STUDIO': {
-          setMsgs(p => [...p, { id: Date.now(), text: '🎨 Jupiter Studio — Create a Token
-
-To create a token, tell me:
-• Token name
-• Token symbol
-• Total supply
-• Decimals (default 6)
-• Description
-
-Example: create token named "MyToken" symbol "MTK" supply 1000000', from: 'bot' }]);
+          setMsgs(p => [...p, { id: Date.now(), text: '🎨 Jupiter Studio — Create a Token\n\nTo create a token, tell me:\n• Token name\n• Token symbol\n• Total supply\n• Decimals (default 6)\n• Description\n\nExample: create token named "MyToken" symbol "MTK" supply 1000000', from: 'bot' }]);
           break;
         }
-        default:
-          break;
       }
-    } catch (e: any) {
-      setMsgs(p => [...p, { id: Date.now(), text: `❌ ${e.message || 'Action failed'}`, from: 'bot' }]);
-    }
-  };
-
-  // Auto-quote on amt/token change
-  useEffect(()=>{
-    if(!amt||parseFloat(amt)<=0){setQuote(null);return;}
-    const t = setTimeout(()=>fetchQuote(),700);
-    return ()=>clearTimeout(t);
-  },[amt,fromToken,toToken]);
-
-  const fetchQuote = async () => {
-    if (!amt || isNaN(parseFloat(amt))) { showToast('Invalid amount','error'); return; }
-    if (fromToken === toToken) { showToast('Select different tokens','error'); return; }
-    setQuoteLoading(true);
-    setQuote(null);
-    try {
-      const fromMint = TOKENS[fromToken];
-      const toMint = TOKENS[toToken];
-      if (!fromMint || !toMint) { showToast('Token address not found','error'); setQuoteLoading(false); return; }
-      const q = await getJupiterQuote(fromMint, toMint, parseFloat(amt), DECIMALS[fromToken]??6, DECIMALS[toToken]??6);
-      setQuote(q);
-    } catch { showToast('Failed to fetch quote','error'); }
-    setQuoteLoading(false);
-  };
-
-  const executeSwap = async () => {
-    if (!wallet) { showToast('Create or connect a wallet first','error'); return; }
-    if (!quote) { showToast('Get a quote first before swapping','error'); return; }
-    const outAmt = quote ? (parseInt(quote.outAmount) / Math.pow(10, DECIMALS[toToken]||6)).toFixed(4) : '?';
-    const priceImpact = quote?.priceImpactPct ? (parseFloat(quote.priceImpactPct)*100).toFixed(2) : '0.00';
-    setConfirmData({
-      type: 'swap',
-      title: 'Confirm Swap',
-      summary: `Swap ${amt} ${fromToken} → ${outAmt} ${toToken}`,
-      details: [
-        {label:'You pay', value:`${amt} ${fromToken}`},
-        {label:'You receive', value:`~${outAmt} ${toToken}`},
-        {label:'Price impact', value:`${priceImpact}%`},
-        {label:'Network fee', value:'~0.000005 SOL'},
-      ],
-      onConfirm: async () => {
-        setShowConfirmModal(false);
-        const authed = await requireAuth();
-        if (!authed) return;
-        try {
-          const { publicKey: pk, secretKey } = deriveWallet(wallet);
-          showToast(`Swapping ${fromToken} → ${toToken}...`,'info');
-          const txSig = await executeSwapTx(
-            TOKENS[fromToken], TOKENS[toToken],
-            parseFloat(amt), DECIMALS[fromToken] || 6,
-            pk, secretKey, 'https://solana-mainnet.g.alchemy.com/v2/demo'
-          );
-          showToast('Swap complete! ✓','success');
-          fetchPortfolio();
-        } catch (e:any) {
-          showToast('Swap failed: '+(e.message||'Unknown error'),'error');
-        }
-      }
-    });
-    setShowConfirmModal(true);
+    } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Error: ${e.message}`, from: 'bot' }]); }
   };
 
   const parseTx = (tx:any, sig:any, myPk:string) => {
