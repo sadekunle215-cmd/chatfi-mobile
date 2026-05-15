@@ -566,7 +566,6 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                           const idx = accs.findIndex((a:any) => a.publicKey === pubkey || a.address === pubkey);
                           const target = idx >= 0 ? idx : activeAccIdx;
                           if(accs[target]) accs[target].name = nameInput;
-                          setAccounts(accs);
                           await AsyncStorage.setItem('accounts', JSON.stringify(accs));
                         }
                         Alert.alert('Saved!', 'Name saved!');
