@@ -207,7 +207,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
     <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
-        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%' }}>
+        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%', paddingBottom:72 }}>
 
           {/* Header */}
           <View style={{ flexDirection:'row', alignItems:'center', marginBottom:20 }}>
@@ -403,7 +403,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
-        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:'90%' }}>
+        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:'90%', paddingBottom:72 }}>
 
           {view === 'main' && (
             <ScrollView>
@@ -1620,7 +1620,7 @@ export default function App() {
     <SafeAreaView style={s.root}>
       <Modal visible={showTxModal} animationType="slide" transparent onRequestClose={()=>setShowTxModal(false)}>
         <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.7)",justifyContent:"flex-end"}}>
-          <View style={{backgroundColor:"#161b22",borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:"80%",paddingBottom:30}}>
+          <View style={{backgroundColor:"#161b22",borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:"80%",paddingBottom:72}}>
             <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",padding:20,borderBottomWidth:1,borderBottomColor:C.border}}>
               <Text style={{color:C.text,fontSize:18,fontWeight:"700"}}>Transaction History</Text>
               <TouchableOpacity onPress={()=>setShowTxModal(false)}>
