@@ -1247,9 +1247,7 @@ export default function App() {
             const lockData = await lockRes.json();
             if (lockData.error) throw new Error(lockData.error);
             const txSig = await signAndSendTx(lockData.transaction, secretKey);
-            setMsgs(p => [...p, { id: Date.now(), text: `✅ Locked ${amount} ${token} for ${days} days!
-Tx: ${txSig.slice(0,20)}...
-https://solscan.io/tx/${txSig}`, from: 'bot' }]);
+            setMsgs(p => [...p, { id: Date.now(), text: `✅ Locked ${amount} ${token} for ${days} days!\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
           } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Lock failed: ${e.message}`, from: 'bot' }]); }
           break;
         }
@@ -1366,16 +1364,10 @@ https://solscan.io/tx/${txSig}`, from: 'bot' }]);
                 const amt = l.amount || l.lockedAmount || '?';
                 const cliff = l.cliffDays || l.cliff || '?';
                 const vesting = l.vestingDays || l.vesting || '?';
-                const claimable = l.claimableAmount ? `
-  Claimable: ${l.claimableAmount}` : '';
-                return `• ${amt} ${sym}
-  Cliff: ${cliff}d · Vesting: ${vesting}d${claimable}`;
-              }).join('
-
-');
-              setMsgs(p => [...p, { id: Date.now(), text: `🔒 Your Token Locks:
-
-${txt}`, from: 'bot' }]);
+                const claimable = l.claimableAmount ? `\n  Claimable: ${l.claimableAmount}` : '';
+                return `• ${amt} ${sym}\n  Cliff: ${cliff}d · Vesting: ${vesting}d${claimable}`;
+              }).join('\n\n');
+              setMsgs(p => [...p, { id: Date.now(), text: `🔒 Your Token Locks:\n\n${txt}`, from: 'bot' }]);
             }
           } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch locks: ${e.message}`, from: 'bot' }]); }
           break;
@@ -1491,9 +1483,7 @@ Say "open 5x long SOL perp with 10 USDC" to start.', from: 'bot' }]);
                 const lev = p.leverage ? `${parseFloat(p.leverage).toFixed(1)}x` : '';
                 return `• ${side.toUpperCase()} ${market} ${lev}
   Size: ${size} ${pnl}`;
-              }).join('
-
-');
+              }).join('\n\n');
               setMsgs(p => [...p, { id: Date.now(), text: `📊 Your Perps Positions:
 
 ${txt}`, from: 'bot' }]);
