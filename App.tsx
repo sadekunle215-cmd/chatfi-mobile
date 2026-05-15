@@ -462,7 +462,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
               <View style={{ flexDirection:'row', gap:12, padding:16 }}>
                 <TouchableOpacity onPress={() => setView('profile')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
                   <Ionicons name='person-outline' size={24} color={C.text} />
-                  <Text style={{ color:C.text, fontSize:13 }}>Profile</Text>
+                  <Text style={{ color:C.text, fontSize:13 }}  numberOfLines={1} adjustsFontSizeToFit>Profile</Text>
                 </TouchableOpacity>
               </View>
 
@@ -573,7 +573,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 <TouchableOpacity onPress={() => setView('main')} style={{ marginRight:12 }}>
                   <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
                 </TouchableOpacity>
-                <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1, flexShrink:1 }}>Profile</Text>
+                <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1, flexShrink:1, textAlign:'center' }}>Profile</Text>
                 <TouchableOpacity onPress={onClose}>
                   <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
                 </TouchableOpacity>
