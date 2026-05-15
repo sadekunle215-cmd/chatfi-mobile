@@ -1,23 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WebView } from 'react-native-webview';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import Svg, { Line as SvgLine, Rect as SvgRect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking } from 'react-native';
+import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as LocalAuthentication from 'expo-local-authentication';
-import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction, rpcFetch } from './wallet';
+import { generateWallet, getPublicKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
 import nacl from 'tweetnacl';
 import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices } from './wallet';
-const TOKEN_LOGOS: Record<string, string> = {
-  SOL: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
-  USDC: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
-  USDT: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.png',
-  JUP: 'https://img.jup.ag/tokens/JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
-  BONK: 'https://img.jup.ag/tokens/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
-  WIF: 'https://img.jup.ag/tokens/EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
-};
 
 const C = {
   bg: '#0d1117', card: '#1C2936', card2: '#162030',
@@ -26,56 +15,13 @@ const C = {
   gradTop: '#1C2936', gradBot: '#0d1117',
 };
 
-const RPC = 'https://solana-mainnet.g.alchemy.com/v2/demo';
-
-async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamports:number):Promise<string>{
-  const bs58=require('bs58');
-  const bh=await rpcFetch('getLatestBlockhash',[{commitment:'confirmed'}]);
-  const blockhash=bh.result.value.blockhash;
-  const from=bs58.decode(pubkey);
-  const to=bs58.decode(recipient);
-  const bhb=bs58.decode(blockhash);
-  const sys=new Uint8Array(32);
-  const ix=new Uint8Array(12);
-  new DataView(ix.buffer).setUint32(0,2,true);
-  new DataView(ix.buffer).setBigUint64(4,BigInt(lamports),true);
-  const msg=new Uint8Array([1,0,1,3,...from,...to,...sys,...bhb,1,2,2,0,1,12,...ix]);
-  const sig=nacl.sign.detached(msg,secretKey);
-  const tx=new Uint8Array([1,...sig,...msg]);
-  const r=await rpcFetch('sendTransaction',[Buffer.from(tx).toString('base64'),{encoding:'base64',preflightCommitment:'confirmed'}]);
-  if(r.error)throw new Error(r.error.message);
-  return r.result;
-}
-
-async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amountRaw:number,mint:string):Promise<string>{
-  const {PublicKey,Transaction,Keypair} = require('@solana/web3.js');
-  const {getAssociatedTokenAddress,createAssociatedTokenAccountInstruction,createTransferInstruction,TOKEN_PROGRAM_ID,ASSOCIATED_TOKEN_PROGRAM_ID} = require('@solana/spl-token');
-  const mintPk = new PublicKey(mint);
-  const fromPk = new PublicKey(pubkey);
-  const toPk = new PublicKey(recipient);
-  const fromATA = await getAssociatedTokenAddress(mintPk, fromPk);
-  const toATA = await getAssociatedTokenAddress(mintPk, toPk);
-  const tx = new Transaction();
-  const ataInfo = await rpcFetch('getAccountInfo',[toATA.toBase58(),{encoding:'base64'}]);
-  if(!ataInfo?.result?.value){
-    tx.add(createAssociatedTokenAccountInstruction(fromPk,toATA,toPk,mintPk,TOKEN_PROGRAM_ID,ASSOCIATED_TOKEN_PROGRAM_ID));
-  }
-  tx.add(createTransferInstruction(fromATA,toATA,fromPk,amountRaw,TOKEN_PROGRAM_ID));
-  const bh = await rpcFetch('getLatestBlockhash',[{commitment:'confirmed'}]);
-  tx.recentBlockhash=bh.result.value.blockhash;tx.feePayer=fromPk;
-  const sig = nacl.sign.detached(tx.serializeMessage(), secretKey);
-  tx.addSignature(fromPk, Buffer.from(sig));
-  const r = await rpcFetch('sendTransaction',[Buffer.from(tx.serialize()).toString('base64'),{encoding:'base64',preflightCommitment:'confirmed'}]);
-  if(r.error) throw new Error(r.error.message);
-  return r.result;
-}
+const RPC = 'https://api.mainnet-beta.solana.com';
 
 const TABS = [
   { id: 'chat', label: 'Chat', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
   { id: 'swap', label: 'Swap', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
   { id: 'portfolio', label: 'Portfolio', icon: 'time-outline', iconActive: 'time' },
   { id: 'dapp', label: 'Dapp', icon: 'compass-outline', iconActive: 'compass-sharp' },
-  { id: 'settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
 ];
 
 const TOKEN_LIST = ['SOL','USDC','JUP','BONK','WIF','USDT'];
@@ -103,109 +49,17 @@ const POPULAR_DAPPS = [
 
 
 
-function NativeChart({ mint }: { mint: string }) {
-  const [candles, setCandles] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [interval, setIntervalType] = React.useState('15m');
-  const W = 340; const H = 200; const PAD = 8;
-
-  React.useEffect(() => {
-    setLoading(true);
-    setCandles([]);
-    const limit = 40;
-    const resolution = interval === '1m'?1:interval==='5m'?5:interval==='15m'?15:interval==='1h'?60:interval==='4h'?240:1440;
-    fetch('https://chatfi.pro/api/jupiter', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({url:`https://public-api.birdeye.so/defi/ohlcv?address=${mint}&type=${interval}&limit=${limit}`, method:'GET'})
-    })
-    .then(r=>r.json())
-    .then(d=>{
-      const items = d?.data?.items || [];
-      setCandles(items);
-    })
-    .catch(()=>{})
-    .finally(()=>setLoading(false));
-  }, [mint, interval]);
-
-  const intervals = ['5m','15m','1h','4h','1D'];
-
-  if (loading) return (
-    <View style={{height:240,alignItems:'center',justifyContent:'center',backgroundColor:C.card,borderRadius:14,marginBottom:16}}>
-      <ActivityIndicator color={C.green}/>
-      <Text style={{color:C.muted,fontSize:12,marginTop:8}}>Loading chart...</Text>
-    </View>
-  );
-
-  if (!candles.length) return (
-    <View style={{height:240,alignItems:'center',justifyContent:'center',backgroundColor:C.card,borderRadius:14,marginBottom:16}}>
-      <Text style={{color:C.muted,fontSize:13}}>No chart data available</Text>
-    </View>
-  );
-
-  const highs = candles.map(c=>c.h||c.high||0);
-  const lows = candles.map(c=>c.l||c.low||0);
-  const maxP = Math.max(...highs);
-  const minP = Math.min(...lows);
-  const range = maxP - minP || 1;
-  const chartW = W - PAD*2;
-  const chartH = H - PAD*2;
-  const cw = chartW / candles.length;
-
-  const toY = (p:number) => PAD + (1-(p-minP)/range)*chartH;
-
-  return (
-    <View style={{backgroundColor:C.card,borderRadius:14,padding:8,marginBottom:16}}>
-      {/* Interval selector */}
-      <View style={{flexDirection:'row',gap:6,marginBottom:8,justifyContent:'center'}}>
-        {intervals.map(iv=>(
-          <TouchableOpacity key={iv} onPress={()=>setIntervalType(iv)}
-            style={{paddingHorizontal:10,paddingVertical:4,borderRadius:8,backgroundColor:interval===iv?C.green:C.card2}}>
-            <Text style={{color:interval===iv?'#0d1117':C.muted,fontSize:11,fontWeight:'600'}}>{iv}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <Svg width={W} height={H}>
-        {candles.map((c,i)=>{
-          const o = c.o||c.open||0; const cl = c.c||c.close||0;
-          const h = c.h||c.high||0; const l = c.l||c.low||0;
-          const x = PAD + i*cw + cw*0.1;
-          const bw = cw*0.8;
-          const isGreen = cl >= o;
-          const color = isGreen ? '#39ff14' : '#ff5555';
-          const bodyTop = toY(Math.max(o,cl));
-          const bodyBot = toY(Math.min(o,cl));
-          const bodyH = Math.max(1, bodyBot-bodyTop);
-          return (
-            <React.Fragment key={i}>
-              <SvgLine x1={x+bw/2} y1={toY(h)} x2={x+bw/2} y2={toY(l)} stroke={color} strokeWidth={1}/>
-              <SvgRect x={x} y={bodyTop} width={bw} height={bodyH} fill={color} />
-            </React.Fragment>
-          );
-        })}
-      </Svg>
-      <View style={{flexDirection:'row',justifyContent:'space-between',paddingHorizontal:4}}>
-        <Text style={{color:C.muted,fontSize:10}}>${minP.toFixed(4)}</Text>
-        <Text style={{color:C.muted,fontSize:10}}>${maxP.toFixed(4)}</Text>
-      </View>
-    </View>
-  );
-}
-
-function TokenModal({ token, pubkey, onClose, onSend }) {
+function TokenModal({ token, pubkey, onClose }) {
   const [view, setView] = React.useState('main');
   const [importSeedInput, setImportSeedInput] = React.useState('');
-  const [showImportModal, setShowImportModal] = useState(false);
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
-  const [sending, setSending] = React.useState(false);
   if (!token) return null;
 
   return (
     <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
-        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%', paddingBottom:72 }}>
+        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%' }}>
 
           {/* Header */}
           <View style={{ flexDirection:'row', alignItems:'center', marginBottom:20 }}>
@@ -221,101 +75,18 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
           </View>
 
           {view === 'main' && (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* USD Value */}
-              <View style={{ alignItems:'center', marginBottom:20 }}>
-                <Text style={{ color:C.text, fontSize:32, fontWeight:'bold' }}>
-                  ${((token.amount||0)*(token.price||0)).toFixed(2)}
-                </Text>
-                <Text style={{ color:C.muted, fontSize:13, marginTop:2 }}>
-                  {(token.amount||0).toFixed(6)} {token.symbol}
-                </Text>
-              </View>
-
-              {/* Stats Row */}
-              <View style={{ flexDirection:'row', gap:10, marginBottom:16 }}>
-                <View style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:14, alignItems:'center' }}>
-                  <Text style={{ color:C.muted, fontSize:11, marginBottom:4, flexShrink:1 }}>Price</Text>
-                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:15 }}>
-                    {token.price ? '$'+Number(token.price).toFixed(4) : '—'}
-                  </Text>
-                </View>
-                <View style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:14, alignItems:'center' }}>
-                  <Text style={{ color:C.muted, fontSize:11, marginBottom:4 }}>Holdings</Text>
-                  <Text style={{ color:C.green, fontWeight:'bold', fontSize:15 }}>
-                    ${((token.amount||0)*(token.price||0)).toFixed(2)}
-                  </Text>
-                </View>
-                <View style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:14, alignItems:'center' }}>
-                  <Text style={{ color:C.muted, fontSize:11, marginBottom:4 }}>Status</Text>
-                  <View style={{ flexDirection:'row', alignItems:'center', gap:3 }}>
-                    {token.isVerified
-                      ? <><Ionicons name="checkmark-circle" size={14} color={C.green}/><Text style={{ color:C.green, fontWeight:'bold', fontSize:13 }}>Verified</Text></>
-                      : <Text style={{ color:'#ff9900', fontWeight:'bold', fontSize:13 }}>Unverified</Text>}
-                  </View>
-                </View>
-              </View>
-
-              {/* Mint Address */}
-              <View style={{ backgroundColor:C.card, borderRadius:14, padding:14, marginBottom:16 }}>
-                <Text style={{ color:C.muted, fontSize:11, marginBottom:6 }}>Contract Address</Text>
-                <TouchableOpacity onPress={() => Alert.alert('Mint Address', token.mint)}>
-                  <Text style={{ color:C.text, fontSize:12, fontFamily:'monospace' }} numberOfLines={1}>
-                    {token.mint ? token.mint.slice(0,16)+'...'+token.mint.slice(-8) : '—'}
-                  </Text>
-                  <Text style={{ color:C.green, fontSize:11, marginTop:4 }}>Tap to view full address</Text>
-                </TouchableOpacity>
-              </View>
-
-
-              {/* Native Chart */}
-              {/* DexScreener Chart */}
-              <View style={{ borderRadius:14, overflow:'hidden', marginBottom:16, height:380 }}>
-                <WebView
-                  source={{ uri: 'https://dexscreener.com/solana/'+token.mint+'?embed=1&theme=dark&trades=0&info=0' }}
-                  style={{ flex:1, backgroundColor:'#161b22' }}
-                  javaScriptEnabled={true}
-                  domStorageEnabled={true}
-                  startInLoadingState={true}
-                  renderLoading={() => (
-                    <View style={{ flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#161b22' }}>
-                      <ActivityIndicator color={'#39ff14'} />
-                      <Text style={{ color:'#888', fontSize:12, marginTop:8 }}>Loading chart...</Text>
-                    </View>
-                  )}
-                />
-              </View>
-
-              {/* DexScreener Chart - HIDDEN
-              <View style={{ borderRadius:14, overflow:'hidden', marginBottom:16, height:380 }}>
-                <WebView
-                  source={{ uri: 'https://dexscreener.com/solana/'+token.mint+'?embed=1&theme=dark&trades=0&info=0' }}
-                  style={{ flex:1, backgroundColor:'#161b22' }}
-                  startInLoadingState={true}
-                  renderLoading={() => (
-                    <View style={{ flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#161b22' }}>
-                      <ActivityIndicator color={'#39ff14'} />
-                      <Text style={{ color:'#888', fontSize:12, marginTop:8 }}>Loading chart...</Text>
-                    </View>
-                  )}
-                />
-              </View>
-              */}
-
-              {/* Action Buttons */}
-              <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
-                <TouchableOpacity onPress={() => setView('receive')}
-                  style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                  <Ionicons name="arrow-down-outline" size={24} color={C.text} />
-                  <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setView('send')}
-                  style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                  <Ionicons name="arrow-up-outline" size={24} color="#0d1117" />
-                  <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
+            <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
+              <TouchableOpacity onPress={() => setView('receive')}
+                style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                <Ionicons name="arrow-down-outline" size={24} color={C.text} />
+                <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setView('send')}
+                style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                <Ionicons name="arrow-up-outline" size={24} color="#0d1117" />
+                <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {view === 'receive' && (
@@ -354,45 +125,27 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               <TextInput value={sendAmt} onChangeText={setSendAmt}
                 placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric"
                 style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:20, fontWeight:'bold', marginBottom:24 }} />
-              <TouchableOpacity style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', opacity: sending ? 0.6 : 1 }}
-                disabled={sending}
-                onPress={async () => {
-                  if (!sendAddr.trim()) { Alert.alert('Error','Enter recipient address'); return; }
-                  if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Error','Enter a valid amount'); return; }
-                  setSending(true);
-                  try {
-                    await onSend(token.mint, sendAddr.trim(), sendAmt, token.symbol, token.decimals ?? 6);
-                    setSendAddr(''); setSendAmt(''); setView('main');
-                  } catch(e) { Alert.alert('Send failed', e.message || 'Unknown error'); }
-                  finally { setSending(false); }
-                }}>
-                {sending
-                  ? <ActivityIndicator color="#0d1117" />
-                  : <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Send {token.symbol}</Text>}
+              <TouchableOpacity style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}
+                onPress={() => Alert.alert('Send', `Send ${sendAmt} ${token.symbol} to ${sendAddr.slice(0,8)}...?`)}>
+                <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Send {token.symbol}</Text>
               </TouchableOpacity>
             </ScrollView>
           )}
 
         </View>
       </View>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 
-function TokLogo({uri, symbol, style, fallback, mint}: {uri:string, symbol:string, style:any, fallback?:string, mint?:string}) {
+function TokLogo({uri, symbol, style, fallback}: {uri:string, symbol:string, style:any, fallback?:string}) {
   const [tries, setTries] = React.useState(0);
-  const sources = [
-    uri,
-    fallback || '',
-    mint ? 'https://img.birdeye.so/icon/v1/?address='+mint : '',
-    mint ? 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/'+mint+'/logo.png' : '',
-  ].filter(Boolean);
+  const mint = uri.split('/').pop(); const proxy = 'https://chatfi.pro/api/portfolio?tokenImage=' + mint; const sources = [proxy, uri, fallback || ''].filter(Boolean);
   if(tries >= sources.length) return <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2a1a'}]}><Text style={{color:'#39ff14',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
   return <Image source={{uri:sources[tries]}} style={style} onError={()=>setTries(t=>t+1)} />;
 }
-function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, setAccounts, activeAccIdx, switchAccount, addAccount }: any) {
+function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount }: any) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
   React.useEffect(() => { setNameInput(userName || ''); }, [userName]);
@@ -401,10 +154,10 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:'90%', paddingBottom:72 }}>
+        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:'90%' }}>
 
           {view === 'main' && (
-            <ScrollView keyboardShouldPersistTaps='handled'>
+            <ScrollView>
               {/* Header */}
               <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <View style={{ width:48, height:48, borderRadius:24, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
@@ -423,7 +176,11 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
               <View style={{ flexDirection:'row', gap:12, padding:16 }}>
                 <TouchableOpacity onPress={() => setView('profile')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
                   <Ionicons name='person-outline' size={24} color={C.text} />
-                  <Text style={{ color:C.text, fontSize:13 }}  numberOfLines={1} adjustsFontSizeToFit>Profile</Text>
+                  <Text style={{ color:C.text, fontSize:13 }}>Profile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setView('settings')} style={{ flex:1, backgroundColor:'#1c2128', borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
+                  <Ionicons name='settings-outline' size={24} color={C.text} />
+                  <Text style={{ color:C.text, fontSize:13 }}>Settings</Text>
                 </TouchableOpacity>
               </View>
 
@@ -434,7 +191,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
               </View>
 
               {/* Accounts */}
-              <Text style={{ color:C.muted, fontSize:11, fontWeight:'600', paddingHorizontal:16, marginBottom:8, letterSpacing:1, paddingRight: 2, paddingRight: 2 }}>YOUR ACCOUNTS</Text>
+              <Text style={{ color:C.muted, fontSize:11, fontWeight:'600', paddingHorizontal:16, marginBottom:8, letterSpacing:1 }}>YOUR ACCOUNTS</Text>
               <View style={{ marginHorizontal:16, backgroundColor:'#1c2128', borderRadius:14, marginBottom:16 }}>
                 <View style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                   <View style={{ width:40, height:40, borderRadius:20, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
@@ -469,10 +226,10 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   <Text style={{ color:'#0d1117', fontSize:12, marginTop:4 }}>Generate a new wallet</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setView('importAccount')}
-                  style={{ backgroundColor:'#1c2128', borderRadius:14, padding:18, alignItems:'center', borderWidth:1, borderColor:'#30363d' }}>
+                  style={{ backgroundColor:'#1c2128', borderRadius:14, padding:18, alignItems:'center', borderWidth:1, borderColor:C.green }}>
                   <Ionicons name="download-outline" size={24} color={C.green} />
-                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:16 }}>Import Account</Text>
-                  <Text style={{ color:C.muted, fontSize:12, marginTop:4 }}>Import with seed phrase</Text>
+                  <Text style={{ color:C.green, fontWeight:'bold', fontSize:16 }}>Import Account</Text>
+                  <Text style={{ color:C.muted, fontSize:12, marginTop:4 }}>Use existing seed phrase</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -485,7 +242,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
                 </TouchableOpacity>
                 <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>Import Account</Text>
-                <TouchableOpacity onPress={() => setView('addAccount')}>
+                <TouchableOpacity onPress={onClose}>
                   <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
                 </TouchableOpacity>
               </View>
@@ -502,7 +259,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 />
                 <TouchableOpacity
                   onPress={async () => {
-                    const authed = await requireAuth(); if(!authed) return; const words = importSeedInput.trim().split(/\s+/);
+                    const words = importSeedInput.trim().split(/\s+/);
                     if (words.length !== 12 && words.length !== 24) {
                       Alert.alert('Invalid', 'Enter a valid 12 or 24 word seed phrase');
                       return;
@@ -534,7 +291,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 <TouchableOpacity onPress={() => setView('main')} style={{ marginRight:12 }}>
                   <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
                 </TouchableOpacity>
-                <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1, flexShrink:1, textAlign:'center' }}>Profile</Text>
+                <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>Profile</Text>
                 <TouchableOpacity onPress={onClose}>
                   <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
                 </TouchableOpacity>
@@ -555,25 +312,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:15, marginBottom:16 }}
                 />
                 <TouchableOpacity
-                  onPress={async () => {
-                      try {
-                        setUserName(nameInput);
-                        await AsyncStorage.setItem('user_name', nameInput);
-                        const raw = await AsyncStorage.getItem('accounts');
-                        if(raw){
-                          const accs = JSON.parse(raw);
-                          const idx = accs.findIndex((a:any) => a.publicKey === pubkey || a.address === pubkey);
-                          const target = idx >= 0 ? idx : activeAccIdx;
-                          if(accs[target]) accs[target].name = nameInput;
-                          setAccounts([...accs]);
-                          await AsyncStorage.setItem('accounts', JSON.stringify(accs));
-                        }
-                        Alert.alert('Saved!', 'Name saved!');
-                        setView('main');
-                      } catch(e:any) {
-                        Alert.alert('Error', e?.message || 'Failed to save name');
-                      }
-                    }}
+                  onPress={async () => { setUserName(nameInput); await AsyncStorage.setItem('user_name', nameInput); Alert.alert('Saved!', 'Name saved!'); setView('main'); }}
                   style={{ backgroundColor:C.green, borderRadius:12, padding:14, alignItems:'center' }}>
                   <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:15 }}>Save Name</Text>
                 </TouchableOpacity>
@@ -646,7 +385,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                 <Text style={{ color:C.text,flex:1,fontSize:15 }}>View Seed Phrase</Text>
                 <Text style={{ color:C.muted }}>›</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={()=>{ requireAuth().then(ok=>{ if(ok) Alert.alert('Remove Wallet','Are you sure?',[{text:'Cancel'},{text:'Remove',style:'destructive',onPress:onRemoveWallet}]); }); }}
+              <TouchableOpacity onPress={()=>{ Alert.alert('Remove Wallet','Are you sure?',[{text:'Cancel'},{text:'Remove',style:'destructive',onPress:onRemoveWallet}]); }}
                 style={{ flexDirection:'row', alignItems:'center', padding:16 }}>
                 <Text style={{ color:C.red,flex:1,fontSize:15 }}>Remove Wallet</Text>
                 <Text style={{ color:C.muted }}>›</Text>
@@ -655,7 +394,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
             </ScrollView>
           )}
 
-        </KeyboardAvoidingView>
+        </View>
       </View>
     </Modal>
   );
@@ -745,7 +484,7 @@ function DappBrowser({ walletAddress }) {
       {/* Main content */}
       {!activeUrl ? (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-          <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, paddingRight: 2, marginBottom: 12 }}>POPULAR DAPPS</Text>
+          <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 12 }}>POPULAR DAPPS</Text>
           {POPULAR_DAPPS.map((d, i) => (
             <TouchableOpacity key={i} onPress={() => navigate(d.url)}
               style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border }}>
@@ -773,31 +512,6 @@ function DappBrowser({ walletAddress }) {
               setUrl(s.url);
               setPageTitle(s.title);
             }}
-            injectedJavaScript={`
-              (function() {
-                const walletAddress = "${walletAddress || ''}";
-                if (!walletAddress) return;
-                const solanaWallet = {
-                  isPhantom: true,
-                  isChatFi: true,
-                  publicKey: { toString: () => walletAddress, toBase58: () => walletAddress },
-                  isConnected: true,
-                  connect: async () => ({ publicKey: { toString: () => walletAddress, toBase58: () => walletAddress } }),
-                  disconnect: async () => {},
-                  signTransaction: async (tx) => tx,
-                  signAllTransactions: async (txs) => txs,
-                  signMessage: async (msg) => ({ signature: new Uint8Array(64) }),
-                  on: (event, cb) => {},
-                  off: (event, cb) => {},
-                };
-                window.solana = solanaWallet;
-                window.phantom = { solana: solanaWallet };
-                window.dispatchEvent(new Event('load'));
-              })();
-              true;
-            `}
-            onMessage={() => {}}
-            javaScriptEnabled={true}
             style={{ flex: 1 }}
           />
         </View>
@@ -807,7 +521,7 @@ function DappBrowser({ walletAddress }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState('portfolio');
+  const [tab, setTab] = useState('chat');
   const [splashDone, setSplashDone] = useState(false);
   const [onboardStep, setOnboardStep] = useState<'passcode'|'fingerprint'|'wordcount'|'seedphrase'|'username'|null>(null);
   const [passcode, setPasscode] = useState('');
@@ -816,36 +530,20 @@ export default function App() {
   const [newPubkey, setNewPubkey] = useState('');
   const [onboardName, setOnboardName] = useState('');
   const [subtitleText, setSubtitleText] = useState('');
-  const letterAnims = React.useRef('CHATFI'.split('').map(() => new Animated.Value(0))).current;
+  const letterAnims = 'CHATFI'.split('').map(() => new Animated.Value(0));
   const [wallet, setWallet] = useState<string | null>(null);
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<{id:number,name:string,mnemonic:string,pubkey:string}[]>([]);
   const [activeAccIdx, setActiveAccIdx] = useState(0);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showSeedModal, setShowSeedModal] = useState(false);
-  const [securityEnabled, setSecurityEnabled] = useState(false);
-  const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
-  const [showLockScreen, setShowLockScreen] = useState(false);
-  const [lockInput, setLockInput] = useState('');
-  const [showSecurityModal, setShowSecurityModal] = useState(false);
-  const [changingPasscode, setChangingPasscode] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authInput, setAuthInput] = useState('');
-  const authResolveRef = useRef<((v:boolean)=>void)|null>(null);
-  const [showPrivKeyModal, setShowPrivKeyModal] = useState(false);
-  const [privKey, setPrivKey] = useState('');
   const [showSendModal, setShowSendModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
-  const [showAccDropdown, setShowAccDropdown] = useState(false);
   const [selectedToken, setSelectedToken] = useState<any>(null);
   const [userName, setUserName] = useState('');
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [accountView, setAccountView] = useState('main');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
-  const [showScanModal, setShowScanModal] = useState(false);
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const [privacyMode, setPrivacyMode] = useState(false);
-  const [scanResult, setScanResult] = useState('');
   const [seedPhrase, setSeedPhrase] = useState('');
   const [importSeed, setImportSeed] = useState('');
   const [msgs, setMsgs] = useState([
@@ -871,12 +569,6 @@ export default function App() {
   const [toResults, setToResults] = useState<any[]>([]);
   const [fromToken2, setFromToken2] = useState<{symbol:string,mint:string,logoURI?:string}>({symbol:'SOL',mint:'So11111111111111111111111111111111111111112'});
   const [toToken2, setToToken2] = useState<{symbol:string,mint:string,logoURI?:string}>({symbol:'USDC',mint:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'});
-
-  const [txHistory, setTxHistory] = useState<any[]>([]);
-  const [txLoading, setTxLoading] = useState(false);
-  const [showTxModal, setShowTxModal] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmData, setConfirmData] = useState<any>(null);
 
   // Toast system
   const [toast, setToast] = useState<{msg:string,type:'success'|'error'|'info'}|null>(null);
@@ -908,22 +600,17 @@ export default function App() {
       Animated.timing(anim, { toValue: 1, duration: 300, delay: i * 80, useNativeDriver: true })
     );
     Animated.stagger(120, anims).start(() => {
-      const full = 'DeFi, but conversational...';
-      let idx = 0;
-      const typer = setInterval(() => {
-        idx++;
-        setSubtitleText(full.slice(0, idx));
-        if(idx >= full.length){
-          clearInterval(typer);
-          setTimeout(async () => {
-            const stored = await AsyncStorage.getItem('accounts');
-            if (!stored) setOnboardStep('passcode');
-            const pc = await AsyncStorage.getItem('passcode');
-            if (pc) setShowLockScreen(true);
-            setSplashDone(true);
-          }, 800);
-        }
-      }, 50);
+      setTimeout(async () => {
+        const stored = await AsyncStorage.getItem('accounts');
+        if (!stored) setOnboardStep('passcode');
+      }, 400);
+    const full = 'DeFi, but conversational...';
+    let idx = 0;
+    const typer = setInterval(() => {
+      idx++;
+      setSubtitleText(full.slice(0, idx));
+      if(idx >= full.length){ clearInterval(typer); setTimeout(()=>setSplashDone(true), 1000); }
+    }, 60);
     });
   }, []);
 
@@ -936,10 +623,6 @@ export default function App() {
         const idx = idxRaw ? parseInt(idxRaw) : 0;
         setAccounts(accs); setActiveAccIdx(idx);
         if(accs[idx]){ setWallet(accs[idx].mnemonic); setPubkey(accs[idx].pubkey); }
-        const secOn = await AsyncStorage.getItem('security_enabled');
-        const fpOn = await AsyncStorage.getItem('fingerprint_enabled');
-        if(secOn==='true'){ setSecurityEnabled(true); setShowLockScreen(true); }
-        if(fpOn==='true'){ setFingerprintEnabled(true); }
       } else {
         if (!raw) AsyncStorage.getItem('wallet_mnemonic').then(m => {
           if(m){
@@ -956,40 +639,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (pubkey && tab === 'portfolio') { fetchPortfolio(); fetchTxHistory(); }
+    if (pubkey && tab === 'portfolio') fetchPortfolio();
   }, [pubkey, tab]);
 
   const addAccount = async () => {
     const w = generateWallet();
     const newAcc = {id:accounts.length+1,name:'Account '+(accounts.length+1),mnemonic:w.mnemonic,pubkey:w.publicKey};
     const updated = [...accounts, newAcc];
-    const newIdx = updated.length - 1;
     setAccounts(updated);
-    setActiveAccIdx(newIdx);
-    setWallet(w.mnemonic);
-    setPubkey(w.publicKey);
     await AsyncStorage.setItem('accounts', JSON.stringify(updated));
-    await AsyncStorage.setItem('active_acc', String(newIdx));
     showToast('Account '+(accounts.length+1)+' added!','success');
   };
-  // Lock app when it goes to background
-  React.useEffect(() => {
-    const sub = AppState.addEventListener('change', async (state) => {
-      if (state === 'background' || state === 'inactive') {
-        const stored = await AsyncStorage.getItem('passcode');
-        const lockEnabled = await AsyncStorage.getItem('appLockEnabled');
-        if (stored && lockEnabled === 'true') {
-          setLockInput('');
-          setShowLockScreen(true);
-        }
-      }
-    });
-    return () => sub.remove();
-  }, []);
-
   const switchAccount = async (idx:number) => {
     const acc = accounts[idx];
-    if(acc.name) setUserName(acc.name);
     setActiveAccIdx(idx); setWallet(acc.mnemonic); setPubkey(acc.pubkey);
     await AsyncStorage.setItem('active_acc', String(idx));
     await AsyncStorage.setItem('wallet_mnemonic', acc.mnemonic);
@@ -998,14 +660,6 @@ export default function App() {
     if (!pubkey) return;
     setPortfolioLoading(true);
     try {
-      let verifiedMints = new Set<string>();
-      try {
-        const vr = await fetch('https://tokens.jup.ag/tokens?tags=verified');
-        const vd = await vr.json();
-        verifiedMints = new Set(
-          Array.isArray(vd) ? vd.map((x: any) => typeof x === 'string' ? x : (x.address || x.mint)).filter(Boolean) : []
-        );
-      } catch(e) {}
       const res = await fetch('https://chatfi.pro/api/portfolio?wallet=' + pubkey);
       const data = await res.json();
       if (data.tokens) {
@@ -1014,27 +668,14 @@ export default function App() {
           name: t.name || t.symbol,
           mint: t.mint,
           amount: t.amount,
-          logoURI: t.logoURI || 'https://img.jup.ag/tokens/'+t.mint,
+          logoURI: t.logoURI || '',
           price: t.price || 0,
-          isVerified: t.isVerified || verifiedMints.has(t.mint) || false,
+          isVerified: t.isVerified || false,
         }));
         const sol = tokens.find((t:any) => t.symbol === 'SOL');
         setSolBalance(sol?.amount || 0);
         setSolPrice(sol?.price || 0);
         setTokenBalances(tokens);
-        // Fetch logos for tokens missing them
-        const missingLogo = tokens.filter((t:any) => !t.logoURI || t.logoURI.includes('img.jup.ag/tokens/'+t.mint));
-        if (missingLogo.length > 0) {
-          missingLogo.forEach(async (t:any) => {
-            try {
-              const r = await fetch('https://api.jup.ag/tokens/v1/token/'+t.mint);
-              const d = await r.json();
-              if (d.logoURI) {
-                setTokenBalances(prev => prev.map(tok => tok.mint === t.mint ? {...tok, logoURI: d.logoURI} : tok));
-              }
-            } catch(e) {}
-          });
-        }
       }
       try {
         const mints=data.tokens.map((t:any)=>t.mint).filter(Boolean).join(",");
@@ -1068,43 +709,19 @@ export default function App() {
   };
 
   const confirmSeed = async () => {
-    if (onboardStep) {
-      // During onboarding - just move to next step, account created at username step
-      setNewSeedPhrase(seedPhrase);
-      setNewPubkey(getPublicKey(seedPhrase));
-      setShowSeedModal(false);
-      setOnboardStep('username');
-    } else {
-      // From settings - add as new account
-      const pk = getPublicKey(seedPhrase);
-      const raw = await AsyncStorage.getItem('accounts');
-      const existing = raw ? JSON.parse(raw) : [];
-      const newAcc = {id: existing.length+1, name:'Account '+(existing.length+1), mnemonic:seedPhrase, pubkey:pk};
-      const updated = [...existing, newAcc];
-      setAccounts(updated);
-      await AsyncStorage.setItem('accounts', JSON.stringify(updated));
-      await AsyncStorage.setItem('active_acc', String(existing.length));
-      setWallet(seedPhrase);
-      setPubkey(pk);
-      setShowSeedModal(false);
-      setShowWalletModal(false);
-      showToast('Wallet created! Keep seed phrase safe.','success');
-    }
-  };
-
-  const requireAuth = (): Promise<boolean> => {
-    if (!securityEnabled) return Promise.resolve(true);
-    return new Promise(async (resolve) => {
-      if (fingerprintEnabled) {
-        try {
-          const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Authenticate to continue', cancelLabel: 'Cancel' });
-          if (res.success) { resolve(true); return; }
-        } catch(e) {}
-      }
-      authResolveRef.current = resolve;
-      setAuthInput('');
-      setShowAuthModal(true);
-    });
+    const pk = getPublicKey(seedPhrase);
+    const raw = await AsyncStorage.getItem('accounts');
+    const existing = raw ? JSON.parse(raw) : [];
+    const newAcc = {id: existing.length+1, name:'Account '+(existing.length+1), mnemonic:seedPhrase, pubkey:pk};
+    const updated = [...existing, newAcc];
+    setAccounts(updated);
+    await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+    await AsyncStorage.setItem('active_acc', String(existing.length));
+    setWallet(seedPhrase);
+    setPubkey(pk);
+    setShowSeedModal(false);
+    setShowWalletModal(false);
+    showToast('Wallet created! Keep seed phrase safe.','success');
   };
 
   const importWallet = async () => {
@@ -1120,7 +737,6 @@ export default function App() {
       const newAcc2 = {id: existing2.length+1, name:'Account '+(existing2.length+1), mnemonic:importSeed.trim(), pubkey:pk};
       const updated2 = [...existing2, newAcc2];
       setAccounts(updated2);
-      setActiveAccIdx(existing2.length);
       await AsyncStorage.setItem('accounts', JSON.stringify(updated2));
       await AsyncStorage.setItem('active_acc', String(existing2.length));
       setWallet(importSeed.trim()); setPubkey(pk);
@@ -1130,12 +746,11 @@ export default function App() {
   };
 
   const sendMsg = async (overrideText?: string) => {
-    const q = (overrideText || inputRef.current || input).trim();
+    const q = (overrideText || input).trim();
     if (!q || aiLoading) return;
     setMsgs(p => [...p, { id: Date.now(), text: q, from: 'user' }]);
     const msgText = q;
     setInput('');
-    inputRef.current = '';
     setAiLoading(true);
     try {
       const response = await askAI(q, pubkey);
@@ -1155,7 +770,7 @@ export default function App() {
     }
     try {
       const { publicKey: pk, secretKey } = deriveWallet(wallet!);
-      const RPC_URL = process.env.EXPO_PUBLIC_SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
+      const RPC_URL = 'https://api.mainnet-beta.solana.com';
 
       switch (action) {
         case 'SWAP': {
@@ -1227,410 +842,94 @@ export default function App() {
           setShowSendModal(true);
           break;
         }
-        case 'SHOW_LOCK': {
-          const { token, amount, days } = data;
-          if (!token || !amount || !days) {
-            setMsgs(p => [...p, { id: Date.now(), text: 'Please specify token, amount and days to lock. Example: lock 100 JUP for 30 days', from: 'bot' }]);
-            break;
-          }
-          const mint = TOKENS[token];
-          if (!mint) { setMsgs(p => [...p, { id: Date.now(), text: `Unknown token: ${token}`, from: 'bot' }]); break; }
-          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Locking ${amount} ${token} for ${days} days...`, from: 'bot' }]);
-          try {
-            const cliffSecs = parseInt(days) * 86400;
-            const amtRaw = Math.floor(parseFloat(amount) * Math.pow(10, DECIMALS[token] || 6));
-            const lockRes = await fetch('https://chatfi.pro/api/lock', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'create', funder: pk, mint, amount: amtRaw, cliffSecs, vestingSecs: cliffSecs })
-            });
-            const lockData = await lockRes.json();
-            if (lockData.error) throw new Error(lockData.error);
-            const txSig = await signAndSendTx(lockData.transaction, secretKey);
-            setMsgs(p => [...p, { id: Date.now(), text: `✅ Locked ${amount} ${token} for ${days} days!\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Lock failed: ${e.message}`, from: 'bot' }]); }
-          break;
-        }
-        case 'SHOW_EARN': {
-          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your earn positions...', from: 'bot' }]);
-          try {
-            const earnRes = await fetch(`https://chatfi.pro/api/lend-positions?wallet=${pk}`);
-            const earnData = await earnRes.json();
-            if (earnData.error) throw new Error(earnData.error);
-            const positions = earnData.positions || [];
-            if (positions.length === 0) {
-              setMsgs(p => [...p, { id: Date.now(), text: 'No active earn positions found.\nTo start earning, deposit tokens on jup.ag/earn', from: 'bot' }]);
-            } else {
-              const posText = positions.map((p:any) => `• ${p.symbol}: $${p.valueUSD?.toFixed(2)} @ ${p.apy?.toFixed(2)}% APY`).join('\n');
-              setMsgs(p => [...p, { id: Date.now(), text: `📈 Your Earn Positions:\n${posText}`, from: 'bot' }]);
-            }
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch earn positions: ${e.message}`, from: 'bot' }]); }
-          break;
-        }
+        case 'SHOW_EARN':
+        case 'SHOW_LOCK':
         case 'SHOW_STUDIO': {
-          const { name, symbol, supply, decimals: dec, description } = data;
-          if (!name || !symbol || !supply) {
-            let prompt = '🎨 Jupiter Studio — Create a Token\n\n';
-            if (name) prompt += `Name: ${name}\n`; else prompt += '• What is the token name?\n';
-            if (symbol) prompt += `Symbol: ${symbol}\n`; else prompt += '• What is the token symbol? (e.g. MTK)\n';
-            if (supply) prompt += `Supply: ${supply}\n`; else prompt += '• What is the total supply? (e.g. 1000000000)\n';
-            if (!dec) prompt += '• Decimals? (default 9)\n';
-            if (!description) prompt += '• Short description?\n';
-            prompt += '\nReply with all details and I will create it.';
-            setMsgs(p => [...p, { id: Date.now(), text: prompt, from: 'bot' }]);
-            break;
-          }
-          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Creating token ${name} (${symbol})...`, from: 'bot' }]);
-          try {
-            const studioRes = await fetch('https://chatfi.pro/api/studio', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name, symbol, supply: parseInt(supply), decimals: parseInt(dec || '9'), description: description || '', creator: pk })
-            });
-            const studioData = await studioRes.json();
-            if (studioData.error) throw new Error(studioData.error);
-            if (studioData.transaction) {
-              const txSig = await signAndSendTx(studioData.transaction, secretKey);
-              setMsgs(p => [...p, { id: Date.now(), text: `✅ Token created!\nName: ${name} (${symbol})\nSupply: ${supply}\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
-            } else {
-              setMsgs(p => [...p, { id: Date.now(), text: `✅ Token ${name} (${symbol}) submitted!\n${studioData.message || 'Check Jupiter Studio for status.'}`, from: 'bot' }]);
-            }
-          } catch(e: any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Token creation failed: ${e.message}`, from: 'bot' }]); }
+          const labels: Record<string, string> = {
+            SHOW_EARN: 'Jupiter Earn',
+            SHOW_LOCK: 'Jupiter Lock',
+            SHOW_STUDIO: 'Jupiter Studio'
+          };
+          setMsgs(p => [...p, { id: Date.now(), text: `Opening ${labels[action]} — visit jup.ag for full access.`, from: 'bot' }]);
           break;
         }
-
-        case 'BASKET_SWAP': {
-          const trades = data.trades || [];
-          if (!trades.length) { setMsgs(p => [...p, { id: Date.now(), text: 'No trades specified.', from: 'bot' }]); break; }
-          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Preparing ${trades.length} swap${trades.length>1?'s':''}...`, from: 'bot' }]);
-          let done = 0, failed = 0;
-          for (const t of trades) {
-            const from = (t.from||'USDC').toUpperCase();
-            const to = (t.to||'SOL').toUpperCase();
-            const amount = t.amount || t.amountUSD;
-            if (!TOKENS[from] || !TOKENS[to] || !amount) { failed++; continue; }
-            try {
-              const txSig = await executeSwapTx(TOKENS[from], TOKENS[to], parseFloat(amount), DECIMALS[from]||6, pk, secretKey, RPC_URL);
-              setMsgs(p => [...p, { id: Date.now(), text: `✅ ${from}→${to}: ${txSig.slice(0,16)}...
-https://solscan.io/tx/${txSig}`, from: 'bot' }]);
-              done++;
-            } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ ${from}→${to} failed: ${e.message}`, from: 'bot' }]); failed++; }
-          }
-          setMsgs(p => [...p, { id: Date.now(), text: `Basket done: ${done} succeeded, ${failed} failed`, from: 'bot' }]);
-          fetchPortfolio();
+        default:
           break;
-        }
-
-        case 'SWAP_ALL_WALLET': {
-          const to = (data.to||'USDC').toUpperCase();
-          const exclude = (data.exclude||[]).map((s:string)=>s.toUpperCase());
-          exclude.push(to);
-          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Swapping all wallet tokens to ${to}...`, from: 'bot' }]);
-          // Fetch portfolio then swap each token
-          try {
-            const rpcConn = { url: RPC_URL };
-            const balRes = await fetch(`https://lite-api.jup.ag/ultra/v1/balances/${pk}`);
-            const balData = await balRes.json();
-            const tokens = Object.entries(balData?.tokenBalances||{}) as [string,any][];
-            let done = 0, failed = 0;
-            for (const [mint, bal] of tokens) {
-              if (!bal?.uiAmount || bal.uiAmount <= 0) continue;
-              const sym = Object.entries(TOKENS).find(([s,m])=>m===mint)?.[0];
-              if (!sym || exclude.includes(sym.toUpperCase())) continue;
-              try {
-                const txSig = await executeSwapTx(mint, TOKENS[to], bal.uiAmount, bal.decimals||6, pk, secretKey, RPC_URL);
-                setMsgs(p => [...p, { id: Date.now(), text: `✅ ${sym}→${to}: ${txSig.slice(0,16)}...
-https://solscan.io/tx/${txSig}`, from: 'bot' }]);
-                done++;
-              } catch(e:any) { failed++; }
-            }
-            setMsgs(p => [...p, { id: Date.now(), text: `Done: ${done} swapped, ${failed} failed`, from: 'bot' }]);
-            fetchPortfolio();
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed: ${e.message}`, from: 'bot' }]); }
-          break;
-        }
-
-        case 'FETCH_LOCKS': {
-          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your token locks...', from: 'bot' }]);
-          try {
-            const lockRes = await fetch(`https://chatfi.pro/api/lock?wallet=${pk}`);
-            const lockData = await lockRes.json();
-            const locks = lockData.locks || lockData.positions || [];
-            if (!locks.length) {
-              setMsgs(p => [...p, { id: Date.now(), text: '🔒 No active locks found.\nUse "lock 100 JUP for 30 days" to create one.', from: 'bot' }]);
-            } else {
-              const txt = locks.map((l:any) => {
-                const sym = l.symbol || l.token || '?';
-                const amt = l.amount || l.lockedAmount || '?';
-                const cliff = l.cliffDays || l.cliff || '?';
-                const vesting = l.vestingDays || l.vesting || '?';
-                const claimable = l.claimableAmount ? `\n  Claimable: ${l.claimableAmount}` : '';
-                return `• ${amt} ${sym}\n  Cliff: ${cliff}d · Vesting: ${vesting}d${claimable}`;
-              }).join('\n\n');
-              setMsgs(p => [...p, { id: Date.now(), text: `🔒 Your Token Locks:\n\n${txt}`, from: 'bot' }]);
-            }
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch locks: ${e.message}`, from: 'bot' }]); }
-          break;
-        }
-
-        case 'FETCH_TRIGGER_ORDERS': {
-          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your limit orders...', from: 'bot' }]);
-          try {
-            const trigRes = await fetch(`https://trigger.jup.ag/v1/orders?wallet=${pk}&status=active`);
-            const trigData = await trigRes.json();
-            const orders = trigData.orders || trigData || [];
-            if (!orders.length) {
-              setMsgs(p => [...p, { id: Date.now(), text: 'No active limit orders. Say "buy SOL when price drops below $140" to create one.', from: 'bot' }]);
-            } else {
-              const txt = orders.slice(0,10).map((o:any) => {
-                const inSym = o.inputMint?.slice(0,6) || '?';
-                const outSym = o.outputMint?.slice(0,6) || '?';
-                const amt = o.inAmount ? (parseFloat(o.inAmount)/1e6).toFixed(2) : '?';
-                const price = o.triggerPrice || o.price || '?';
-                return `• ${amt} ${inSym}→${outSym} @ $${price}`;
-              }).join('
-');
-              setMsgs(p => [...p, { id: Date.now(), text: `📋 Active Limit Orders:
-${txt}`, from: 'bot' }]);
-            }
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch orders: ${e.message}`, from: 'bot' }]); }
-          break;
-        }
-
-        case 'FETCH_RECURRING_ORDERS': {
-          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your DCA orders...', from: 'bot' }]);
-          try {
-            const dcaRes = await fetch(`https://dca.jup.ag/v2/dca?user=${pk}&status=active`);
-            const dcaData = await dcaRes.json();
-            const orders = dcaData.dcaAccounts || dcaData || [];
-            if (!orders.length) {
-              setMsgs(p => [...p, { id: Date.now(), text: '📅 No active DCA orders.
-Say "DCA $10 USDC to SOL daily for 7 days" to create one.', from: 'bot' }]);
-            } else {
-              const txt = orders.slice(0,10).map((o:any) => {
-                const inSym = o.inputMint?.slice(0,6) || '?';
-                const outSym = o.outputMint?.slice(0,6) || '?';
-                const amt = o.inAmountPerCycle ? (parseFloat(o.inAmountPerCycle)/1e6).toFixed(2) : '?';
-                const interval = o.cycleFrequency === 86400 ? 'daily' : o.cycleFrequency === 3600 ? 'hourly' : `every ${o.cycleFrequency}s`;
-                const remaining = o.remainingCycles || '?';
-                return `• ${amt} ${inSym}→${outSym} ${interval} · ${remaining} left`;
-              }).join('
-');
-              setMsgs(p => [...p, { id: Date.now(), text: `📅 Active DCA Orders:
-${txt}`, from: 'bot' }]);
-            }
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch DCA orders: ${e.message}`, from: 'bot' }]); }
-          break;
-        }
-
-        case 'FETCH_STUDIO_FEES': {
-          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your creator fees...', from: 'bot' }]);
-          try {
-            const feeRes = await fetch(`https://chatfi.pro/api/studio/fees?wallet=${pk}`);
-            const feeData = await feeRes.json();
-            if (feeData.error) throw new Error(feeData.error);
-            const fees = feeData.fees || [];
-            if (!fees.length) {
-              setMsgs(p => [...p, { id: Date.now(), text: '🎨 No creator fees found for your wallet.', from: 'bot' }]);
-            } else {
-              const txt = fees.map((f:any) => `• ${f.symbol || '?'}: ${f.amount || '?'} ($${f.valueUSD?.toFixed(2)||'?'})`).join('
-');
-              setMsgs(p => [...p, { id: Date.now(), text: `🎨 Your Creator Fees:
-${txt}`, from: 'bot' }]);
-            }
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch creator fees: ${e.message}`, from: 'bot' }]); }
-          break;
-        }
-
-        case 'FETCH_SEND_HISTORY': {
-          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your send history...', from: 'bot' }]);
-          try {
-            const sendRes = await fetch(`https://chatfi.pro/api/send-history?wallet=${pk}`);
-            const sendData = await sendRes.json();
-            const history = sendData.history || [];
-            if (!history.length) {
-              setMsgs(p => [...p, { id: Date.now(), text: '📨 No send history found.', from: 'bot' }]);
-            } else {
-              const txt = history.slice(0,10).map((h:any) => `• ${h.amount} ${h.token} — ${h.status||'?'}
-  ${h.tx?.slice(0,20)||''}...`).join('
-
-');
-              setMsgs(p => [...p, { id: Date.now(), text: `📨 Send History:
-
-${txt}`, from: 'bot' }]);
-            }
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch send history: ${e.message}`, from: 'bot' }]); }
-          break;
-        }
-
-        case 'FETCH_PERPS_POSITIONS':
-        case 'SHOW_PERPS': {
-          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your perpetuals positions...', from: 'bot' }]);
-          try {
-            const perpRes = await fetch(`https://lite-api.jup.ag/perps/v1/positions?wallet=${pk}`);
-            const perpData = await perpRes.json();
-            const positions = perpData.positions || perpData || [];
-            if (!positions.length) {
-              setMsgs(p => [...p, { id: Date.now(), text: '📊 No open perps positions.
-Say "open 5x long SOL perp with 10 USDC" to start.', from: 'bot' }]);
-            } else {
-              const txt = positions.map((p:any) => {
-                const side = p.side || '?';
-                const market = p.market || p.symbol || '?';
-                const size = p.sizeUsd ? `$${parseFloat(p.sizeUsd).toFixed(2)}` : '?';
-                const pnl = p.unrealizedPnl ? `PnL: $${parseFloat(p.unrealizedPnl).toFixed(2)}` : '';
-                const lev = p.leverage ? `${parseFloat(p.leverage).toFixed(1)}x` : '';
-                return `• ${side.toUpperCase()} ${market} ${lev}
-  Size: ${size} ${pnl}`;
-              }).join('\n\n');
-              setMsgs(p => [...p, { id: Date.now(), text: `📊 Your Perps Positions:
-
-${txt}`, from: 'bot' }]);
-            }
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch perps: ${e.message}`, from: 'bot' }]); }
-          break;
-        }
-
-        case 'SET_PRICE_ALERT': {
-          const alertToken = (data.token||'SOL').toUpperCase();
-          const alertCond = data.condition||'below';
-          const alertPrice = parseFloat(data.price||data.triggerPrice||0);
-          if (!alertPrice) { setMsgs(p => [...p, { id: Date.now(), text: 'Please specify a price. Example: alert me when SOL drops below $140', from: 'bot' }]); break; }
-          setMsgs(p => [...p, { id: Date.now(), text: `🔔 Price alert set!
-${alertToken} ${alertCond} $${alertPrice}
-I will notify you in chat when it triggers.`, from: 'bot' }]);
-          break;
-        }
-
-        case 'CHAINED_ACTIONS': {
-          const steps = data.steps || [];
-          if (!steps.length) { setMsgs(p => [...p, { id: Date.now(), text: 'No steps found in chain.', from: 'bot' }]); break; }
-          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Executing ${steps.length} actions in sequence...`, from: 'bot' }]);
-          for (let i = 0; i < steps.length; i++) {
-            const step = steps[i];
-            setMsgs(p => [...p, { id: Date.now(), text: `▶ Step ${i+1}/${steps.length}: ${step.action?.replace(/_/g,' ').toLowerCase()}...`, from: 'bot' }]);
-            await new Promise(r => setTimeout(r, 600));
-            await dispatchAction(step.action, step.actionData || {});
-          }
-          break;
-        }
-
-        case 'FETCH_TOKEN_INFO': {
-          const sym = (data.symbol||data.token||'').toUpperCase();
-          if (!sym) { setMsgs(p => [...p, { id: Date.now(), text: 'Please specify a token symbol.', from: 'bot' }]); break; }
-          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Fetching info for ${sym}...`, from: 'bot' }]);
-          try {
-            const mint = TOKENS[sym];
-            const infoRes = await fetch(`https://lite-api.jup.ag/tokens/v1/token/${mint||sym}`);
-            const info = await infoRes.json();
-            if (!info?.address) throw new Error('Token not found');
-            const priceRes = await fetch(`https://lite-api.jup.ag/price/v2?ids=${info.address}`);
-            const priceData = await priceRes.json();
-            const price = priceData?.[info.address]?.price || priceData?.data?.[info.address]?.price;
-            let msg = `🪙 ${info.name} (${info.symbol})
-`;
-            msg += `Mint: ${info.address?.slice(0,20)}...
-`;
-            if (price) msg += `Price: $${parseFloat(price).toFixed(6)}
-`;
-            if (info.decimals != null) msg += `Decimals: ${info.decimals}
-`;
-            if (info.tags?.length) msg += `Tags: ${info.tags.slice(0,3).join(', ')}
-`;
-            setMsgs(p => [...p, { id: Date.now(), text: msg, from: 'bot' }]);
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch token info: ${e.message}`, from: 'bot' }]); }
-          break;
-        }
       }
-    } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Error: ${e.message}`, from: 'bot' }]); }
+    } catch (e: any) {
+      setMsgs(p => [...p, { id: Date.now(), text: `❌ ${e.message || 'Action failed'}`, from: 'bot' }]);
+    }
   };
 
-  const parseTx = (tx:any, sig:any, myPk:string) => {
-    if (!tx) return null;
-    const time = sig.blockTime ? new Date(sig.blockTime*1000).toLocaleString() : "—";
-    const keys:string[] = (tx.transaction?.message?.accountKeys||[]).map((k:any)=>typeof k==="string"?k:k.pubkey);
-    const isSwap = keys.includes("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
-    let type="UNKNOWN",amount="",token="SOL";
-    if (isSwap) {
-      type="SWAP";
-      const pre=tx.meta?.preTokenBalances||[], post=tx.meta?.postTokenBalances||[];
-      for (const pb of post) { if(pb.owner===myPk){const prev=pre.find((p:any)=>p.accountIndex===pb.accountIndex); const d=parseFloat(pb.uiTokenAmount.uiAmountString||"0")-(prev?parseFloat(prev.uiTokenAmount.uiAmountString||"0"):0); if(d>0){amount="+"+d.toFixed(4);token=pb.mint.slice(0,6)+"..";break;} } }
-    } else {
-      const idx=keys.indexOf(myPk);
-      if(idx>=0&&tx.meta){const d=((tx.meta.postBalances?.[idx]||0)-(tx.meta.preBalances?.[idx]||0))/1e9; if(Math.abs(d)>0.000001){type=d>0?"RECEIVE":"SEND";amount=(d>0?"+":"")+d.toFixed(5)+" SOL";}}
-      const pre=tx.meta?.preTokenBalances||[], post=tx.meta?.postTokenBalances||[];
-      for (const pb of post) { if(pb.owner===myPk){const prev=pre.find((p:any)=>p.accountIndex===pb.accountIndex); const d=parseFloat(pb.uiTokenAmount.uiAmountString||"0")-(prev?parseFloat(prev.uiTokenAmount.uiAmountString||"0"):0); if(Math.abs(d)>0){type=d>0?"RECEIVE":"SEND";amount=(d>0?"+":"")+d.toFixed(4);token=pb.mint.slice(0,6)+"..";}}
-      }
-    }
-    let mint = '';
-    if (token === 'SOL') mint = 'So11111111111111111111111111111111111111112';
-    else {
-      const allPost = tx.meta?.postTokenBalances||[];
-      const pb = allPost.find((p:any)=>p.owner===myPk);
-      if (pb) mint = pb.mint;
-    }
-    return {sig:sig.signature,time,failed:!!sig.err,type,amount,token,mint};
-  };
-
-  const fetchTxHistory = async () => {
-    if (!pubkey) return;
-    setTxLoading(true);
+  const fetchQuote = async () => {
+    if (!amt || isNaN(parseFloat(amt))) { showToast('Invalid amount','error'); return; }
+    if (fromToken === toToken) { showToast('Select different tokens','error'); return; }
+    setQuoteLoading(true);
+    setQuote(null);
     try {
-      const sr = await rpcFetch("getSignaturesForAddress",[pubkey,{limit:20}]);
-      const sigs = Array.isArray(sr.result) ? sr.result : (sr.result?.value || []);
-      const results = await Promise.allSettled(sigs.map(async(sig:any)=>{
-        const r=await rpcFetch("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
-        const tx = r.result || r.result?.value || null;
-        return parseTx(tx,sig,pubkey);
-      }));
-      setTxHistory(results.filter((r:any)=>r.status==="fulfilled"&&r.value).map((r:any)=>r.value));
-    } catch(e){console.error(e);} finally{setTxLoading(false);}
+      const q = await getJupiterQuote(fromToken, toToken, parseFloat(amt));
+      setQuote(q);
+    } catch { showToast('Failed to fetch quote','error'); }
+    setQuoteLoading(false);
+  };
+
+  const executeSwap = async () => {
+    if (!wallet) { showToast('Create or connect a wallet first','error'); return; }
+    if (!quote) { showToast('Get a quote first before swapping','error'); return; }
+    try {
+      const { mnemonic, publicKey: pk, secretKey } = deriveWallet(wallet);
+      const RPC = 'https://api.mainnet-beta.solana.com';
+      showToast(`Swapping ${fromToken} → ${toToken}...`,'info');
+      const txSig = await executeSwapTx(
+        TOKENS[fromToken], TOKENS[toToken],
+        parseFloat(swapAmt), DECIMALS[fromToken] || 6,
+        pk, secretKey, RPC
+      );
+      showToast('Swap complete! ✓','success');
+      fetchPortfolio();
+    } catch (e) {
+      showToast('Swap failed: '+(e.message||'Unknown error'),'error');
+    }
   };
 
   const searchJupTokens = async (query: string, setResults: any) => {
     if (!query || query.length < 1) { setResults([]); return; }
     try {
-      const res = await fetch('https://chatfi.pro/api/jupiter', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({url: 'https://api.jup.ag/tokens/v2/search?query=' + encodeURIComponent(query) + '&limit=6', method: 'GET'})
-      });
+      const res = await fetch('https://api.jup.ag/tokens/v2/search?query=' + encodeURIComponent(query) + '&limit=6');
       const data = await res.json();
-      const tokens = (Array.isArray(data) ? data : (data.tokens || [])).map((t:any) => ({...t, address: t.id || t.address, logoURI: t.logoURI || t.icon || ''}));
-      setResults(tokens);
-      // Force fetch logos for tokens missing them
-      tokens.forEach(async (t:any) => {
-        if (!t.logoURI && (t.address || t.id)) {
-          try {
-            const lr = await fetch('https://lite-api.jup.ag/tokens/v1/token/' + (t.address || t.id));
-            const ld = await lr.json();
-            if (ld.logoURI) {
-              setResults((prev:any) => prev.map((p:any) => (p.address||p.id) === (t.address||t.id) ? {...p, logoURI: ld.logoURI} : p));
-            }
-          } catch(e) {}
-        }
-      });
+      setResults(Array.isArray(data) ? data : (data.tokens || []));
     } catch { setResults([]); }
   };
 
   const sendTokens = async () => {
     if (!sendTo || !sendTo.trim()) { showToast('Enter a recipient address','error'); return; }
     if (!sendAmt || isNaN(parseFloat(sendAmt))) { showToast('Enter a valid amount','error'); return; }
-    const authed = await requireAuth();
-    if (!authed) return;
     setSendLoading(true);
     try {
-      const { secretKey, publicKey: pk } = deriveWallet(wallet);
-      const tokenInfo = tokenBalances.find(t => t.symbol === sendToken);
-      const mint = tokenInfo?.mint || TOKENS[sendToken] || TOKENS['SOL'];
-      const decimals = DECIMALS[sendToken] ?? tokenInfo?.decimals ?? 9;
+      const { secretKey } = deriveWallet(wallet);
+      const mint = TOKENS[sendToken] || TOKENS['SOL'];
+      const decimals = DECIMALS[sendToken] ?? 9;
       const amountNum = Math.round(parseFloat(sendAmt) * Math.pow(10, decimals));
-      let txSig: string;
-      if (sendToken === "SOL") {
-        txSig = await _sendSOL(pk, secretKey, sendTo.trim(), amountNum);
-      } else {
-        txSig = await _sendSPL(pk, secretKey, sendTo.trim(), amountNum, mint);
-      }
+      const res = await fetch('https://chatfi.pro/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender: pk, recipient: sendTo.trim(), amount: String(amountNum), mint }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.tx) throw new Error(data.error || 'Failed to build transaction');
+      const txBytes = Uint8Array.from(Buffer.from(data.tx, 'base64'));
+      const numSigs = txBytes[0];
+      const msgBytes = txBytes.slice(1 + numSigs * 64);
+      const userSig = nacl.sign.detached(msgBytes, secretKey);
+      txBytes.set(userSig, 1);
+      const txB64 = Buffer.from(txBytes).toString('base64');
+      const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [txB64, { encoding: 'base64', preflightCommitment: 'confirmed' }] }),
+      });
+      const rpcData = await rpcRes.json();
+      if (rpcData.error) throw new Error(rpcData.error.message);
       showToast(`Sent ${sendAmt} ${sendToken} ✓`,'success');
       setShowSendModal(false); setSendAmt(''); setSendTo('');
     } catch (e) {
@@ -1651,16 +950,17 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
   if (!splashDone) {
     return (
       <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' }}>
-        <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 4 }}>
           {'CHATFI'.split('').map((letter, i) => (
             <Animated.Text key={i} style={{
               fontSize: 48, fontWeight: 'bold', color: '#C7F284',
               opacity: letterAnims[i],
               transform: [{ translateY: letterAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+              textShadowColor: '#39FF82', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12
             }}>{letter}</Animated.Text>
           ))}
         </View>
-        <Text style={{ color: '#888', fontSize: 14, marginTop: 12, textAlign: 'center', paddingHorizontal: 32, flexWrap: 'wrap', width: '100%' }}>{subtitleText}</Text>
+        <Text style={{ color: '#888', fontSize: 14, marginTop: 12, letterSpacing: 1 }}>{subtitleText}</Text>
       </View>
     );
   }
@@ -1673,58 +973,9 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
         <SafeAreaView style={{flex:1}}>{children}</SafeAreaView>
       </View>
     );
-    if (showLockScreen) {
-      const tryFp = async () => {
-        try {
-          const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock ChatFi', cancelLabel: 'Use Passcode' });
-          if (res.success) { setShowLockScreen(false); setLockInput(''); }
-        } catch(e) {}
-      };
-      const handleKey = async (k: string) => {
-        if(k==='x'){setLockInput('');return;}
-        if(k==='<'){setLockInput(p=>p.slice(0,-1));return;}
-        if(lockInput.length<6){
-          const np=lockInput+k; setLockInput(np);
-          if(np.length===6){
-            const stored=await AsyncStorage.getItem('passcode');
-            if(np===stored){setShowLockScreen(false);setLockInput('');}
-            else{setLockInput('');showToast('Wrong passcode','error');}
-          }
-        }
-      };
-      return (
-        <View style={{flex:1,backgroundColor:C.bg,alignItems:'center',justifyContent:'center',padding:32}}>
-          <StatusBar barStyle="light-content" backgroundColor={C.bg}/>
-          <Text style={{color:C.green,fontSize:36,fontWeight:'bold',marginBottom:6}}>ChatFi</Text>
-          <Text style={{color:C.muted,fontSize:14,marginBottom:48}}>Enter passcode to unlock</Text>
-          <View style={{flexDirection:'row',gap:16,marginBottom:48}}>
-            {[0,1,2,3,4,5].map(i=>(
-              <View key={i} style={{width:16,height:16,borderRadius:8,backgroundColor:lockInput.length>i?C.green:C.border}}/>
-            ))}
-          </View>
-          {[[1,2,3],[4,5,6],[7,8,9],['x',0,'<']].map((row,ri)=>(
-            <View key={ri} style={{flexDirection:'row',gap:16,marginBottom:16}}>
-              {row.map(k=>(
-                <TouchableOpacity key={String(k)} onPress={()=>handleKey(String(k))} style={{width:72,height:72,borderRadius:36,backgroundColor:C.card,alignItems:'center',justifyContent:'center'}}>
-                  <Text style={{color:C.text,fontSize:String(k)==='<'||String(k)==='x'?20:24,fontWeight:'500'}}>{String(k)==='<'?'⌫':String(k)==='x'?'✕':k}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))}
-          {fingerprintEnabled && (
-            <TouchableOpacity onPress={tryFp} style={{marginTop:16,padding:16}}>
-              <Ionicons name="finger-print-outline" size={40} color={C.green}/>
-            </TouchableOpacity>
-          )}
-        </View>
-      );
-    }
-
-
-
     if (onboardStep === 'passcode') return (
       <GradBg>
-        <View style={{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
+        <View style={{flex:1,alignItems:'center',paddingTop:60,paddingHorizontal:24}}>
           <Text style={{color:C.text,fontSize:28,fontWeight:'bold',marginBottom:8}}>Set app passcode</Text>
           <Text style={{color:C.muted,fontSize:14,marginBottom:40,textAlign:'center',flexWrap:'wrap'}}>Enter a 6-digit passcode to secure your app.</Text>
           <View style={{flexDirection:'row',gap:16,marginBottom:48}}>
@@ -1738,14 +989,16 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
                 <TouchableOpacity key={ki} onPress={()=>{
                   if(k==='x'){setPasscode('');return;}
                   if(k==='<'){setPasscode(p=>p.slice(0,-1));return;}
-                  if(passcode.length<6){const np=passcode+k;setPasscode(np);if(np.length===6){AsyncStorage.setItem('passcode',np);AsyncStorage.setItem('security_enabled','true');setSecurityEnabled(true);if(changingPasscode){setChangingPasscode(false);setPasscode('');showToast('Passcode updated!','success');}else{setTimeout(()=>setOnboardStep('fingerprint'),300);}}}
+                  if(passcode.length<6){const np=passcode+k;setPasscode(np);if(np.length===6)setTimeout(()=>setOnboardStep('fingerprint'),300);}
                 }} style={{width:80,height:80,borderRadius:40,backgroundColor:C.card,borderWidth:1,borderColor:C.border,alignItems:'center',justifyContent:'center'}}>
                   <Text style={{color:k==='x'?C.muted:C.green,fontSize:k==='<'?20:24,fontWeight:'600'}}>{k==='x'?'x':String(k)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           ))}
-
+          <TouchableOpacity onPress={()=>setOnboardStep(null)} style={{marginTop:24,paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,width:'100%',alignItems:'center'}}>
+            <Text style={{color:C.text,fontSize:16}}>Back</Text>
+          </TouchableOpacity>
         </View>
       </GradBg>
     );
@@ -1776,7 +1029,7 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
               </TouchableOpacity>
             ))}
           </View>
-          <View style={{position:'absolute',bottom:90,left:24,right:24,gap:12}}>
+          <View style={{position:'absolute',bottom:60,left:24,right:24,gap:12}}>
             <TouchableOpacity onPress={async()=>{const w=generateWallet(wordCount);setNewSeedPhrase(w.mnemonic);setNewPubkey(w.publicKey);setOnboardStep('seedphrase');}} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.green,alignItems:'center'}}>
               <Text style={{color:'#060d06',fontWeight:'700',fontSize:16}}>Continue</Text>
             </TouchableOpacity>
@@ -1806,7 +1059,7 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
               <Ionicons name="copy-outline" size={18} color={C.green}/>
               <Text style={{color:C.text,fontSize:15}}>Copy</Text>
             </TouchableOpacity>
-            <View style={{position:'absolute',bottom:90,left:24,right:24,gap:12}}>
+            <View style={{position:'absolute',bottom:60,left:24,right:24,gap:12}}>
               <TouchableOpacity onPress={()=>setOnboardStep('username')} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.green,alignItems:'center'}}>
                 <Text style={{color:'#060d06',fontWeight:'700',fontSize:16}}>OK, I saved it somewhere</Text>
               </TouchableOpacity>
@@ -1827,20 +1080,16 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
           <Text style={{color:C.text,fontSize:28,fontWeight:'bold',marginBottom:32}}>Choose a username</Text>
           <View style={{flexDirection:'row',alignItems:'center',backgroundColor:C.card,borderRadius:30,borderWidth:1,borderColor:C.green,paddingHorizontal:16,paddingVertical:4,width:'100%',marginBottom:8}}>
             <Text style={{color:C.muted,fontSize:16,marginRight:8}}>@</Text>
-            <TextInput key="username-input" value={onboardName} onChangeText={setOnboardName} placeholder="wallet01" placeholderTextColor={C.muted} style={{flex:1,color:C.text,fontSize:16,paddingVertical:12}} autoCapitalize="none" blurOnSubmit={false} autoFocus={true}/>
+            <TextInput key="username-input" value={onboardName} onChangeText={setOnboardName} placeholder="wallet01" placeholderTextColor={C.muted} style={{flex:1,color:C.text,fontSize:16,paddingVertical:12}} autoCapitalize="none" blurOnSubmit={false}/>
           </View>
           <Text style={{color:C.muted,fontSize:12,marginBottom:40}}>{onboardName.length}/8 letters, numbers, or underscores</Text>
-          <View style={{position:'absolute',bottom:90,left:24,right:24,gap:12}}>
+          <View style={{position:'absolute',bottom:60,left:24,right:24,gap:12}}>
             <TouchableOpacity onPress={async()=>{
               const name=onboardName||'wallet01';
-              const existingRaw = await AsyncStorage.getItem('accounts');
-              const existing = existingRaw ? JSON.parse(existingRaw) : [];
-              const newAcc = {id:existing.length+1,name:'Account '+(existing.length+1),mnemonic:newSeedPhrase,pubkey:newPubkey};
-              const acc = [...existing, newAcc];
-              const newIdx = acc.length-1;
+              const acc=[{id:1,name:'Account 1',mnemonic:newSeedPhrase,pubkey:newPubkey}];
               setAccounts(acc);setWallet(newSeedPhrase);setPubkey(newPubkey);setUserName(name);
               await AsyncStorage.setItem('accounts',JSON.stringify(acc));
-              await AsyncStorage.setItem('active_acc',String(newIdx));
+              await AsyncStorage.setItem('active_acc','0');
               await AsyncStorage.setItem('user_name',name);
               setOnboardStep(null);
             }} style={{paddingVertical:16,borderRadius:30,backgroundColor:onboardName.length>=3?C.green:C.card,alignItems:'center'}}>
@@ -1858,79 +1107,7 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
 
   return (
     <SafeAreaView style={s.root}>
-      <Modal visible={showTxModal} animationType="slide" transparent onRequestClose={()=>setShowTxModal(false)}>
-        <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.7)",justifyContent:"flex-end"}}>
-          <View style={{backgroundColor:"#161b22",borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:"80%",paddingBottom:72}}>
-            <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",padding:20,borderBottomWidth:1,borderBottomColor:C.border}}>
-              <Text style={{color:C.text,fontSize:18,fontWeight:"700"}}>Transaction History</Text>
-              <TouchableOpacity onPress={()=>setShowTxModal(false)}>
-                <Ionicons name="close" size={24} color={C.muted} />
-              </TouchableOpacity>
-            </View>
-            {txLoading && <ActivityIndicator color={C.green} style={{marginTop:20}} />}
-            <ScrollView contentContainerStyle={{paddingHorizontal:20,paddingTop:8}}>
-              {!txLoading && txHistory.length===0 && (
-                <Text style={{color:C.muted,textAlign:"center",marginTop:20}}>No transactions yet</Text>
-              )}
-              {txHistory.map((tx,i)=>(
-                <TouchableOpacity key={i} onPress={()=>{Linking.openURL("https://solscan.io/tx/"+tx.sig);}}
-                  style={{flexDirection:"row",alignItems:"center",paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
-                  <View style={{width:42,height:42,borderRadius:21,marginRight:12,position:'relative'}}>
-                    <TokLogo uri={tx.mint?'https://img.jup.ag/tokens/'+tx.mint:''} fallback={''} symbol={tx.token} style={{width:42,height:42,borderRadius:21}} mint={tx.mint||''} />
-                    <View style={{position:'absolute',bottom:0,right:0,width:16,height:16,borderRadius:8,backgroundColor:tx.failed?"#3a1a1a":tx.type==="RECEIVE"?"#1a2a1a":"#1a1a2a",alignItems:"center",justifyContent:"center"}}>
-                      <Text style={{fontSize:10}}>{tx.failed?"❌":tx.type==="RECEIVE"?"↓":tx.type==="SWAP"?"⇄":"↑"}</Text>
-                    </View>
-                  </View>
-                  <View style={{flex:1}}>
-                    <Text style={{color:C.text,fontWeight:"600",fontSize:14}}>{tx.failed?"Failed":tx.type} {tx.token}</Text>
-                    <Text style={{color:C.muted,fontSize:12}}>{tx.time}</Text>
-                  </View>
-                  <View style={{alignItems:"flex-end"}}>
-                    <Text style={{color:tx.failed?"#ff4444":tx.type==="RECEIVE"?C.green:C.text,fontWeight:"600"}}>{tx.amount}</Text>
-                    <Text style={{color:C.green,fontSize:11}}>Solscan ›</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Transaction Confirm Modal */}
-      <Modal visible={showConfirmModal} animationType="slide" transparent onRequestClose={()=>setShowConfirmModal(false)}>
-        <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.7)",justifyContent:"flex-end"}}>
-          <View style={{backgroundColor:"#161b22",borderTopLeftRadius:20,borderTopRightRadius:20,padding:24,paddingBottom:36}}>
-            <Text style={{color:C.text,fontSize:18,fontWeight:"700",marginBottom:4}}>{confirmData?.title}</Text>
-            <Text style={{color:C.muted,fontSize:14,marginBottom:20}}>{confirmData?.summary}</Text>
-            {(confirmData?.details||[]).map((d:any,i:number)=>(
-              <View key={i} style={{flexDirection:"row",justifyContent:"space-between",paddingVertical:8,borderBottomWidth:1,borderBottomColor:C.border}}>
-                <Text style={{color:C.muted,fontSize:14}}>{d.label}</Text>
-                <Text style={{color:C.text,fontSize:14,fontWeight:"600"}}>{d.value}</Text>
-              </View>
-            ))}
-            <TouchableOpacity onPress={confirmData?.onConfirm} style={{backgroundColor:C.green,borderRadius:12,padding:16,alignItems:"center",marginTop:20}}>
-              <Text style={{color:"#0d1117",fontWeight:"700",fontSize:16}}>Confirm</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={()=>setShowConfirmModal(false)} style={{borderRadius:12,padding:14,alignItems:"center",marginTop:8}}>
-              <Text style={{color:C.muted,fontSize:15}}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-      <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
-  onSend={async (mint, recipient, amount, symbol, decimals) => {
-    const { secretKey, publicKey: pk } = deriveWallet(wallet);
-    const amountNum = Math.round(parseFloat(amount) * Math.pow(10, decimals));
-    if (symbol === 'SOL') {
-      await _sendSOL(pk, secretKey, recipient, amountNum);
-    } else {
-      await _sendSPL(pk, secretKey, recipient, amountNum, mint);
-    }
-    showToast('Sent ' + amount + ' ' + symbol + ' ✓', 'success');
-    setSelectedToken(null);
-    fetchPortfolio();
-  }}
-/>
+      <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)} />
       <AccountModal
         visible={showAccountModal}
         onClose={() => setShowAccountModal(false)}
@@ -1942,31 +1119,10 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
         addAccount={addAccount}
         userName={userName}
         setUserName={setUserName}
-        setAccounts={setAccounts}
         onRemoveWallet={async () => {
-          const updated = accounts.filter((_:any, i:number) => i !== activeAccIdx);
-          if (updated.length === 0) {
-            // No accounts left - full reset
-            await AsyncStorage.removeItem('accounts');
-            await AsyncStorage.removeItem('active_acc');
-            await AsyncStorage.removeItem('user_name');
-            setAccounts([]);
-            setWallet(null);
-            setPubkey(null);
-            setUserName('');
-          } else {
-            // Switch to first remaining account
-            const newIdx = Math.max(0, activeAccIdx - 1);
-            const newAcc = updated[newIdx];
-            // Re-index accounts
-            const reindexed = updated.map((a:any, i:number) => ({...a, id:i+1, name:'Account '+(i+1)}));
-            await AsyncStorage.setItem('accounts', JSON.stringify(reindexed));
-            await AsyncStorage.setItem('active_acc', String(newIdx));
-            setAccounts(reindexed);
-            setActiveAccIdx(newIdx);
-            setWallet(newAcc.mnemonic);
-            setPubkey(newAcc.pubkey);
-          }
+          await AsyncStorage.removeItem('wallet_mnemonic');
+          setWallet(null);
+          setPubkey(null);
           setShowAccountModal(false);
         }}
       />
@@ -1994,7 +1150,7 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
                     </View>
                   ))}
                 </View>
-                <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }}>
+                <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16 }}>
               {msgs.map(m => (
                 <View key={m.id} style={[s.bubble, m.from === 'user' ? s.userBubble : s.botBubble]}>
                   {m.from === 'bot' && <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>}
@@ -2009,8 +1165,8 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
               )}
             </ScrollView>
             <View style={s.inputRow}>
-              <TextInput style={s.input} value={input} onChangeText={(t)=>{setInput(t);inputRef.current=t;}} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current||input)} editable={!aiLoading} autoCorrect={false} autoCapitalize="none" blurOnSubmit={false} />
-              <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current||input)} disabled={aiLoading}>
+              <TextInput style={s.input} value={input} onChangeText={setInput} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current || input)} editable={!aiLoading} />
+              <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current || input)} disabled={aiLoading}>
                 <Ionicons name="send" size={20} color="#0d1117" />
               </TouchableOpacity>
             </View>
@@ -2021,14 +1177,11 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
               {tab === 'swap' && (
         <ScrollView style={s.pad} keyboardShouldPersistTaps="handled">
           <View style={s.swapCard}>
-            <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-              <Text style={s.swapCardLabel}>You Pay</Text>
-              <Text style={{color:C.muted,fontSize:12}}>Balance: {tokenBalances.find(t=>t.symbol===fromToken)?.amount?.toFixed(4) ?? (fromToken==='SOL'?(solBalance||0).toFixed(4):'0')} {fromToken}</Text>
-            </View>
+            <Text style={s.swapCardLabel}>You Pay</Text>
             <View style={s.swapCardRow}>
               <TextInput style={s.swapAmtInput} value={amt} onChangeText={setAmt} placeholder="0" placeholderTextColor={C.border} keyboardType="numeric" />
               <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowFromSearch(!showFromSearch);setShowToSearch(false);}}>
-                <TokLogo uri={TOKEN_LOGOS[fromToken]||'https://img.jup.ag/tokens/'+(TOKENS[fromToken]||'')} fallback={'https://img.jup.ag/tokens/'+(TOKENS[fromToken]||'')} symbol={fromToken} style={s.tokenLogo} mint={TOKENS[fromToken]||''} />
+                <TokLogo uri={'https://img.jup.ag/tokens/'+(TOKENS[fromToken]||'')} symbol={fromToken} style={s.tokenLogo} />
                 <Text style={s.tokenSelTxt}>{fromToken}</Text>
                 <Text style={{color:C.muted,marginLeft:4,fontSize:12}}>▾</Text>
               </TouchableOpacity>
@@ -2037,7 +1190,7 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
               <View style={s.tokenDropdown}>
                 <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setFromResults); else setFromResults([]);}} />
                 {fromResults.slice(0,5).map(t=>(
-                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setFromToken(t.symbol);TOKENS[t.symbol]=t.address;if(t.decimals!=null)DECIMALS[t.symbol]=t.decimals;if(t.logoURI)TOKEN_LOGOS[t.symbol]=t.logoURI;setShowFromSearch(false);setQuote(null);}}>
+                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setFromToken(t.symbol);TOKENS[t.symbol]=t.address;setShowFromSearch(false);setQuote(null);}}>
                     <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
                     <View style={{flex:1,marginLeft:8}}>
                       <Text style={s.tokenResTxt}>{t.symbol}</Text>
@@ -2054,14 +1207,11 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
           </TouchableOpacity>
 
           <View style={s.swapCard}>
-            <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-              <Text style={s.swapCardLabel}>You Receive</Text>
-              <Text style={{color:C.muted,fontSize:12}}>Balance: {tokenBalances.find(t=>t.symbol===toToken)?.amount?.toFixed(4) ?? (toToken==='SOL'?(solBalance||0).toFixed(4):'0')} {toToken}</Text>
-            </View>
+            <Text style={s.swapCardLabel}>You Receive</Text>
             <View style={s.swapCardRow}>
               <Text style={s.swapAmtOut}>{quote?Number(quote.outAmount).toFixed(6):'—'}</Text>
               <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowToSearch(!showToSearch);setShowFromSearch(false);}}>
-                <TokLogo uri={TOKEN_LOGOS[toToken]||'https://img.jup.ag/tokens/'+(TOKENS[toToken]||'')} fallback={'https://img.jup.ag/tokens/'+(TOKENS[toToken]||'')} symbol={toToken} style={s.tokenLogo} mint={TOKENS[toToken]||''} />
+                <TokLogo uri={'https://img.jup.ag/tokens/'+(TOKENS[toToken]||'')} symbol={toToken} style={s.tokenLogo} />
                 <Text style={s.tokenSelTxt}>{toToken}</Text>
                 <Text style={{color:C.muted,marginLeft:4,fontSize:12}}>▾</Text>
               </TouchableOpacity>
@@ -2070,7 +1220,7 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
               <View style={s.tokenDropdown}>
                 <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setToResults); else setToResults([]);}} />
                 {toResults.slice(0,5).map(t=>(
-                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setToToken(t.symbol);TOKENS[t.symbol]=t.address;if(t.decimals!=null)DECIMALS[t.symbol]=t.decimals;if(t.logoURI)TOKEN_LOGOS[t.symbol]=t.logoURI;setShowToSearch(false);setQuote(null);}}>
+                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setToToken(t.symbol);TOKENS[t.symbol]=t.address;setShowToSearch(false);setQuote(null);}}>
                     <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
                     <View style={{flex:1,marginLeft:8}}>
                       <Text style={s.tokenResTxt}>{t.symbol}</Text>
@@ -2119,7 +1269,7 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
 
                   {/* PORTFOLIO */}
       {tab === 'portfolio' && (
-        <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
+        <ScrollView style={s.pad} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
           {!wallet ? (
             <View style={s.emptyState}>
               <Text style={s.emptyTitle}>No Wallet</Text>
@@ -2130,19 +1280,18 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
             </View>
           ) : (
             <View>
-              {/* Balance */}
-              <View style={{alignItems:'center',paddingTop:16,paddingBottom:8}}>
-                <TouchableOpacity onPress={()=>setPrivacyMode(p=>!p)}>
+              {/* Big Balance */}
+              <View style={s.pfBalanceSection}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : privacyMode ? '****' : '$'+((tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(2)}
+                  {portfolioLoading ? '...' : '$'+(tokenBalances.reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)).toFixed(4)}
                 </Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:4}}>
+                <TouchableOpacity onPress={copyAddress}>
                   <Text style={s.pfAddressTxt}>{pubkey ? pubkey.slice(0,4)+'....'+pubkey.slice(-4) : ''}</Text>
                 </TouchableOpacity>
               </View>
-              {/* Action Buttons */}
-              <View style={{flexDirection:'row',justifyContent:'space-around',paddingVertical:16}}>
+
+              {/* 4 Action Buttons */}
+              <View style={s.pfActions}>
                 <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowSendModal(true)}>
                   <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↑</Text></View>
                   <Text style={s.pfActionLbl}>Send</Text>
@@ -2155,45 +1304,40 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
                   <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↓</Text></View>
                   <Text style={s.pfActionLbl}>Receive</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.pfActionBtn} onPress={async()=>{if(!cameraPermission?.granted){await requestCameraPermission();}setShowScanModal(true);}}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⊡</Text></View>
-                  <Text style={s.pfActionLbl}>Scan</Text>
+                <TouchableOpacity style={s.pfActionBtn} onPress={copyAddress}>
+                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⧉</Text></View>
+                  <Text style={s.pfActionLbl}>Copy</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Token List */}
-              <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:4,marginTop:4}}>
-                <Text style={s.pfSectionLbl}>Tokens</Text>
-                <TouchableOpacity onPress={()=>{fetchTxHistory();setShowTxModal(true);}} style={{padding:4}}>
-                  <Ionicons name="time-outline" size={24} color={C.text} />
-                </TouchableOpacity>
-              </View>
+              <Text style={s.pfSectionLbl}>Tokens</Text>
               {tokenBalances.length===0&&!portfolioLoading&&(
                 <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
               )}
               {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
               {/* SOL Row */}
               {solBalance !== null && solBalance > 0 && (
-                <TouchableOpacity style={s.pfTokenRow} onPress={()=>setSelectedToken({symbol:'SOL',mint:'So11111111111111111111111111111111111111112',amount:solBalance||0,logoURI:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112',price:solPrice||0,isVerified:true})}>
+                <TouchableOpacity style={s.pfTokenRow} onPress={()=>{}}>
                   <TokLogo uri={'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112'} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'} symbol={'SOL'} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
                     <Text style={s.pfTokenName}>SOL</Text>
-                    <Text style={s.pfTokenAmt}>{privacyMode ? "****" : (solBalance||0).toFixed(4)} SOL</Text>
+                    <Text style={s.pfTokenAmt}>{(solBalance||0).toFixed(4)} SOL</Text>
                   </View>
-                  <Text style={s.pfTokenVal}>{privacyMode ? '****' : solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
+                  <Text style={s.pfTokenVal}>{solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               )}
               {tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').map((t,i)=>(
                 <TouchableOpacity key={i} style={s.pfTokenRow} onPress={() => setSelectedToken(t)}>
-                  <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/'+t.mint+'/logo.png'} symbol={t.symbol} style={s.pfTokenLogo} mint={t.mint} />
+                  <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/'+t.mint+'/logo.png'} symbol={t.symbol} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
                     <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
                       <Text style={s.pfTokenName}>{t.symbol}</Text>
                       {t.isVerified && <Ionicons name="checkmark-circle" size={14} color="#39ff14" />}
                     </View>
-                    <Text style={s.pfTokenAmt}>{privacyMode ? "****" : (Number(t.amount)||0).toFixed(4)} {t.symbol}</Text>
+                    <Text style={s.pfTokenAmt}>{(Number(t.amount)||0).toFixed(4)} {t.symbol}</Text>
                   </View>
-                  <Text style={s.pfTokenVal}>{privacyMode ? '****' : t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
+                  <Text style={s.pfTokenVal}>{t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -2207,46 +1351,42 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
         )}
         {/* SETTINGS */}
       {tab === 'settings' && (
-        <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}}>
+        <ScrollView style={s.pad}>
           {/* Wallet profile row */}
           {wallet && (
             <View style={s.stGroup}>
-              <Text style={{color:C.muted,fontSize:11,fontWeight:'600',paddingHorizontal:16,paddingTop:12,paddingBottom:6,letterSpacing:1,paddingRight:2}}>ACCOUNTS</Text>
-              {accounts.map((acc,idx)=>(
-                <TouchableOpacity key={acc.id} onPress={()=>switchAccount(idx)} style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderBottomWidth:idx<accounts.length-1?1:0,borderBottomColor:C.border}}>
-                  <View style={{width:36,height:36,borderRadius:18,backgroundColor:idx===activeAccIdx?C.green:C.card,alignItems:'center',justifyContent:'center',marginRight:12}}>
-                    <Text style={{color:idx===activeAccIdx?'#0d1117':C.muted,fontWeight:'bold',fontSize:14}}>{idx+1}</Text>
-                  </View>
-                  <View style={{flex:1}}>
-                    <Text style={{color:C.text,fontWeight:'600',fontSize:14}}>{acc.name}{idx===activeAccIdx?' ✓':''}</Text>
-                    <Text style={{color:C.muted,fontSize:12}}>{acc.pubkey?acc.pubkey.slice(0,6)+'...'+acc.pubkey.slice(-4):''}</Text>
-                  </View>
-                  {idx===activeAccIdx&&<TouchableOpacity onPress={copyAddress}><Text style={{color:C.green,fontSize:12}}>Copy</Text></TouchableOpacity>}
+              <TouchableOpacity style={s.stProfileRow} onPress={copyAddress}>
+                <View style={s.stAvatar}><Text style={s.stAvatarTxt}>◎</Text></View>
+                <View style={{flex:1,marginLeft:12}}>
+                  <Text style={s.stProfileAddr}>{pubkey?pubkey.slice(0,6)+'...'+pubkey.slice(-6):''}</Text>
+                  <Text style={s.stProfileSub}>Tap to copy</Text>
+                </View>
+                <Text style={{color:C.muted}}>›</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* RPC */}
+          <View style={s.stGroup}>
+            <Text style={s.stGroupLabel}>RPC Endpoint</Text>
+            {['mainnet-beta','devnet','testnet'].map(ep=>(
+              <TouchableOpacity key={ep} style={s.stRow} onPress={()=>setRpcEndpoint(ep)}>
+                <Text style={s.stRowTxt}>{ep}</Text>
+                {rpcEndpoint===ep&&<Text style={{color:C.green,fontSize:16}}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Slippage */}
+          <View style={s.stGroup}>
+            <Text style={s.stGroupLabel}>Slippage Tolerance</Text>
+            <View style={{flexDirection:'row',gap:8,padding:12}}>
+              {['0.1','0.5','1.0','2.0'].map(v=>(
+                <TouchableOpacity key={v} onPress={()=>setSlippage(v)} style={[s.slippageChip,slippage===v&&s.chipActive]}>
+                  <Text style={[s.chipTxt,slippage===v&&s.chipTxtActive]}>{v}%</Text>
                 </TouchableOpacity>
               ))}
             </View>
-          )}
-              <View style={[s.stGroup,{marginTop:12}]}>
-                <TouchableOpacity style={s.stRow} onPress={()=>setShowWalletModal(true)}>
-                  <View style={{flex:1}}>
-                    <Text style={s.stRowTxt}>Import Wallet</Text>
-                    <Text style={{color:C.muted,fontSize:12,marginTop:2}}>Import using seed phrase</Text>
-                  </View>
-                  <Text style={{color:C.muted,fontSize:18}}>›</Text>
-                </TouchableOpacity>
-              </View>
-
-
-
-          {/* Security */}
-          <View style={[s.stGroup,{marginTop:12}]}>
-            <TouchableOpacity style={s.stRow} onPress={()=>setShowSecurityModal(true)}>
-              <View style={{flex:1}}>
-                <Text style={s.stRowTxt}>Security</Text>
-                <Text style={{color:C.muted,fontSize:12,marginTop:2}}>{securityEnabled?'App lock on':'App lock off'}</Text>
-              </View>
-              <Text style={{color:C.muted,fontSize:18}}>›</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Info rows */}
@@ -2264,11 +1404,8 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
           {/* Danger */}
           {wallet && (
             <View style={{gap:12,marginTop:8}}>
-              <TouchableOpacity style={s.dangerBtn} onPress={async()=>{ const ok=await requireAuth(); if(!ok)return; const acc=accounts[activeAccIdx]; if(acc){ setSeedPhrase(acc.mnemonic); setShowSeedModal(true); } }}>
+              <TouchableOpacity style={s.dangerBtn} onPress={()=>{Alert.alert('Seed Phrase','Only view in a private place.',[{text:'Cancel',style:'cancel'},{text:'Show',onPress:()=>Alert.alert('Your Seed Phrase',wallet||'')}]);}}>
                 <Text style={s.dangerBtnTxt}>Show Seed Phrase</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.dangerBtn} onPress={async()=>{ const ok=await requireAuth(); if(!ok)return; const acc=accounts[activeAccIdx]; if(acc){ setPrivKey(getPrivateKey(acc.mnemonic)); setShowPrivKeyModal(true); } }}>
-                <Text style={s.dangerBtnTxt}>Show Private Key</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.dangerBtn} onPress={()=>{Alert.alert('Remove Wallet','Make sure you have your seed phrase!',[{text:'Cancel',style:'cancel'},{text:'Remove',style:'destructive',onPress:async()=>{await AsyncStorage.removeItem('wallet_mnemonic');setWallet(null);setPubkey(null);setSolBalance(null);}}]);}}>
                 <Text style={s.dangerBtnTxt}>Remove Wallet</Text>
@@ -2294,7 +1431,6 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
 
       {/* WALLET MODAL */}
       <Modal visible={showWalletModal} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>Wallet</Text>
@@ -2311,12 +1447,10 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
             </TouchableOpacity>
           </View>
         </View>
-        </KeyboardAvoidingView>
       </Modal>
 
       {/* SEED MODAL */}
       <Modal visible={showSeedModal} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>Your Seed Phrase</Text>
@@ -2329,7 +1463,7 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
                 </View>
               ))}
             </View>
-            <TouchableOpacity style={s.greenBtn} onPress={onboardStep ? confirmSeed : () => setShowSeedModal(false)}>
+            <TouchableOpacity style={s.greenBtn} onPress={confirmSeed}>
               <Text style={s.greenBtnTxt}>I've Written It Down</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.closeBtn} onPress={() => setShowSeedModal(false)}>
@@ -2337,152 +1471,16 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
             </TouchableOpacity>
           </View>
         </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* PRIVATE KEY MODAL */}
-      <Modal visible={showPrivKeyModal} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
-        <View style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <Text style={s.modalTitle}>Private Key</Text>
-            <Text style={{color:C.red,fontSize:13,textAlign:'center',marginBottom:16}}>⚠️ Never share your private key! Anyone with it has full access to your wallet.</Text>
-            <View style={{backgroundColor:C.card,borderRadius:12,padding:16,marginBottom:16}}>
-              <Text selectable style={{color:C.green,fontSize:11,fontFamily:'monospace',lineHeight:18}}>{privKey}</Text>
-            </View>
-            <TouchableOpacity style={s.greenBtn} onPress={()=>{ Clipboard.setString(privKey); showToast('Private key copied!','success'); }}>
-              <Text style={s.greenBtnTxt}>Copy Private Key</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.closeBtn} onPress={()=>{ setShowPrivKeyModal(false); setPrivKey(''); }}>
-              <Text style={s.closeBtnTxt}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* SECURITY MODAL */}
-      <Modal visible={showSecurityModal} animationType="slide" transparent>
-        <View style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <Text style={s.modalTitle}>Security</Text>
-            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:14,borderBottomWidth:securityEnabled?1:0,borderBottomColor:C.border}}>
-              <View style={{flex:1}}>
-                <Text style={{color:C.text,fontSize:15,fontWeight:'600'}}>App Lock</Text>
-                <Text style={{color:C.muted,fontSize:12,marginTop:2}}>Require passcode on open</Text>
-              </View>
-              <TouchableOpacity onPress={async()=>{
-                const next=!securityEnabled; setSecurityEnabled(next);
-                await AsyncStorage.setItem('security_enabled',String(next));
-                if(!next){setFingerprintEnabled(false);await AsyncStorage.setItem('fingerprint_enabled','false');}
-              }} style={{width:50,height:28,borderRadius:14,backgroundColor:securityEnabled?C.green:C.border,justifyContent:'center',paddingHorizontal:3}}>
-                <View style={{width:22,height:22,borderRadius:11,backgroundColor:'#fff',alignSelf:securityEnabled?'flex-end':'flex-start'}}/>
-              </TouchableOpacity>
-            </View>
-            {securityEnabled && (<>
-              <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
-                <View style={{flex:1}}>
-                  <Text style={{color:C.text,fontSize:15,fontWeight:'600'}}>Fingerprint Unlock</Text>
-                  <Text style={{color:C.muted,fontSize:12,marginTop:2}}>Use biometrics to unlock</Text>
-                </View>
-                <TouchableOpacity onPress={async()=>{
-                  const next=!fingerprintEnabled; setFingerprintEnabled(next);
-                  await AsyncStorage.setItem('fingerprint_enabled',String(next));
-                }} style={{width:50,height:28,borderRadius:14,backgroundColor:fingerprintEnabled?C.green:C.border,justifyContent:'center',paddingHorizontal:3}}>
-                  <View style={{width:22,height:22,borderRadius:11,backgroundColor:'#fff',alignSelf:fingerprintEnabled?'flex-end':'flex-start'}}/>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity onPress={()=>{setPasscode('');setChangingPasscode(true);}} style={{paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
-                <Text style={{color:C.green,fontSize:15}}></Text>
-              </TouchableOpacity>
-            </>)}
-            {changingPasscode && (
-              <View style={{alignItems:'center',paddingTop:16}}>
-                <Text style={{color:C.text,fontSize:18,fontWeight:'bold',marginBottom:8}}>Enter new passcode</Text>
-                <View style={{flexDirection:'row',gap:12,marginBottom:24}}>
-                  {[0,1,2,3,4,5].map(i=>(
-                    <View key={i} style={{width:14,height:14,borderRadius:7,backgroundColor:passcode.length>i?C.green:C.border}}/>
-                  ))}
-                </View>
-                {[[1,2,3],[4,5,6],[7,8,9],['cancel',0,'<']].map((row,ri)=>(
-                  <View key={ri} style={{flexDirection:'row',gap:12,marginBottom:12}}>
-                    {row.map(k=>(
-                      <TouchableOpacity key={String(k)} onPress={async()=>{
-                        const kk=String(k);
-                        if(kk==='cancel'){setChangingPasscode(false);setPasscode('');return;}
-                        if(kk==='<'){setPasscode(p=>p.slice(0,-1));return;}
-                        if(passcode.length<6){const np=passcode+kk;setPasscode(np);if(np.length===6){await AsyncStorage.setItem('passcode',np);setChangingPasscode(false);setPasscode('');showToast('Passcode updated!','success');}}
-                      }} style={{width:64,height:64,borderRadius:32,backgroundColor:C.card2,alignItems:'center',justifyContent:'center'}}>
-                        <Text style={{color:C.text,fontSize:kk==='cancel'?11:kk==='<'?18:22,fontWeight:'500'}}>{kk==='<'?'⌫':kk==='cancel'?'Cancel':k}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                ))}
-              </View>
-            )}
-            <TouchableOpacity style={[s.closeBtn,{marginTop:20}]} onPress={()=>{setShowSecurityModal(false);setChangingPasscode(false);setPasscode('');}}>
-              <Text style={s.closeBtnTxt}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* AUTH MODAL */}
-      <Modal visible={showAuthModal} animationType="fade" transparent>
-        <View style={s.modalOverlay}>
-          <View style={[s.modalCard,{paddingBottom:24}]}>
-            <Text style={s.modalTitle}>Confirm Identity</Text>
-            <View style={{flexDirection:'row',gap:16,marginBottom:32,justifyContent:'center'}}>
-              {[0,1,2,3,4,5].map(i=>(
-                <View key={i} style={{width:14,height:14,borderRadius:7,backgroundColor:authInput.length>i?C.green:C.border}}/>
-              ))}
-            </View>
-            {[[1,2,3],[4,5,6],[7,8,9],['x',0,'<']].map((row,ri)=>(
-              <View key={ri} style={{flexDirection:'row',gap:12,marginBottom:12,justifyContent:'center'}}>
-                {row.map(k=>(
-                  <TouchableOpacity key={String(k)} onPress={async()=>{
-                    const kk=String(k);
-                    if(kk==='x'){authResolveRef.current?.(false);authResolveRef.current=null;setShowAuthModal(false);setAuthInput('');return;}
-                    if(kk==='<'){setAuthInput(p=>p.slice(0,-1));return;}
-                    if(authInput.length<6){
-                      const np=authInput+kk; setAuthInput(np);
-                      if(np.length===6){
-                        const stored=await AsyncStorage.getItem('passcode');
-                        if(np===stored){authResolveRef.current?.(true);authResolveRef.current=null;setShowAuthModal(false);setAuthInput('');}
-                        else{setAuthInput('');showToast('Wrong passcode','error');}
-                      }
-                    }
-                  }} style={{width:64,height:64,borderRadius:32,backgroundColor:C.card,alignItems:'center',justifyContent:'center'}}>
-                    <Text style={{color:C.text,fontSize:String(k)==='<'||String(k)==='x'?18:22,fontWeight:'500'}}>{String(k)==='<'?'⌫':String(k)==='x'?'✕':k}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ))}
-          </View>
-        </View>
       </Modal>
 
       {/* SEND MODAL */}
       <Modal visible={showSendModal} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
-            <Text style={s.modalTitle}>Send {sendToken}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}>
-              <View style={{flexDirection:'row',gap:8,paddingVertical:4}}>
-                {tokenBalances.map(t=>(
-                  <TouchableOpacity key={t.mint} onPress={()=>{setSendToken(t.symbol);}}
-                    style={{paddingHorizontal:14,paddingVertical:8,borderRadius:20,
-                      backgroundColor:sendToken===t.symbol?C.green:C.card,
-                      borderWidth:1,borderColor:sendToken===t.symbol?C.green:C.border}}>
-                    <Text style={{color:sendToken===t.symbol?'#0d1117':C.text,fontWeight:'600',fontSize:13}}>{t.symbol}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+            <Text style={s.modalTitle}>Send SOL</Text>
             <Text style={s.cardLabel}>Recipient Address</Text>
             <TextInput style={s.seedInput} value={sendTo} onChangeText={setSendTo} placeholder="Solana wallet address..." placeholderTextColor={C.muted} autoCapitalize="none" />
-            <Text style={[s.cardLabel, { marginTop: 12 }]}>Amount ({sendToken})</Text>
+            <Text style={[s.cardLabel, { marginTop: 12 }]}>Amount (SOL)</Text>
             <TextInput style={[s.seedInput, { minHeight: 0, height: 48 }]} value={sendAmt} onChangeText={setSendAmt} placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric" />
             <TouchableOpacity style={[s.greenBtn, { marginTop: 16 }]} onPress={sendTokens} disabled={sendLoading}>
               {sendLoading ? <ActivityIndicator color={C.bg} /> : <Text style={s.greenBtnTxt}>Send</Text>}
@@ -2492,35 +1490,10 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
             </TouchableOpacity>
           </View>
         </View>
-        </KeyboardAvoidingView>
       </Modal>
 
       {/* RECEIVE MODAL */}
-      <Modal visible={showScanModal} animationType="slide" transparent={false}>
-        <View style={{flex:1,backgroundColor:'#000'}}>
-          <CameraView
-            style={{flex:1}}
-            facing="back"
-            onBarcodeScanned={({data})=>{
-              setScanResult(data);
-              setShowScanModal(false);
-              if(data.startsWith('solana:') || data.length===44){
-                setSendTo(data.replace('solana:','').split('?')[0]);
-                setShowSendModal(true);
-              } else {
-                Alert.alert('QR Scanned', data, [{text:'Copy',onPress:()=>Clipboard.setString(data)},{text:'OK'}]);
-              }
-            }}
-          />
-          <TouchableOpacity onPress={()=>setShowScanModal(false)}
-            style={{position:'absolute',top:50,right:20,backgroundColor:'rgba(0,0,0,0.6)',borderRadius:20,padding:10}}>
-            <Text style={{color:'#fff',fontSize:18}}>✕</Text>
-          </TouchableOpacity>
-          <Text style={{position:'absolute',bottom:60,alignSelf:'center',color:'#fff',fontSize:14,opacity:0.8}}>Point at a Solana wallet QR code</Text>
-        </View>
-      </Modal>
       <Modal visible={showReceiveModal} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>Receive</Text>
@@ -2536,7 +1509,6 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
             </TouchableOpacity>
           </View>
         </View>
-        </KeyboardAvoidingView>
       </Modal>
 
       {toast && (
@@ -2550,10 +1522,6 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
 }
 
 const s = StyleSheet.create({
-  txHistWrap:{marginTop:24,paddingTop:20,borderTopWidth:1,borderTopColor:"#1e293b"},
-  txRow:{flexDirection:"row",alignItems:"center",paddingVertical:10,borderBottomWidth:1,borderBottomColor:"#0f172a"},
-  txBadge:{paddingHorizontal:7,paddingVertical:3,borderRadius:6,minWidth:64,alignItems:"center"},
-  txBadgeTxt:{color:"#fff",fontSize:10,fontWeight:"700"},
   root: { flex: 1, backgroundColor: C.bg },
   flex: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingTop: 44, borderBottomWidth: 0, borderBottomColor: 'transparent', backgroundColor: 'transparent' },
@@ -2567,12 +1535,12 @@ const s = StyleSheet.create({
   pad: { padding: 16, backgroundColor: C.bg, flex: 1 },
   msgs: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   bubble: { marginBottom: 12, maxWidth: '85%' },
-  userBubble: { alignSelf: 'flex-end', backgroundColor: C.card2, borderRadius: 16, borderBottomRightRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border, maxWidth: '85%', flexShrink: 1 },
-  botBubble: { alignSelf: 'flex-start', backgroundColor: C.card, borderRadius: 16, borderBottomLeftRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border, maxWidth: '85%', flexShrink: 1 },
+  userBubble: { alignSelf: 'flex-end', backgroundColor: C.card2, borderRadius: 16, borderBottomRightRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border },
+  botBubble: { alignSelf: 'flex-start', backgroundColor: C.card, borderRadius: 16, borderBottomLeftRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border },
   botTag: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
   botDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.green },
   botTagTxt: { color: C.green, fontSize: 11, fontWeight: '600' },
-  bubbleTxt: { color: C.text, fontSize: 14, lineHeight: 21, flexShrink: 1, flexWrap: 'wrap' },
+  bubbleTxt: { color: C.text, fontSize: 14, lineHeight: 21 },
   inputRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   input: { flex: 1, backgroundColor: C.card, color: C.text, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 11, fontSize: 14, borderWidth: 1, borderColor: C.border },
   sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center' },
@@ -2609,7 +1577,7 @@ const s = StyleSheet.create({
   portfolioAction: { alignItems: 'center', backgroundColor: C.card2, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: C.border },
   portfolioActionIcon: { color: C.green, fontSize: 18, fontWeight: 'bold' },
   portfolioActionTxt: { color: C.text, fontSize: 10, marginTop: 2 },
-  sectionLabel: { color: C.muted, fontSize: 11, fontWeight: '600', marginBottom: 8, letterSpacing: 1, paddingRight: 2, paddingRight: 2 },
+  sectionLabel: { color: C.muted, fontSize: 11, fontWeight: '600', marginBottom: 8, letterSpacing: 1 },
   assetRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: C.border },
   assetIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   assetIconTxt: { color: C.green, fontWeight: 'bold', fontSize: 15 },
@@ -2626,11 +1594,11 @@ const s = StyleSheet.create({
   dangerBtnTxt: { color: C.red, fontWeight: '600', fontSize: 14 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: C.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, borderWidth: 1, borderColor: C.border, maxHeight: '90%' },
-  modalTitle: { color: C.text, fontSize: 20, fontWeight: 'bold', marginBottom: 16, textAlign: 'center', width: '100%' },
+  modalTitle: { color: C.text, fontSize: 20, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
   orText: { color: C.muted, fontSize: 13, textAlign: 'center', marginVertical: 12 },
   seedInput: { backgroundColor: C.bg, color: C.text, borderRadius: 12, padding: 14, fontSize: 14, borderWidth: 1, borderColor: C.border, minHeight: 80, textAlignVertical: 'top' },
   closeBtn: { padding: 14, alignItems: 'center', marginTop: 8, minWidth: 80 },
-  closeBtnTxt: { color: C.muted, fontSize: 14, textAlign: 'center', width: '100%' },
+  closeBtnTxt: { color: C.muted, fontSize: 14, textAlign: 'center' },
   seedWarning: { color: C.orange, fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 20 },
   seedGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   seedWord: { width: '30%', flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: 8, padding: 8, borderWidth: 1, borderColor: C.border, gap: 6 },
@@ -2643,7 +1611,7 @@ const s = StyleSheet.create({
   tabIcon: { fontSize: 22, color: 'rgba(255,255,255,0.4)' },
   tabIconActive: { color: '#39FF82', textShadowColor: '#39FF82', textShadowOffset: {width:0,height:0}, textShadowRadius: 8 },
   tabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 },
-  tabLabelActive: { color: '#C7F284', fontWeight: '600' },
+  tabLabelActive: { color: '#39FF82', fontWeight: '600' },
   swapCard:{ backgroundColor:C.card, borderRadius:16, padding:16, marginBottom:4 },
   swapCardLabel:{ color:C.muted, fontSize:13, marginBottom:10 },
   swapCardRow:{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' },
@@ -2658,9 +1626,8 @@ const s = StyleSheet.create({
   tokenResTxt:{ color:C.text, fontSize:14, fontWeight:'600' },
   tokenResSub:{ color:C.muted, fontSize:12, marginTop:2 },
   swapDirBtn:{ alignSelf:'center', backgroundColor:C.card, borderRadius:22, padding:12, marginVertical:6, borderWidth:3, borderColor:C.bg },
-  pfHeroCard:{ overflow:'hidden', borderRadius:20, backgroundColor:'#1C2936', marginBottom:16, borderWidth:1, borderColor:'rgba(199,242,132,0.15)' },
-  pfBalanceSection:{ alignItems:'center', paddingVertical:36, overflow:'hidden', borderRadius:20, backgroundColor:'#0f1e0f', marginBottom:16, borderWidth:1, borderColor:'rgba(199,242,132,0.15)' },
-  pfBalanceAmt:{ color:C.text, fontSize:40, fontWeight:'700', letterSpacing:-1, zIndex:1 },
+  pfBalanceSection:{ alignItems:'center', paddingVertical:24 },
+  pfBalanceAmt:{ color:C.text, fontSize:40, fontWeight:'700', letterSpacing:-1 },
   pfAddressTxt:{ color:C.muted, fontSize:13, marginTop:6 },
   pfActions:{ flexDirection:'row', justifyContent:'space-around', marginBottom:24 },
   pfActionBtn:{ alignItems:'center', gap:6 },
@@ -2676,8 +1643,8 @@ const s = StyleSheet.create({
   stGroup:{ backgroundColor:C.card, borderRadius:16, marginBottom:12, overflow:'hidden' },
   stGroupLabel:{ color:C.muted, fontSize:12, fontWeight:'600', paddingHorizontal:16, paddingTop:12, paddingBottom:4, textTransform:'uppercase', letterSpacing:0.5 },
   stRow:{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:16, paddingVertical:14, borderBottomWidth:1, borderBottomColor:C.border },
-  stRowTxt:{ color:C.text, fontSize:15, flex:1, flexShrink:1, flexWrap:'wrap' },
-  stRowVal:{ color:C.green, fontSize:15, textAlign:"right" },
+  stRowTxt:{ color:C.text, fontSize:15 },
+  stRowVal:{ color:C.green, fontSize:15 },
   stProfileRow:{ flexDirection:'row', alignItems:'center', padding:16 },
   stAvatar:{ width:44, height:44, borderRadius:22, backgroundColor:C.border, alignItems:'center', justifyContent:'center' },
   stAvatarTxt:{ color:C.green, fontSize:20 },
