@@ -1769,7 +1769,7 @@ export default function App() {
               )}
             </ScrollView>
             <View style={s.inputRow}>
-              <TextInput style={s.input} value={input} onChangeText={(t)=>{setInput(t);inputRef.current=t;}} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current||input)} editable={!aiLoading} />
+              <TextInput style={s.input} value={input} onChangeText={(t)=>{setInput(t);inputRef.current=t;}} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current||input)} editable={!aiLoading} autoCorrect={false} autoCapitalize="none" blurOnSubmit={false} />
               <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current||input)} disabled={aiLoading}>
                 <Ionicons name="send" size={20} color="#0d1117" />
               </TouchableOpacity>
