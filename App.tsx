@@ -1359,8 +1359,7 @@ https://solscan.io/tx/${txSig}`, from: 'bot' }]);
             const lockData = await lockRes.json();
             const locks = lockData.locks || lockData.positions || [];
             if (!locks.length) {
-              setMsgs(p => [...p, { id: Date.now(), text: '🔒 No active locks found.
-Use "lock 100 JUP for 30 days" to create one.', from: 'bot' }]);
+              setMsgs(p => [...p, { id: Date.now(), text: '🔒 No active locks found.\nUse "lock 100 JUP for 30 days" to create one.', from: 'bot' }]);
             } else {
               const txt = locks.map((l:any) => {
                 const sym = l.symbol || l.token || '?';
