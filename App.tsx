@@ -1227,15 +1227,63 @@ export default function App() {
           setShowSendModal(true);
           break;
         }
-        case 'SHOW_EARN':
-        case 'SHOW_LOCK':
+        case 'SHOW_LOCK': {
+          const { token, amount, days } = data;
+          if (!token || !amount || !days) {
+            setMsgs(p => [...p, { id: Date.now(), text: 'Please specify token, amount and days to lock. Example: lock 100 JUP for 30 days', from: 'bot' }]);
+            break;
+          }
+          const mint = TOKENS[token];
+          if (!mint) { setMsgs(p => [...p, { id: Date.now(), text: `Unknown token: ${token}`, from: 'bot' }]); break; }
+          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Locking ${amount} ${token} for ${days} days...`, from: 'bot' }]);
+          try {
+            const cliffSecs = parseInt(days) * 86400;
+            const amtRaw = Math.floor(parseFloat(amount) * Math.pow(10, DECIMALS[token] || 6));
+            const lockRes = await fetch('https://chatfi.pro/api/lock', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'create', funder: pk, mint, amount: amtRaw, cliffSecs, vestingSecs: cliffSecs })
+            });
+            const lockData = await lockRes.json();
+            if (lockData.error) throw new Error(lockData.error);
+            const txSig = await signAndSendTx(lockData.transaction, secretKey);
+            setMsgs(p => [...p, { id: Date.now(), text: `✅ Locked ${amount} ${token} for ${days} days!
+Tx: ${txSig.slice(0,20)}...
+https://solscan.io/tx/${txSig}`, from: 'bot' }]);
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Lock failed: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
+        case 'SHOW_EARN': {
+          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your earn positions...', from: 'bot' }]);
+          try {
+            const earnRes = await fetch(`https://chatfi.pro/api/lend-positions?wallet=${pk}`);
+            const earnData = await earnRes.json();
+            if (earnData.error) throw new Error(earnData.error);
+            const positions = earnData.positions || [];
+            if (positions.length === 0) {
+              setMsgs(p => [...p, { id: Date.now(), text: 'No active earn positions found.
+
+To start earning, deposit tokens on jup.ag/earn', from: 'bot' }]);
+            } else {
+              const posText = positions.map((p:any) => `• ${p.symbol}: $${p.valueUSD?.toFixed(2)} @ ${p.apy?.toFixed(2)}% APY`).join('
+');
+              setMsgs(p => [...p, { id: Date.now(), text: `📈 Your Earn Positions:
+${posText}`, from: 'bot' }]);
+            }
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch earn positions: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
         case 'SHOW_STUDIO': {
-          const labels: Record<string, string> = {
-            SHOW_EARN: 'Jupiter Earn',
-            SHOW_LOCK: 'Jupiter Lock',
-            SHOW_STUDIO: 'Jupiter Studio'
-          };
-          setMsgs(p => [...p, { id: Date.now(), text: `Opening ${labels[action]} — visit jup.ag for full access.`, from: 'bot' }]);
+          setMsgs(p => [...p, { id: Date.now(), text: '🎨 Jupiter Studio — Create a Token
+
+To create a token, tell me:
+• Token name
+• Token symbol
+• Total supply
+• Decimals (default 6)
+• Description
+
+Example: create token named "MyToken" symbol "MTK" supply 1000000', from: 'bot' }]);
           break;
         }
         default:
