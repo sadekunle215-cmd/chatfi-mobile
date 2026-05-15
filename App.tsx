@@ -1380,7 +1380,7 @@ https://solscan.io/tx/${txSig}`, from: 'bot' }]);
             const trigData = await trigRes.json();
             const orders = trigData.orders || trigData || [];
             if (!orders.length) {
-              setMsgs(p => [...p, { id: Date.now(), text: '📋 No active limit orders.
+              setMsgs(p => [...p, { id: Date.now(), text: 'No active limit orders.
 Say "buy SOL when price drops below $140" to create one.', from: 'bot' }]);
             } else {
               const txt = orders.slice(0,10).map((o:any) => {
