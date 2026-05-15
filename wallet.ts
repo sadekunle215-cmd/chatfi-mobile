@@ -13,7 +13,7 @@ export async function rpcFetch(method: string, params: any[]): Promise<any> {
   const res = await fetch(PROXY, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: 'SOLANA_RPC', jsonrpc: '2.0', id: 1, method, params })
+    body: JSON.stringify({ url: 'SOLANA_RPC', method: 'POST', body: { jsonrpc: '2.0', id: 1, method, params } })
   });
   return res.json();
 }
