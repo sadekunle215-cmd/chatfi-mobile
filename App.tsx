@@ -394,7 +394,7 @@ function TokLogo({uri, symbol, style, fallback, mint}: {uri:string, symbol:strin
   if(tries >= sources.length) return <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2a1a'}]}><Text style={{color:'#39ff14',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
   return <Image source={{uri:sources[tries]}} style={style} onError={()=>setTries(t=>t+1)} />;
 }
-function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, activeAccIdx, switchAccount, addAccount }: any) {
+function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, setAccounts, activeAccIdx, switchAccount, addAccount }: any) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
   React.useEffect(() => { setNameInput(userName || ''); }, [userName]);
@@ -567,6 +567,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                           const idx = accs.findIndex((a:any) => a.publicKey === pubkey || a.address === pubkey);
                           const target = idx >= 0 ? idx : activeAccIdx;
                           if(accs[target]) accs[target].name = nameInput;
+                          setAccounts([...accs]);
                           await AsyncStorage.setItem('accounts', JSON.stringify(accs));
                         }
                         Alert.alert('Saved!', 'Name saved!');
