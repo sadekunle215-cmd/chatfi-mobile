@@ -2024,20 +2024,6 @@ export default function App() {
                   })}
                 </View>
               )}
-                      <View style={{flex:1}}>
-                        <Text style={s.pfTokenName}>{e.name}</Text>
-                        <Text style={{color:C.muted,fontSize:12}}>{e.provider} · {e.desc}</Text>
-                      </View>
-                      <View style={{alignItems:'flex-end'}}>
-                        <Text style={{color:C.green,fontWeight:'700',fontSize:15}}>{e.apy}</Text>
-                        <Text style={{color:C.muted,fontSize:11}}>APY</Text>
-                      </View>
-                  ))}
-                </View>
-              )}
-
-            </View>
-          )}
         </ScrollView>
       )}
 
