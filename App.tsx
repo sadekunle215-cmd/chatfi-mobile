@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction , rpcFetch } from './wallet';
+import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction } from './wallet';
 import nacl from 'tweetnacl';
 import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices } from './wallet';
@@ -26,7 +26,7 @@ const C = {
   gradTop: '#1C2936', gradBot: '#0d1117',
 };
 
-
+const RPC = 'https://solana-mainnet.g.alchemy.com/v2/demo';
 
 async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamports:number):Promise<string>{
   const bs58=require('bs58');
@@ -48,7 +48,8 @@ async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamp
 }
 
 async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amountRaw:number,mint:string):Promise<string>{
-  const {PublicKey,Transaction,SystemProgram} = require('@solana/web3.js');
+  const {Connection,PublicKey,Transaction,SystemProgram} = require('@solana/web3.js');
+  const conn = new Connection('https://solana-mainnet.g.alchemy.com/v2/demo','confirmed');
   const TOKEN_PROG = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
   const ASSOC_PROG = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bw');
   const mintPk = new PublicKey(mint);
@@ -57,16 +58,15 @@ async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amou
   const [fromATA] = PublicKey.findProgramAddressSync([fromPk.toBuffer(),TOKEN_PROG.toBuffer(),mintPk.toBuffer()],ASSOC_PROG);
   const [toATA] = PublicKey.findProgramAddressSync([toPk.toBuffer(),TOKEN_PROG.toBuffer(),mintPk.toBuffer()],ASSOC_PROG);
   const tx = new Transaction();
-  const ataInfo = await rpcFetch('getAccountInfo',[toATA.toBase58(),{encoding:'base64'}]);
-  if(!ataInfo?.result?.value){tx.add({keys:[{pubkey:fromPk,isSigner:true,isWritable:true},{pubkey:toATA,isSigner:false,isWritable:true},{pubkey:toPk,isSigner:false,isWritable:false},{pubkey:mintPk,isSigner:false,isWritable:false},{pubkey:SystemProgram.programId,isSigner:false,isWritable:false},{pubkey:TOKEN_PROG,isSigner:false,isWritable:false}],programId:ASSOC_PROG,data:Buffer.alloc(0)});}
+  const toATAInfo = await conn.getAccountInfo(toATA);
+  if(!toATAInfo){tx.add({keys:[{pubkey:fromPk,isSigner:true,isWritable:true},{pubkey:toATA,isSigner:false,isWritable:true},{pubkey:toPk,isSigner:false,isWritable:false},{pubkey:mintPk,isSigner:false,isWritable:false},{pubkey:SystemProgram.programId,isSigner:false,isWritable:false},{pubkey:TOKEN_PROG,isSigner:false,isWritable:false}],programId:ASSOC_PROG,data:Buffer.alloc(0)});}
   const ixData=Buffer.alloc(9);ixData[0]=3;ixData.writeBigUInt64LE(BigInt(amountRaw),1);
   tx.add({keys:[{pubkey:fromATA,isSigner:false,isWritable:true},{pubkey:toATA,isSigner:false,isWritable:true},{pubkey:fromPk,isSigner:true,isWritable:false}],programId:TOKEN_PROG,data:ixData});
-  const bh = await rpcFetch('getLatestBlockhash',[{commitment:'confirmed'}]);
-  tx.recentBlockhash=bh.result.value.blockhash;tx.feePayer=fromPk;
+  const {blockhash}=await conn.getLatestBlockhash('confirmed');
+  tx.recentBlockhash=blockhash;tx.feePayer=fromPk;
   tx.sign({publicKey:fromPk,secretKey});
-  const r = await rpcFetch('sendTransaction',[Buffer.from(tx.serialize()).toString('base64'),{encoding:'base64',preflightCommitment:'confirmed'}]);
-  if(r.error) throw new Error(r.error.message);
-  return r.result;
+  const sig=await conn.sendRawTransaction(tx.serialize(),{skipPreflight:false,preflightCommitment:'confirmed'});
+  return sig;
 }
 
 const TABS = [
@@ -855,12 +855,6 @@ export default function App() {
   const [txHistory, setTxHistory] = useState<any[]>([]);
   const [txLoading, setTxLoading] = useState(false);
   const [showTxModal, setShowTxModal] = useState(false);
-  const [portfolioTab, setPortfolioTab] = useState<'tokens'|'predictions'|'earn'>('tokens');
-  const [predictions, setPredictions] = useState<Record<string,any>>({});
-  const [predictionsLoading, setPredictionsLoading] = useState(false);
-  const [earnMarkets, setEarnMarkets] = useState<any[]>([]);
-  const [earnPositions, setEarnPositions] = useState<any[]>([]);
-  const [earnLoading, setEarnLoading] = useState(false);
 
   // Toast system
   const [toast, setToast] = useState<{msg:string,type:'success'|'error'|'info'}|null>(null);
@@ -1284,57 +1278,16 @@ export default function App() {
     return {sig:sig.signature,time,failed:!!sig.err,type,amount,token};
   };
 
-  const fetchPredictions = async () => {
-    if (!tokenBalances.length && !solBalance) return;
-    setPredictionsLoading(true);
-    try {
-      const mints = ['So11111111111111111111111111111111111111112',...tokenBalances.map((t:any)=>t.mint)].join(',');
-      const res = await fetch('https://chatfi.pro/api/jupiter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:`https://lite-api.jup.ag/price/v2?ids=${mints}&showExtraInfo=true`,method:'GET'})});
-      const data = await res.json();
-      const preds:Record<string,any> = {};
-      for (const [mint, info] of Object.entries(data?.data||{})) {
-        const d = info as any;
-        const buyImpact = d.extraInfo?.depth?.buyPriceImpactRatio?.depth100 ?? 0.5;
-        const sellImpact = d.extraInfo?.depth?.sellPriceImpactRatio?.depth100 ?? 0.5;
-        const confidence = d.extraInfo?.confidenceLevel || 'low';
-        preds[mint] = { bullish: buyImpact <= sellImpact, confidence, price: d.price };
-      }
-      setPredictions(preds);
-    } catch(e) { console.error('fetchPredictions',e); }
-    setPredictionsLoading(false);
-  };
-
-  const fetchEarnData = async () => {
-    if (!pubkey) return;
-    setEarnLoading(true);
-    try {
-      const [posRes, mktRes] = await Promise.allSettled([
-        fetch('https://chatfi.pro/api/jupiter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:`https://api.jup.ag/lend/v1/earn/positions?users=${pubkey}`,method:'GET'})}).then(r=>r.json()),
-        fetch('https://chatfi.pro/api/jupiter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:'https://api.jup.ag/lend/v1/earn/markets',method:'GET'})}).then(r=>r.json()),
-      ]);
-      if (posRes.status==='fulfilled') {
-        const pd = posRes.value;
-        setEarnPositions(Array.isArray(pd)?pd:(pd?.data||pd?.positions||[]));
-      }
-      if (mktRes.status==='fulfilled') {
-        const md = mktRes.value;
-        const arr = Array.isArray(md)?md:(md?.data||md?.markets||[]);
-        setEarnMarkets(arr.sort((a:any,b:any)=>((b.supplyApy||b.apy||0)-(a.supplyApy||a.apy||0))).slice(0,8));
-      }
-    } catch(e) { console.error('fetchEarnData',e); }
-    setEarnLoading(false);
-  };
-
   const fetchTxHistory = async () => {
     if (!pubkey) return;
     setTxLoading(true);
     try {
       const RPC="https://api.mainnet-beta.solana.com";
       const sr = await rpcFetch("getSignaturesForAddress",[pubkey,{limit:10}]);
-      const sigs = Array.isArray(sr) ? sr : (sr?.result ?? []);
+      const sigs = sr.result||[];
       const results = await Promise.allSettled(sigs.map(async(sig:any)=>{
         const r=await rpcFetch("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
-        const txData = r?.result ?? r; return parseTx(txData,sig,pubkey);
+        return parseTx(r.result,sig,pubkey);
       }));
       setTxHistory(results.filter((r:any)=>r.status==="fulfilled"&&r.value).map((r:any)=>r.value));
     } catch(e){console.error(e);} finally{setTxLoading(false);}
@@ -1888,26 +1841,17 @@ export default function App() {
                 </TouchableOpacity>
               </View>
 
-              {/* Portfolio Tabs */}
-              <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-                <View style={{flexDirection:"row",gap:8}}>
-                  {(['tokens','predictions','earn'] as const).map(t=>(
-                    <TouchableOpacity key={t} onPress={()=>{setPortfolioTab(t);if(t==='predictions')fetchPredictions();if(t==='earn')fetchEarnData();}}
-                      style={{paddingHorizontal:14,paddingVertical:6,borderRadius:20,backgroundColor:portfolioTab===t?C.green:'transparent',borderWidth:1,borderColor:portfolioTab===t?C.green:C.border}}>
-                      <Text style={{color:portfolioTab===t?'#0d1117':C.text,fontWeight:'600',fontSize:13,textTransform:'capitalize'}}>{t}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+              {/* Token List */}
+              <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <Text style={s.pfSectionLbl}>Tokens</Text>
                 <TouchableOpacity onPress={()=>{fetchTxHistory();setShowTxModal(true);}} style={{padding:4}}>
-                  <Ionicons name="time-outline" size={24} color={"#ffffff"} />
+                  <Ionicons name="time-outline" size={24} color={C.green} />
                 </TouchableOpacity>
               </View>
-              {portfolioTab === 'tokens' && <>
               {tokenBalances.length===0&&!portfolioLoading&&(
                 <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
               )}
-              {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}</>}
-              {portfolioTab === 'tokens' && <>
+              {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
               {/* SOL Row */}
               {solBalance !== null && solBalance > 0 && (
                 <TouchableOpacity style={s.pfTokenRow} onPress={()=>setSelectedToken({symbol:'SOL',mint:'So11111111111111111111111111111111111111112',amount:solBalance||0,logoURI:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112',price:solPrice||0,isVerified:true})}>
@@ -1932,98 +1876,11 @@ export default function App() {
                   <Text style={s.pfTokenVal}>{privacyMode ? '****' : t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               ))}
-              </>}
+            </View>
+          )}
+        </ScrollView>
+      )}
 
-              {/* Predictions Tab */}
-              {portfolioTab === 'predictions' && (
-                <View style={{marginTop:8}}>
-                  {predictionsLoading && <ActivityIndicator color={C.green} style={{marginTop:20}} />}
-                  {!predictionsLoading && (!predictions.events || predictions.events.length===0) && (
-                    <Text style={{color:C.muted,textAlign:'center',marginTop:20}}>No prediction markets found</Text>
-                  )}
-                  {(predictions.events||[]).map((ev:any,i:number)=>{
-                    const title = ev.metadata?.title || ev.title || 'Unknown Event';
-                    const category = ev.category || '';
-                    const vol = ev.volumeUsd ? '$'+(parseFloat(ev.volumeUsd)/1000).toFixed(1)+'K vol' : '';
-                    const close = ev.metadata?.closeTime ? new Date(ev.metadata.closeTime*1000).toLocaleDateString() : '';
-                    const markets = ev.markets || [];
-                    return (
-                      <TouchableOpacity key={i} style={{paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}
-                        onPress={()=>Linking.openURL('https://jup.ag/prediction')}>
-                        <View style={{flexDirection:'row',justifyContent:'space-between',marginBottom:6}}>
-                          <Text style={{color:C.text,fontWeight:'700',fontSize:14,flex:1,marginRight:8}}>{title}</Text>
-                          <Text style={{color:C.muted,fontSize:11,textTransform:'capitalize'}}>{category}</Text>
-                        </View>
-                        <View style={{flexDirection:'row',gap:8,marginBottom:6}}>
-                          {vol ? <Text style={{color:C.muted,fontSize:11}}>{vol}</Text> : null}
-                          {close ? <Text style={{color:C.muted,fontSize:11}}>Closes {close}</Text> : null}
-                        </View>
-                        {markets.slice(0,3).map((mk:any,j:number)=>{
-                          const mkTitle = mk.metadata?.title || mk.title || '';
-                          const yes = mk.pricing?.buyYesPriceUsd ? (parseFloat(mk.pricing.buyYesPriceUsd)*100).toFixed(0)+'c' : '-';
-                          const no  = mk.pricing?.buyNoPriceUsd  ? (parseFloat(mk.pricing.buyNoPriceUsd)*100).toFixed(0)+'c'  : '-';
-                          const yesProb = mk.pricing?.buyYesPriceUsd ? Math.round(parseFloat(mk.pricing.buyYesPriceUsd)*100) : null;
-                          const probColor = yesProb ? (yesProb>=60?C.green:yesProb<=40?'#ff4444':C.orange) : C.muted;
-                          return (
-                            <View key={j} style={{flexDirection:'row',alignItems:'center',backgroundColor:C.card,borderRadius:8,padding:8,marginTop:4}}>
-                              <Text style={{color:C.text,fontSize:12,flex:1}} numberOfLines={1}>{mkTitle}</Text>
-                              <Text style={{color:C.green,fontSize:12,marginLeft:8}}>Y {yes}</Text>
-                              <Text style={{color:'#ff4444',fontSize:12,marginLeft:8}}>N {no}</Text>
-                              {yesProb!==null && <Text style={{color:probColor,fontSize:12,fontWeight:'700',marginLeft:8}}>{yesProb}%</Text>}
-                            </View>
-                          );
-                        })}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-              {/* Earn Tab */}
-              {portfolioTab === 'earn' && (
-                <View style={{marginTop:8}}>
-                  {earnLoading && <ActivityIndicator color={C.green} style={{marginTop:20}} />}
-                  {earnPositions.length>0 && (
-                    <View style={{marginBottom:12,padding:12,backgroundColor:C.card,borderRadius:12}}>
-                      <Text style={{color:C.text,fontWeight:'700',fontSize:13,marginBottom:8}}>Your Positions</Text>
-                      {earnPositions.map((p:any,i:number)=>{
-                        const dec = p.token?.decimals ?? p.asset?.decimals ?? p.decimals ?? 6;
-                        const amt = parseFloat(p.underlyingAssets??0)/Math.pow(10,dec);
-                        const apy = ((p.apy||p.supplyApy||0)*100).toFixed(2);
-                        const sym = p.token?.symbol || p.asset?.symbol || p.symbol || '?';
-                        return (
-                          <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderTopWidth:i>0?1:0,borderTopColor:C.border}}>
-                            <Text style={{color:C.text,fontSize:13}}>{sym}</Text>
-                            <Text style={{color:C.green,fontSize:13}}>{amt.toFixed(4)} · {apy}% APY</Text>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  )}
-                  {!earnLoading && earnMarkets.length===0 && earnPositions.length===0 && (
-                    <Text style={{color:C.muted,textAlign:'center',marginTop:20}}>No earn data yet</Text>
-                  )}
-                  {earnMarkets.map((e:any,i:number)=>{
-                    const apy = ((e.supplyApy||e.apy||0)*100).toFixed(2);
-                    const tvl = e.tvl ? '$'+(e.tvl/1e6).toFixed(1)+'M TVL' : '';
-                    const sym = e.symbol || e.asset?.symbol || e.tokenSymbol || '?';
-                    const logo = e.logoURI || e.asset?.logoURI || `https://img.jup.ag/tokens/${e.mint||e.assetMint||''}`;
-                    return (
-                      <TouchableOpacity key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}
-                        onPress={()=>Linking.openURL('https://jup.ag/earn')}>
-                        <TokLogo uri={logo} fallback={''} symbol={sym} style={s.pfTokenLogo} mint={e.mint||e.assetMint||''} />
-                        <View style={{flex:1,marginLeft:12}}>
-                          <Text style={s.pfTokenName}>{sym}</Text>
-                          <Text style={{color:C.muted,fontSize:12}}>{tvl}</Text>
-                        </View>
-                        <View style={{alignItems:'flex-end'}}>
-                          <Text style={{color:C.green,fontWeight:'700',fontSize:15}}>{apy}%</Text>
-                          <Text style={{color:C.muted,fontSize:11}}>APY</Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
             {/* DAPP BROWSER */}
         {tab === 'dapp' && (
           <DappBrowser walletAddress={pubkey} />
