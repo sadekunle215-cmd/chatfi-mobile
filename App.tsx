@@ -48,25 +48,65 @@ async function _sendSOL(pubkey:string,secretKey:Uint8Array,recipient:string,lamp
 }
 
 async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amountRaw:number,mint:string):Promise<string>{
-  const {Connection,PublicKey,Transaction,SystemProgram} = require('@solana/web3.js');
-  const conn = new Connection('https://solana-mainnet.g.alchemy.com/v2/demo','confirmed');
-  const TOKEN_PROG = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-  const ASSOC_PROG = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bw');
-  const mintPk = new PublicKey(mint);
-  const fromPk = new PublicKey(pubkey);
-  const toPk = new PublicKey(recipient);
-  const [fromATA] = PublicKey.findProgramAddressSync([fromPk.toBuffer(),TOKEN_PROG.toBuffer(),mintPk.toBuffer()],ASSOC_PROG);
-  const [toATA] = PublicKey.findProgramAddressSync([toPk.toBuffer(),TOKEN_PROG.toBuffer(),mintPk.toBuffer()],ASSOC_PROG);
-  const tx = new Transaction();
-  const toATAInfo = await conn.getAccountInfo(toATA);
-  if(!toATAInfo){tx.add({keys:[{pubkey:fromPk,isSigner:true,isWritable:true},{pubkey:toATA,isSigner:false,isWritable:true},{pubkey:toPk,isSigner:false,isWritable:false},{pubkey:mintPk,isSigner:false,isWritable:false},{pubkey:SystemProgram.programId,isSigner:false,isWritable:false},{pubkey:TOKEN_PROG,isSigner:false,isWritable:false}],programId:ASSOC_PROG,data:Buffer.alloc(0)});}
-  const ixData=Buffer.alloc(9);ixData[0]=3;ixData.writeBigUInt64LE(BigInt(amountRaw),1);
-  tx.add({keys:[{pubkey:fromATA,isSigner:false,isWritable:true},{pubkey:toATA,isSigner:false,isWritable:true},{pubkey:fromPk,isSigner:true,isWritable:false}],programId:TOKEN_PROG,data:ixData});
-  const {blockhash}=await conn.getLatestBlockhash('confirmed');
-  tx.recentBlockhash=blockhash;tx.feePayer=fromPk;
-  tx.sign({publicKey:fromPk,secretKey});
-  const sig=await conn.sendRawTransaction(tx.serialize(),{skipPreflight:false,preflightCommitment:'confirmed'});
-  return sig;
+  const bs58=require('bs58');
+  const TOKEN_PROG='TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+  const ASSOC_PROG='ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bw';
+
+  function findATA(wallet:string,mint:string):string{
+    const {PublicKey}=require('@solana/web3.js');
+    const [ata]=require('@solana/web3.js').PublicKey.findProgramAddressSync(
+      [bs58.decode(wallet),bs58.decode(TOKEN_PROG),bs58.decode(mint)],
+      bs58.decode(ASSOC_PROG)
+    );
+    return bs58.encode(ata);
+  }
+
+  const fromATA=findATA(pubkey,mint);
+  const toATA=findATA(recipient,mint);
+
+  // Check if toATA exists
+  const toATAInfo=await rpcFetch('getAccountInfo',[toATA,{encoding:'base64'}]);
+  const toATAExists=toATAInfo?.result?.value!==null;
+
+  // Build transaction manually
+  const from=bs58.decode(pubkey);
+  const to=bs58.decode(recipient);
+  const fromATAb=bs58.decode(fromATA);
+  const toATAb=bs58.decode(toATA);
+  const mintb=bs58.decode(mint);
+  const tokenProgb=bs58.decode(TOKEN_PROG);
+  const assocProgb=bs58.decode(ASSOC_PROG);
+  const sysProgb=new Uint8Array(32);
+
+  const bh=await rpcFetch('getLatestBlockhash',[{commitment:'confirmed'}]);
+  const blockhash=bh.result.value.blockhash;
+  const bhb=bs58.decode(blockhash);
+
+  // Transfer instruction data
+  const ixData=new Uint8Array(9);
+  ixData[0]=3;
+  new DataView(ixData.buffer).setBigUint64(1,BigInt(amountRaw),true);
+
+  // Build accounts list
+  const accounts=toATAExists
+    ?[from,fromATAb,toATAb,tokenProgb]
+    :[from,fromATAb,toATAb,to,mintb,sysProgb,tokenProgb,assocProgb];
+
+  // Simple transfer ix
+  const numAccounts=toATAExists?3:6;
+  const header=new Uint8Array([1,0,numAccounts]);
+
+  // Serialize message
+  const msg=new Uint8Array([
+    1,0,toATAExists?3:6,...from,...fromATAb,...toATAb,...(toATAExists?[]:[...to,...mintb,...sysProgb]),...tokenProgb,...bhb,
+    1,0,toATAExists?1:4,toATAExists?2:4,...ixData
+  ]);
+
+  const sig=nacl.sign.detached(msg,secretKey);
+  const txBytes=new Uint8Array([1,...sig,...msg]);
+  const r=await rpcFetch('sendTransaction',[Buffer.from(txBytes).toString('base64'),{encoding:'base64',preflightCommitment:'confirmed'}]);
+  if(r.error)throw new Error(r.error.message);
+  return r.result;
 }
 
 const TABS = [
