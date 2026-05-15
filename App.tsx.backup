@@ -1138,11 +1138,7 @@ export default function App() {
     inputRef.current = '';
     setAiLoading(true);
     try {
-      const history = msgs.slice(-10).map(m => ({
-        role: m.from === 'user' ? 'user' : 'assistant',
-        content: m.text
-      }));
-      const response = await askAI(q, pubkey, history);
+      const response = await askAI(q, pubkey);
       setMsgs(p => [...p, { id: Date.now() + 1, text: response.text, from: 'bot' }]);
       await dispatchAction(response.action, response.actionData);
     } catch (e) {
@@ -2010,11 +2006,106 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
         )}
 
         {/* SWAP */}
-      {tab === 'swap' && (
-        <View style={{flex:1,alignItems:'center',justifyContent:'center'}}>
-          <Text style={{color:C.muted}}>Swap coming soon</Text>
-        </View>
+              {tab === 'swap' && (
+        <ScrollView style={s.pad} keyboardShouldPersistTaps="handled">
+          <View style={s.swapCard}>
+            <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+              <Text style={s.swapCardLabel}>You Pay</Text>
+              <Text style={{color:C.muted,fontSize:12}}>Balance: {tokenBalances.find(t=>t.symbol===fromToken)?.amount?.toFixed(4) ?? (fromToken==='SOL'?(solBalance||0).toFixed(4):'0')} {fromToken}</Text>
+            </View>
+            <View style={s.swapCardRow}>
+              <TextInput style={s.swapAmtInput} value={amt} onChangeText={setAmt} placeholder="0" placeholderTextColor={C.border} keyboardType="numeric" />
+              <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowFromSearch(!showFromSearch);setShowToSearch(false);}}>
+                <TokLogo uri={TOKEN_LOGOS[fromToken]||'https://img.jup.ag/tokens/'+(TOKENS[fromToken]||'')} fallback={'https://img.jup.ag/tokens/'+(TOKENS[fromToken]||'')} symbol={fromToken} style={s.tokenLogo} mint={TOKENS[fromToken]||''} />
+                <Text style={s.tokenSelTxt}>{fromToken}</Text>
+                <Text style={{color:C.muted,marginLeft:4,fontSize:12}}>▾</Text>
+              </TouchableOpacity>
+            </View>
+            {showFromSearch&&(
+              <View style={s.tokenDropdown}>
+                <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setFromResults); else setFromResults([]);}} />
+                {fromResults.slice(0,5).map(t=>(
+                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setFromToken(t.symbol);TOKENS[t.symbol]=t.address;if(t.decimals!=null)DECIMALS[t.symbol]=t.decimals;if(t.logoURI)TOKEN_LOGOS[t.symbol]=t.logoURI;setShowFromSearch(false);setQuote(null);}}>
+                    <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
+                    <View style={{flex:1,marginLeft:8}}>
+                      <Text style={s.tokenResTxt}>{t.symbol}</Text>
+                      <Text style={s.tokenResSub} numberOfLines={1}>{t.name}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          <TouchableOpacity style={s.swapDirBtn} onPress={()=>{const tmp=fromToken;setFromToken(toToken);setToToken(tmp);setQuote(null);}}>
+            <Text style={{color:C.green,fontSize:20,fontWeight:'bold'}}>⇅</Text>
+          </TouchableOpacity>
+
+          <View style={s.swapCard}>
+            <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+              <Text style={s.swapCardLabel}>You Receive</Text>
+              <Text style={{color:C.muted,fontSize:12}}>Balance: {tokenBalances.find(t=>t.symbol===toToken)?.amount?.toFixed(4) ?? (toToken==='SOL'?(solBalance||0).toFixed(4):'0')} {toToken}</Text>
+            </View>
+            <View style={s.swapCardRow}>
+              <Text style={s.swapAmtOut}>{quote?Number(quote.outAmount).toFixed(6):'—'}</Text>
+              <TouchableOpacity style={s.tokenSelBtn} onPress={()=>{setShowToSearch(!showToSearch);setShowFromSearch(false);}}>
+                <TokLogo uri={TOKEN_LOGOS[toToken]||'https://img.jup.ag/tokens/'+(TOKENS[toToken]||'')} fallback={'https://img.jup.ag/tokens/'+(TOKENS[toToken]||'')} symbol={toToken} style={s.tokenLogo} mint={TOKENS[toToken]||''} />
+                <Text style={s.tokenSelTxt}>{toToken}</Text>
+                <Text style={{color:C.muted,marginLeft:4,fontSize:12}}>▾</Text>
+              </TouchableOpacity>
+            </View>
+            {showToSearch&&(
+              <View style={s.tokenDropdown}>
+                <TextInput style={s.tokenSearchIn} placeholder="Search token..." placeholderTextColor={C.muted} autoFocus onChangeText={async(q)=>{if(q.length>1) await searchJupTokens(q,setToResults); else setToResults([]);}} />
+                {toResults.slice(0,5).map(t=>(
+                  <TouchableOpacity key={t.address} style={s.tokenResultRow} onPress={()=>{setToToken(t.symbol);TOKENS[t.symbol]=t.address;if(t.decimals!=null)DECIMALS[t.symbol]=t.decimals;if(t.logoURI)TOKEN_LOGOS[t.symbol]=t.logoURI;setShowToSearch(false);setQuote(null);}}>
+                    <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.address} symbol={t.symbol} style={s.tokenLogo} />
+                    <View style={{flex:1,marginLeft:8}}>
+                      <Text style={s.tokenResTxt}>{t.symbol}</Text>
+                      <Text style={s.tokenResSub} numberOfLines={1}>{t.name}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {quote&&(
+            <View style={s.quoteBox}>
+              <Text style={s.quoteRow}>Price impact: <Text style={s.quoteVal}>{quote.priceImpact}%</Text></Text>
+              <Text style={s.quoteRow}>Route: <Text style={s.quoteVal}>{quote.route}</Text></Text>
+              <Text style={s.quoteRow}>Slippage: <Text style={s.quoteVal}>{slippage}%</Text></Text>
+            </View>
+          )}
+
+          <View style={s.slippageRow}>
+            <Text style={s.cardLabel}>Slippage: </Text>
+            {['0.1','0.5','1.0'].map(v=>(
+              <TouchableOpacity key={v} onPress={()=>setSlippage(v)} style={[s.slippageChip,slippage===v&&s.chipActive]}>
+                <Text style={[s.chipTxt,slippage===v&&s.chipTxtActive]}>{v}%</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity style={s.greenBtn} onPress={fetchQuote}>
+            {quoteLoading?<ActivityIndicator color={C.bg} />:<Text style={s.greenBtnTxt}>Get Quote</Text>}
+          </TouchableOpacity>
+
+          {quote&&(
+            <TouchableOpacity style={[s.greenBtn,{marginTop:8}]} onPress={executeSwap}>
+              <Text style={s.greenBtnTxt}>Swap {fromToken} → {toToken}</Text>
+            </TouchableOpacity>
+          )}
+
+          {!wallet&&(
+            <TouchableOpacity style={s.outlineBtn} onPress={()=>setShowWalletModal(true)}>
+              <Text style={s.outlineBtnTxt}>Connect Wallet to Swap</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
       )}
+
+                  {/* PORTFOLIO */}
       {tab === 'portfolio' && (
         <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
           {!wallet ? (

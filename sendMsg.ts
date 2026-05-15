@@ -210,57 +210,80 @@ export const getTokenBalances = async (publicKey: string) => {
 // ── AI chat with action dispatch ──────────────────────────────────────────────
 export const askAI = async (
   question: string,
-  walletAddress: string | null
+  walletAddress: string | null,
+  conversationHistory: Array<{role: string, content: string}> = []
 ): Promise<AIResponse> => {
-  const SYSTEM = `You are ChatFi, an AI DeFi assistant on Solana integrated with Jupiter DEX.
-You can execute real transactions for the user.
-ALWAYS respond with valid JSON in this exact format:
-{"action":"ACTION_TYPE","actionData":{},"text":"your message to user"}
+  const SYSTEM = `You are ChatFi — a sharp AI trading assistant on Solana/Jupiter DEX. Tone: direct, warm.
 
-ACTION TYPES and when to use them:
-- "SWAP": user wants to swap tokens. actionData: {from,to,amount}
-- "SHOW_TRIGGER": limit/trigger order. actionData: {from,to,amount,targetPrice,direction}
-- "SHOW_RECURRING": DCA order. actionData: {from,to,amountPerCycle,intervalSecs,numberOfOrders}
-- "SHOW_SEND": send tokens. actionData: {token,amount,recipient}
-- "FETCH_PORTFOLIO": show portfolio/balances. actionData: {}
-- "FETCH_PRICE": get token price. actionData: {token}
-- "SHOW_EARN": Jupiter earn/lending. actionData: {}
-- "SHOW_LOCK": lock tokens. actionData: {token,amount,days}
-- "SHOW_STUDIO": create token. actionData: {}
-- null: general question, no action needed.
+ALWAYS respond with valid JSON only:
+{"action":"ACTION_TYPE","actionData":{},"text":"your message"}
 
-Examples:
-"swap 1 SOL to USDC" → {"action":"SWAP","actionData":{"from":"SOL","to":"USDC","amount":1},"text":"Swapping 1 SOL to USDC..."}
-"buy SOL below $140" → {"action":"SHOW_TRIGGER","actionData":{"from":"USDC","to":"SOL","amount":140,"targetPrice":140,"direction":"below"},"text":"Setting limit order..."}
-"DCA $10 USDC into SOL daily for 7 days" → {"action":"SHOW_RECURRING","actionData":{"from":"USDC","to":"SOL","amountPerCycle":10,"intervalSecs":86400,"numberOfOrders":7},"text":"Setting up DCA..."}
-"what is SOL price" → {"action":"FETCH_PRICE","actionData":{"token":"SOL"},"text":"Fetching SOL price..."}
-"show my portfolio" → {"action":"FETCH_PORTFOLIO","actionData":{},"text":"Loading your portfolio..."}
-"create a token" → {"action":"SHOW_STUDIO","actionData":{},"text":"Opening Jupiter Studio..."}
-"lock 100 JUP for 30 days" → {"action":"SHOW_LOCK","actionData":{"token":"JUP","amount":100,"days":30},"text":"Setting up token lock..."}
+ACTIONS:
+- "SHOW_SWAP" → pre-fill swap screen. actionData: {from,to,amount,amountUSD,portion}
+- "SWAP" → execute swap now. actionData: {from,to,amount}
+- "BASKET_SWAP" → multiple swaps. actionData: {trades:[{from,to,amount,amountUSD,portion}]}
+- "SWAP_ALL_WALLET" → swap all tokens. actionData: {to,exclude:[]}
+- "SHOW_TRIGGER" → limit order. actionData: {from,to,amount,targetPrice,direction}
+- "SHOW_TRIGGER_V2" → OCO/advanced limit. actionData: {from,to,amount,triggerCondition,triggerPriceUsd,tpPriceUsd,slPriceUsd}
+- "SHOW_RECURRING" → DCA. actionData: {from,to,amountPerCycle,intervalSecs,numberOfOrders}
+- "FETCH_TRIGGER_ORDERS" → show limit orders. actionData: {state:"active"}
+- "FETCH_RECURRING_ORDERS" → show DCA orders. actionData: {}
+- "SHOW_SEND" → send via invite link. actionData: {token,amount}
+- "FETCH_SEND_HISTORY" → pending/past sends. actionData: {type:"pending"|"history"}
+- "FETCH_PORTFOLIO" → show portfolio. actionData: {}
+- "FETCH_PRICE" → token price. actionData: {token}
+- "SHOW_EARN" → earn positions. actionData: {}
+- "FETCH_EARN" → earn markets. actionData: {}
+- "SHOW_LOCK" → lock tokens. actionData: {token,amount,days}
+- "FETCH_LOCKS" → show locks. actionData: {}
+- "SHOW_STUDIO" → create token. actionData: {name,symbol,supply,decimals,description}
+- "FETCH_PREDICTIONS" → prediction markets. actionData: {}
+- "COPY_TRADE" → copy wallet. actionData: {wallet,limit:5}
+- null → general chat, no action.
 
-${walletAddress ? 'User wallet: ' + walletAddress : 'No wallet connected.'}
-Return ONLY the JSON. No markdown, no explanation, no code blocks.`;
+RULES:
+- swap/buy/sell → SHOW_SWAP or BASKET_SWAP
+- buy below/sell above → SHOW_TRIGGER
+- DCA/recurring → SHOW_RECURRING
+- my orders → FETCH_TRIGGER_ORDERS
+- send/gift → SHOW_SEND
+- portfolio/balances → FETCH_PORTFOLIO
+- price of X → FETCH_PRICE
+- earn/yield/APY → SHOW_EARN
+- lock/vesting → SHOW_LOCK
+- my locks → FETCH_LOCKS
+- create token → SHOW_STUDIO
+- predictions → FETCH_PREDICTIONS
+- copy wallet → COPY_TRADE
+
+${walletAddress ? `Wallet: ${walletAddress}` : 'No wallet connected.'}
+Return ONLY valid JSON. No markdown, no code blocks.`;
+
+  const messages = [
+    ...conversationHistory,
+    { role: 'user', content: question }
+  ];
 
   try {
-    const res  = await fetch('https://chatfi.pro/api/claude', {
+    const res = await fetch('https://chatfi.pro/api/claude', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 500,
+        max_tokens: 800,
         system: SYSTEM,
-        messages: [{ role: 'user', content: question }]
+        messages,
       })
     });
     const data = await res.json();
-    const raw  = data.content?.[0]?.text || '{}';
+    const raw = data.content?.[0]?.text || '{}';
     const clean = raw.replace(/```json|```/g, '').trim();
     try {
       const parsed = JSON.parse(clean);
       return {
-        action:     parsed.action     || null,
+        action: parsed.action || null,
         actionData: parsed.actionData || {},
-        text:       parsed.text       || raw,
+        text: parsed.text || raw,
       };
     } catch {
       return { action: null, actionData: {}, text: raw };
@@ -269,6 +292,7 @@ Return ONLY the JSON. No markdown, no explanation, no code blocks.`;
     return { action: null, actionData: {}, text: 'Network error. Please try again.' };
   }
 };
+
 
 export async function sendSolana(
   pubkey: string,
