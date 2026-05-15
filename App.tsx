@@ -1264,6 +1264,13 @@ export default function App() {
     }
   };
 
+  // Auto-quote on amt/token change
+  useEffect(()=>{
+    if(!amt||parseFloat(amt)<=0){setQuote(null);return;}
+    const t = setTimeout(()=>fetchQuote(),700);
+    return ()=>clearTimeout(t);
+  },[amt,fromToken,toToken]);
+
   const fetchQuote = async () => {
     if (!amt || isNaN(parseFloat(amt))) { showToast('Invalid amount','error'); return; }
     if (fromToken === toToken) { showToast('Select different tokens','error'); return; }
