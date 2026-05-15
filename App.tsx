@@ -1922,7 +1922,7 @@ export default function App() {
               </View>
 
               {/* Token List */}
-              <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:12,marginTop:16}}>
+              <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:4,marginTop:4}}>
                 <Text style={s.pfSectionLbl}>Tokens</Text>
                 <TouchableOpacity onPress={()=>{fetchTxHistory();setShowTxModal(true);}} style={{padding:4}}>
                   <Ionicons name="time-outline" size={24} color={C.text} />
