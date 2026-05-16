@@ -1155,7 +1155,7 @@ export default function App() {
             <Text style={{color:C.green,fontSize:20}}>→</Text>
             <View style={{alignItems:'center',flex:1}}>
               <Text style={{color:C.muted,fontSize:11}}>TO</Text>
-              <Text style={{color:C.text,fontWeight:'700',fontSize:18}}>{data.outAmount ? `~${parseFloat(data.outAmount).toFixed(4)}` : '...'} {data.to}</Text>
+              <Text style={{color:C.text,fontWeight:'700',fontSize:18}}>{data.outAmount && !isNaN(parseFloat(data.outAmount)) ? `~${parseFloat(data.outAmount).toFixed(4)}` : '...'} {data.to}</Text>
             </View>
           </View>
           {data.priceImpact && <Text style={{color:C.muted,fontSize:12,textAlign:'center',marginBottom:4}}>Price impact: {data.priceImpact}%</Text>}
@@ -1165,8 +1165,8 @@ export default function App() {
           {status === 'error' && <Text style={{color:C.red,textAlign:'center'}}>{card.error}</Text>}
           {!status && (
             <View style={{flexDirection:'row',gap:8}}>
-              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
-                <Text style={{color:C.muted}}>Cancel</Text>
+              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center',minWidth:80}}>
+                <Text style={{color:C.muted}} numberOfLines={1}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={onConfirm} style={{flex:2,padding:12,borderRadius:10,backgroundColor:C.green,alignItems:'center'}}>
                 <Text style={{color:'#0d1117',fontWeight:'700'}}>Confirm Swap</Text>
@@ -1205,8 +1205,8 @@ export default function App() {
           {status === 'error' && <Text style={{color:C.red,textAlign:'center'}}>{card.error}</Text>}
           {!status && (
             <View style={{flexDirection:'row',gap:8}}>
-              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
-                <Text style={{color:C.muted}}>Cancel</Text>
+              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center',minWidth:80}}>
+                <Text style={{color:C.muted}} numberOfLines={1}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={onConfirm} style={{flex:2,padding:12,borderRadius:10,backgroundColor:C.green,alignItems:'center'}}>
                 <Text style={{color:'#0d1117',fontWeight:'700'}}>Place Order</Text>
@@ -1246,8 +1246,8 @@ export default function App() {
           {status === 'error' && <Text style={{color:C.red,textAlign:'center'}}>{card.error}</Text>}
           {!status && (
             <View style={{flexDirection:'row',gap:8}}>
-              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
-                <Text style={{color:C.muted}}>Cancel</Text>
+              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center',minWidth:80}}>
+                <Text style={{color:C.muted}} numberOfLines={1}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={onConfirm} style={{flex:2,padding:12,borderRadius:10,backgroundColor:C.green,alignItems:'center'}}>
                 <Text style={{color:'#0d1117',fontWeight:'700'}}>Start DCA</Text>
@@ -1320,7 +1320,13 @@ export default function App() {
             </View>
             <View style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6}}>
               <Text style={{color:C.muted}}>Lock Duration</Text>
-              <Text style={{color:C.green,fontWeight:'600'}}>{data.days} days</Text>
+              <Text style={{color:C.green,fontWeight:'600'}}>{
+                parseFloat(data.days) < 1/24
+                  ? `${Math.round(parseFloat(data.days) * 1440)} minutes`
+                  : parseFloat(data.days) < 1
+                  ? `${Math.round(parseFloat(data.days) * 24)} hours`
+                  : `${data.days} days`
+              }</Text>
             </View>
           </View>
           {status === 'loading' && <ActivityIndicator color={C.green} />}
@@ -1328,8 +1334,8 @@ export default function App() {
           {status === 'error' && <Text style={{color:C.red,textAlign:'center'}}>{card.error}</Text>}
           {!status && (
             <View style={{flexDirection:'row',gap:8}}>
-              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
-                <Text style={{color:C.muted}}>Cancel</Text>
+              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center',minWidth:80}}>
+                <Text style={{color:C.muted}} numberOfLines={1}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={onConfirm} style={{flex:2,padding:12,borderRadius:10,backgroundColor:C.green,alignItems:'center'}}>
                 <Text style={{color:'#0d1117',fontWeight:'700'}}>Lock Tokens</Text>
@@ -1440,12 +1446,19 @@ export default function App() {
           const from = (data.from || 'SOL').toUpperCase();
           const to = (data.to || 'USDC').toUpperCase();
           const amount = data.amount || data.amountUSD || '';
-          // Fetch quote first
+          if (!amount || isNaN(parseFloat(amount))) {
+            setMsgs(p => [...p, { id: Date.now(), text: `How much ${from} would you like to swap to ${to}?`, from: 'bot' }]);
+            break;
+          }
           let outAmount = '...';
           let priceImpact = '0';
           try {
-            const q = await getJupiterQuote(TOKENS[from]||from, TOKENS[to]||to, parseFloat(amount)||1, DECIMALS[from]||6, DECIMALS[to]||6);
-            if (q) { outAmount = q.outAmount.toFixed(4); priceImpact = q.priceImpact; }
+            const toDecimals = DECIMALS[to] || 9;
+            const q = await getJupiterQuote(TOKENS[from]||from, TOKENS[to]||to, parseFloat(amount), DECIMALS[from]||9, toDecimals);
+            if (q && q.outAmount != null && !isNaN(q.outAmount)) {
+              outAmount = q.outAmount.toFixed(4);
+              priceImpact = q.priceImpact;
+            }
           } catch {}
           const cardId = Date.now() + 1;
           const cardData = { from, to, amount, outAmount, priceImpact };
@@ -1475,16 +1488,20 @@ export default function App() {
             break;
           }
           setMsgs(p => [...p, { id: Date.now(), text: `⏳ Placing limit order: ${direction === 'below' ? 'Buy' : 'Sell'} ${amount} ${from} when ${to} hits $${targetPrice}...`, from: 'bot' }]);
-          const fromDec = DECIMALS[from] || 6;
-          const toDec   = DECIMALS[to]   || 6;
-          const txSig = await createTriggerOrder(
-            TOKENS[from], TOKENS[to],
-            fromDec, toDec,
-            parseFloat(amount), parseFloat(targetPrice),
-            direction || 'below',
-            pk, secretKey
-          );
-          setMsgs(p => [...p, { id: Date.now(), text: `✅ Limit order placed!\nWill ${direction === 'below' ? 'buy' : 'sell'} ${amount} ${from} when ${to} hits $${targetPrice}\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
+          try {
+            const fromDec = DECIMALS[from] || 6;
+            const toDec   = DECIMALS[to]   || 6;
+            const txSig = await createTriggerOrder(
+              TOKENS[from], TOKENS[to],
+              fromDec, toDec,
+              parseFloat(amount), parseFloat(targetPrice),
+              direction || 'below',
+              pk, secretKey
+            );
+            setMsgs(p => [...p, { id: Date.now(), text: `✅ Limit order placed!\nWill ${direction === 'below' ? 'buy' : 'sell'} ${amount} ${from} when ${to} hits $${targetPrice}\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
+          } catch(e:any) {
+            setMsgs(p => [...p, { id: Date.now(), text: `❌ Limit order failed: ${e.message}`, from: 'bot' }]);
+          }
           break;
         }
         case 'SHOW_RECURRING': {
@@ -1497,14 +1514,18 @@ export default function App() {
           const orders   = numberOfOrders || 7;
           const intervalLabel = interval === 86400 ? 'daily' : interval === 604800 ? 'weekly' : `every ${interval}s`;
           setMsgs(p => [...p, { id: Date.now(), text: `⏳ Setting up DCA: ${amountPerCycle} ${from} → ${to} ${intervalLabel} for ${orders} orders...`, from: 'bot' }]);
-          const txSig = await createRecurringOrder(
-            TOKENS[from], TOKENS[to],
-            DECIMALS[from] || 6,
-            parseFloat(amountPerCycle),
-            interval, orders,
-            pk, secretKey
-          );
-          setMsgs(p => [...p, { id: Date.now(), text: `✅ DCA order created!\n${amountPerCycle} ${from} → ${to} ${intervalLabel} × ${orders}\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
+          try {
+            const txSig = await createRecurringOrder(
+              TOKENS[from], TOKENS[to],
+              DECIMALS[from] || 6,
+              parseFloat(amountPerCycle),
+              interval, orders,
+              pk, secretKey
+            );
+            setMsgs(p => [...p, { id: Date.now(), text: `✅ DCA order created!\n${amountPerCycle} ${from} → ${to} ${intervalLabel} × ${orders}\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
+          } catch(e:any) {
+            setMsgs(p => [...p, { id: Date.now(), text: `❌ DCA setup failed: ${e.message}`, from: 'bot' }]);
+          }
           break;
         }
         case 'SHOW_SEND': {
@@ -1550,10 +1571,9 @@ export default function App() {
         case 'SHOW_EARN':
         case 'FETCH_EARN': {
           try {
-            const mktRes = await fetch('https://chatfi.pro/api/jupiter', {
-              method: 'POST',
-              headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({url:'https://api.jup.ag/lend/v1/earn/markets', method:'GET'})
+            const mktRes = await fetch('https://api.jup.ag/lend/v1/earn/markets', {
+              method: 'GET',
+              headers: {'Content-Type':'application/json'}
             });
             const mktData = await mktRes.json();
             setMsgs(p => [...p, { id: Date.now(), text: JSON.stringify(mktData, null, 2), from: 'bot' }]);

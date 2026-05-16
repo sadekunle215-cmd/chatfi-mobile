@@ -2,12 +2,13 @@ import 'react-native-get-random-values';
 import nacl from 'tweetnacl';
 
 export const TOKENS: Record<string, string> = {
-  SOL:  'So11111111111111111111111111111111111111112',
-  USDC: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  USDT: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
-  JUP:  'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
-  BONK: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
-  WIF:  'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
+  SOL:   'So11111111111111111111111111111111111111112',
+  USDC:  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  USDT:  'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+  JUP:   'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+  BONK:  'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+  WIF:   'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
+
 };
 
 export const DECIMALS: Record<string, number> = {
@@ -45,7 +46,7 @@ export const getJupiterQuote = async (inputMint: string, outputMint: string, amo
   const res  = await fetch(url);
   const data = await res.json();
   if (data.error) return null;
-  const outAmount    = parseInt(data.outAmount) / Math.pow(10, toDecimals);
+  const outAmount    = Number(data.outAmount) / Math.pow(10, toDecimals);
   const priceImpact  = parseFloat(data.priceImpactPct || '0').toFixed(4);
   const route        = data.routePlan?.map((r: any) => r.swapInfo?.label).filter(Boolean).join(' → ') || 'Direct';
   return { outAmount, priceImpact, route, raw: data };
@@ -78,11 +79,14 @@ export const executeSwap = async (
   if (orderData.error) throw new Error(orderData.error);
   if (!orderData.transaction) throw new Error('No transaction from Jupiter');
   const txBytes = Buffer.from(orderData.transaction, 'base64');
-  const sigCount = txBytes[0];
-  const messageOffset = 1 + sigCount * 64;
+  // Handle both legacy and versioned (v0) transactions
+  const isVersioned = (txBytes[0] & 0x80) !== 0;
+  const sigCount = isVersioned ? txBytes[1] : txBytes[0];
+  const sigStart = isVersioned ? 2 : 1;
+  const messageOffset = sigStart + sigCount * 64;
   const message   = txBytes.slice(messageOffset);
   const signature = nacl.sign.detached(message, secretKey);
-  for (let i = 0; i < 64; i++) txBytes[1 + i] = signature[i];
+  for (let i = 0; i < 64; i++) txBytes[sigStart + i] = signature[i];
   const execRes  = await fetch(JUP_EXEC, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -373,7 +377,7 @@ export async function getTokenLogo(mint: string): Promise<string> {
     const symbolLen = raw.readUInt32LE(offset); offset += 4 + symbolLen;
     // uri: u32 length + data (max 200 bytes, null padded)
     const uriLen = raw.readUInt32LE(offset); offset += 4;
-    const uri = raw.slice(offset, offset + uriLen).toString('utf8').replace(/ /g, '').trim();
+    const uri = raw.slice(offset, offset + uriLen).toString('utf8').replace(//g, '').trim();
 
     if (!uri) return '';
 
