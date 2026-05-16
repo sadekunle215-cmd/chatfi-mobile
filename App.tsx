@@ -1824,12 +1824,9 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
             setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `Fetching recent trades from ${copyWallet.slice(0,8)}...` }]);
             const sr = await rpcFetch('getSignaturesForAddress', [copyWallet, { limit: limit || 5 }]);
             const sigs = Array.isArray(sr.result) ? sr.result : [];
-            const trades = sigs.slice(0, 5).map((s:any) => `• ${s.signature.slice(0,16)}... ${s.blockTime ? new Date(s.blockTime*1000).toLocaleDateString() : ''}`).join('
+            const trades = sigs.slice(0, 5).map((s:any) => s.signature.slice(0,16) + '... ' + (s.blockTime ? new Date(s.blockTime*1000).toLocaleDateString() : '')).join('\n');
 ');
-            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `Recent trades from ${copyWallet.slice(0,8)}...:
-${trades}
-
-View on Solscan to mirror these trades.` }]);
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: 'Recent trades from ' + copyWallet.slice(0,8) + '...:\n' + trades + '\n\nView on Solscan to mirror these trades.' }]);
           } catch(e:any) {
             setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `Failed to fetch trades: ${e.message}` }]);
           }
