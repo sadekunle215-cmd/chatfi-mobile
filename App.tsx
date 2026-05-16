@@ -1245,6 +1245,52 @@ export default function App() {
 
 
 
+  const EarnActionCard = ({card,isDeposit,pubkey,wallet,deriveWallet,requireAuth,rpcFetch,showToast,fetchPortfolio,C,s}:any) => {
+    const vault = card?.data?.preVault;
+    const [amount, setAmount] = React.useState("");
+    const [loading, setLoading] = React.useState(false);
+    if (!vault) return <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8}}><Text style={{color:C.muted}}>No vault selected.</Text></View>;
+    const execute = async () => {
+      if (!amount||parseFloat(amount)<=0){Alert.alert("Enter amount");return;}
+      const authed=await requireAuth(); if(!authed)return;
+      setLoading(true);
+      try {
+        const dec=vault.dec||6;
+        const amtRaw=Math.floor(parseFloat(amount)*Math.pow(10,dec));
+        const ep=isDeposit?"deposit":"withdraw";
+        const res=await fetch("https://lite-api.jup.ag/lend/v1/earn/"+ep,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({asset:vault.mint,signer:pubkey,amount:amtRaw})});
+        const txData=await res.json();
+        if(txData.error)throw new Error(typeof txData.error==="string"?txData.error:JSON.stringify(txData.error));
+        const txB64=txData.transaction||txData.tx||txData.data;
+        if(!txB64)throw new Error("No transaction returned");
+        const {secretKey:sk}=deriveWallet(wallet);
+        const {VersionedTransaction,Keypair}=require("@solana/web3.js");
+        const tx=VersionedTransaction.deserialize(Buffer.from(txB64,"base64"));
+        tx.sign([Keypair.fromSecretKey(sk)]);
+        const signed=Buffer.from(tx.serialize()).toString("base64");
+        const sr=await rpcFetch("sendTransaction",[signed,{encoding:"base64",skipPreflight:false,preflightCommitment:"confirmed"}]);
+        if(sr.error)throw new Error(sr.error.message);
+        showToast("✅ "+(isDeposit?"Deposited":"Withdrawn")+" "+amount+" "+vault.sym,"success");
+        fetchPortfolio();
+      } catch(e:any){Alert.alert(isDeposit?"Deposit failed":"Withdraw failed",e.message);}
+      finally{setLoading(false);}
+    };
+    return (
+      <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+        <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+        <Text style={{color:C.text,fontWeight:"700",fontSize:16,marginBottom:2}}>{isDeposit?"⬇ Deposit to Earn":"↑ Withdraw from Earn"}</Text>
+        <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",padding:12,backgroundColor:C.bg,borderRadius:8,marginBottom:12}}>
+          <Text style={{color:C.text,fontWeight:"700"}}>{vault.sym} Earn Vault</Text>
+          <Text style={{color:C.green,fontWeight:"700"}}>{vault.apyStr}% APY</Text>
+        </View>
+        <TextInput style={{backgroundColor:C.bg,borderRadius:10,padding:12,color:C.text,fontSize:16,marginBottom:12,borderWidth:1,borderColor:C.border}} value={amount} onChangeText={setAmount} placeholder={"Amount of "+vault.sym} placeholderTextColor={C.muted} keyboardType="numeric"/>
+        <TouchableOpacity style={{backgroundColor:loading?C.border:C.green,borderRadius:10,padding:12,alignItems:"center"}} disabled={loading} onPress={execute}>
+          {loading?<ActivityIndicator color="#0d1117"/>:<Text style={{color:"#0d1117",fontWeight:"700"}}>{isDeposit?"⬇ Deposit "+vault.sym:"↑ Withdraw "+vault.sym}</Text>}
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderCard = (card: any) => {
     const { type, data, onConfirm, onCancel, status } = card;
 
@@ -1533,63 +1579,7 @@ export default function App() {
 
 
     if (type === 'earn_deposit' || type === 'earn_withdraw') {
-      const isDeposit = type === 'earn_deposit';
-      const vault = data.preVault; // {sym, mint, dec, apyStr}
-      if (!vault) return <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8}}><Text style={{color:C.muted}}>No vault selected. Use the Earn Vaults list.</Text></View>;
-      const [amount, setAmount] = React.useState('');
-      const [loading, setLoading] = React.useState(false);
-      const execute = async () => {
-        if (!amount || parseFloat(amount) <= 0) { Alert.alert('Enter amount'); return; }
-        const authed = await requireAuth();
-        if (!authed) return;
-        setLoading(true);
-        try {
-          const decimals = vault.dec || 6;
-          const amountRaw = Math.floor(parseFloat(amount) * Math.pow(10, decimals));
-          const endpoint = isDeposit ? 'deposit' : 'withdraw';
-          const res = await fetch('https://lite-api.jup.ag/lend/v1/earn/'+endpoint, {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ asset: vault.mint, signer: pubkey, amount: amountRaw })
-          });
-          const txData = await res.json();
-          if (txData.error) throw new Error(typeof txData.error==='string'?txData.error:JSON.stringify(txData.error));
-          const txB64 = txData.transaction || txData.tx || txData.data;
-          if (!txB64) throw new Error('No transaction returned from Earn API');
-          const { secretKey: sk } = deriveWallet(wallet!);
-          const { VersionedTransaction, Keypair } = require('@solana/web3.js');
-          const tx = VersionedTransaction.deserialize(Buffer.from(txB64,'base64'));
-          tx.sign([Keypair.fromSecretKey(sk)]);
-          const signed = Buffer.from(tx.serialize()).toString('base64');
-          const sendRes = await rpcFetch('sendTransaction',[signed,{encoding:'base64',skipPreflight:false,preflightCommitment:'confirmed'}]);
-          if (sendRes.error) throw new Error(sendRes.error.message);
-          showToast('✅ '+(isDeposit?'Deposited':'Withdrawn')+' '+amount+' '+vault.sym,'success');
-          fetchPortfolio();
-        } catch(e:any) { Alert.alert(isDeposit?'Deposit failed':'Withdraw failed', e.message); }
-        finally { setLoading(false); }
-      };
-      return (
-        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
-          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:2}}>{isDeposit?'⬇ Deposit to Earn':'↑ Withdraw from Earn'}</Text>
-          <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',padding:12,backgroundColor:C.bg,borderRadius:8,marginBottom:12}}>
-            <Text style={{color:C.text,fontWeight:'700'}}>{vault.sym} Earn Vault</Text>
-            <Text style={{color:C.green,fontWeight:'700'}}>{vault.apyStr}% APY</Text>
-          </View>
-          <TextInput
-            style={{backgroundColor:C.bg,borderRadius:10,padding:12,color:C.text,fontSize:16,marginBottom:12,borderWidth:1,borderColor:C.border}}
-            value={amount} onChangeText={setAmount}
-            placeholder={'Amount of '+vault.sym}
-            placeholderTextColor={C.muted} keyboardType='numeric'
-          />
-          <TouchableOpacity
-            style={{backgroundColor:loading?C.border:C.green,borderRadius:10,padding:12,alignItems:'center'}}
-            disabled={loading} onPress={execute}>
-            {loading
-              ? <ActivityIndicator color='#0d1117'/>
-              : <Text style={{color:'#0d1117',fontWeight:'700'}}>{isDeposit?'⬇ Deposit '+vault.sym:'↑ Withdraw '+vault.sym}</Text>}
-          </TouchableOpacity>
-        </View>
-      );
+      return <EarnActionCard card={card} isDeposit={type==='earn_deposit'} pubkey={pubkey} wallet={wallet} deriveWallet={deriveWallet} requireAuth={requireAuth} rpcFetch={rpcFetch} showToast={showToast} fetchPortfolio={fetchPortfolio} C={C} s={s} />;
     }
     if (type === 'studio_launch') { return <StudioLaunchCard card={card} wallet={wallet} deriveWallet={deriveWallet} setMsgs={setMsgs} C={C} s={s} />; }
 
