@@ -115,15 +115,11 @@ function NativeChart({ mint }: { mint: string }) {
     setCandles([]);
     const limit = 40;
     const resolution = interval === '1m'?1:interval==='5m'?5:interval==='15m'?15:interval==='1h'?60:interval==='4h'?240:1440;
-    fetch('https://chatfi.pro/api/jupiter', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({url:`https://public-api.birdeye.so/defi/ohlcv?address=${mint}&type=${interval}&limit=${limit}`, method:'GET'})
-    })
+    fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`)
     .then(r=>r.json())
     .then(d=>{
-      const items = d?.data?.items || [];
-      setCandles(items);
+      const pair = d?.pairs?.[0];
+      if(pair) setCandles([pair]);
     })
     .catch(()=>{})
     .finally(()=>setLoading(false));
@@ -1039,11 +1035,7 @@ export default function App() {
       }
       try {
         const mints=data.tokens.map((t:any)=>t.mint).filter(Boolean).join(",");
-        const pr=await fetch("https://chatfi.pro/api/jupiter",{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({url:'https://api.jup.ag/price/v3?ids='+mints,method:'GET'})
-        });
+        const pr=await fetch('https://lite-api.jup.ag/price/v3?ids='+mints);
         const pd=await pr.json();
         if(pd){
           const solMint="So11111111111111111111111111111111111111112";
@@ -1441,13 +1433,9 @@ export default function App() {
           const decimals = resolved.decimals || 6;
           const amountRaw = Math.floor(parseFloat(amount) * Math.pow(10, decimals));
           const endpoint = isDeposit ? 'deposit' : 'withdraw';
-          const res = await fetch('https://chatfi.pro/api/jupiter', {
+          const res = await fetch(`https://lite-api.jup.ag/lend/v1/earn/${endpoint}`, {
             method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({
-              url:`https://api.jup.ag/lend/v1/earn/${endpoint}`,
-              method:'POST',
-              body:{ asset: resolved.mint, signer: pubkey, amount: amountRaw }
-            })
+            body: JSON.stringify({ asset: resolved.mint, signer: pubkey, amount: amountRaw })
           });
           const txData = await res.json();
           if (txData.error) throw new Error(JSON.stringify(txData.error));
@@ -1537,9 +1525,9 @@ export default function App() {
             tokenName: name, tokenSymbol: symbol.toUpperCase(),
             tokenImageContentType: studioImg.type, creator,
           };
-          const createRes = await fetch('https://chatfi.pro/api/jupiter', {
+          const createRes = await fetch('https://lite-api.jup.ag/studio/v1/dbc-pool/create-tx', {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ url:'https://api.jup.ag/studio/v1/dbc-pool/create-tx', method:'POST', body: createPayload })
+            body: JSON.stringify(createPayload)
           });
           const createData = await createRes.json();
           if (createData.error) throw new Error(JSON.stringify(createData.error));
@@ -1909,11 +1897,7 @@ export default function App() {
         case 'SHOW_EARN':
         case 'FETCH_EARN': {
           try {
-            const mktRes = await fetch('https://chatfi.pro/api/jupiter', {
-              method: 'POST',
-              headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({url:'https://api.jup.ag/lend/v1/earn/tokens',method:'GET'})
-            });
+            const mktRes = await fetch('https://lite-api.jup.ag/lend/v1/earn/tokens');
             const mktData = await mktRes.json();
             const tokens = Array.isArray(mktData) ? mktData : [];
             if (!tokens.length) {
@@ -1928,10 +1912,7 @@ export default function App() {
         case 'EARN_DEPOSIT':
         case 'EARN_WITHDRAW': {
           try {
-            const mktRes = await fetch('https://chatfi.pro/api/jupiter', {
-              method: 'POST', headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({url:'https://api.jup.ag/lend/v1/earn/tokens',method:'GET'})
-            });
+            const mktRes = await fetch('https://lite-api.jup.ag/lend/v1/earn/tokens');
             const mktData = await mktRes.json();
             const tokens = Array.isArray(mktData) ? mktData : [];
             const cardType = action === 'EARN_DEPOSIT' ? 'earn_deposit' : 'earn_withdraw';
@@ -2246,12 +2227,12 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
             if (!resolved) throw new Error('Token not found');
             const mint = resolved.mint;
             const [infoRes, priceRes] = await Promise.all([
-              fetch('https://chatfi.pro/api/jupiter', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url:`https://lite-api.jup.ag/tokens/v1/token/${mint}`, method:'GET'}) }),
-              fetch('https://chatfi.pro/api/jupiter', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url:`https://lite-api.jup.ag/price/v2?ids=${mint}`, method:'GET'}) })
+              fetch(`https://lite-api.jup.ag/tokens/v2/token/${mint}`),
+              fetch(`https://lite-api.jup.ag/price/v3?ids=${mint}`)
             ]);
             const info = await infoRes.json();
             const priceData = await priceRes.json();
-            const price = priceData?.data?.[mint]?.price || priceData?.[mint]?.price;
+            const price = priceData?.data?.[mint]?.usdPrice || priceData?.data?.[mint]?.price;
             const priceChange = priceData?.data?.[mint]?.priceChange24h;
             setMsgs(p => p.filter(m => m.text !== `🔍 Fetching ${sym}...`));
             setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: '', card: { type: 'token_info', data: {
@@ -2318,11 +2299,7 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
   const searchJupTokens = async (query: string, setResults: any) => {
     if (!query || query.length < 1) { setResults([]); return; }
     try {
-      const res = await fetch('https://chatfi.pro/api/jupiter', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({url: 'https://api.jup.ag/tokens/v2/search?query=' + encodeURIComponent(query) + '&limit=6', method: 'GET'})
-      });
+      const res = await fetch('https://lite-api.jup.ag/tokens/v2/search?query=' + encodeURIComponent(query) + '&limit=6');
       const data = await res.json();
       const tokens = (Array.isArray(data) ? data : (data.tokens || [])).map((t:any) => ({...t, address: t.id || t.address, logoURI: t.logoURI || t.icon || ''}));
       setResults(tokens);
@@ -2330,7 +2307,7 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
       tokens.forEach(async (t:any) => {
         if (!t.logoURI && (t.address || t.id)) {
           try {
-            const lr = await fetch('https://lite-api.jup.ag/tokens/v1/token/' + (t.address || t.id));
+            const lr = await fetch('https://lite-api.jup.ag/tokens/v2/token/' + (t.address || t.id));
             const ld = await lr.json();
             if (ld.logoURI) {
               setResults((prev:any) => prev.map((p:any) => (p.address||p.id) === (t.address||t.id) ? {...p, logoURI: ld.logoURI} : p));
