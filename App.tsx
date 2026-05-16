@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction, rpcFetch } from './wallet';
 import nacl from 'tweetnacl';
-import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder } from './sendMsg';
+import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, signAndSendTx, resolveToken } from './sendMsg';
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices } from './wallet';
 const TOKEN_LOGOS: Record<string, string> = {
   SOL: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
@@ -1538,8 +1538,9 @@ export default function App() {
             setMsgs(p => [...p, { id: Date.now(), text: 'Please specify token, amount and days. Example: lock 100 JUP for 30 days', from: 'bot' }]);
             break;
           }
-          const mint = TOKENS[token];
-          if (!mint) { setMsgs(p => [...p, { id: Date.now(), text: `Unknown token: ${token}`, from: 'bot' }]); break; }
+          const resolvedLock = await resolveToken(token);
+          if (!resolvedLock) { setMsgs(p => [...p, { id: Date.now(), text: `Unknown token: ${token}`, from: 'bot' }]); break; }
+          const mint = resolvedLock.mint;
           const cardId = Date.now() + 1;
           setMsgs(p => [...p, {
             id: cardId, from: 'bot', text: '',
@@ -1551,7 +1552,7 @@ export default function App() {
                 try {
                   const { publicKey: pk2, secretKey: sk2 } = deriveWallet(wallet!);
                   const cliffSecs = parseInt(days) * 86400;
-                  const amtRaw = Math.floor(parseFloat(amount) * Math.pow(10, DECIMALS[token] || 6));
+                  const amtRaw = Math.floor(parseFloat(amount) * Math.pow(10, resolvedLock.decimals || 6));
                   const lockRes = await fetch('https://chatfi.pro/api/lock', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1571,9 +1572,10 @@ export default function App() {
         case 'SHOW_EARN':
         case 'FETCH_EARN': {
           try {
-            const mktRes = await fetch('https://api.jup.ag/lend/v1/earn/markets', {
-              method: 'GET',
-              headers: {'Content-Type':'application/json'}
+            const mktRes = await fetch('https://chatfi.pro/api/jupiter', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({url:'https://api.jup.ag/lend/v1/earn/tokens',method:'GET'})
             });
             const mktData = await mktRes.json();
             setMsgs(p => [...p, { id: Date.now(), text: JSON.stringify(mktData, null, 2), from: 'bot' }]);

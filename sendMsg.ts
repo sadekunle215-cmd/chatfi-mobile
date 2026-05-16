@@ -150,19 +150,18 @@ export const executeSwap = async (
 export const signAndSendTx = async (
   base64Tx: string, secretKey: Uint8Array
 ): Promise<string> => {
-  const txBytes = Buffer.from(base64Tx, 'base64');
-  const sigCount = txBytes[0];
-  const messageOffset = 1 + sigCount * 64;
-  const message   = txBytes.slice(messageOffset);
-  const signature = nacl.sign.detached(message, secretKey);
-  for (let i = 0; i < 64; i++) txBytes[1 + i] = signature[i];
+  const { VersionedTransaction, Keypair } = require('@solana/web3.js');
+  const keypair = Keypair.fromSecretKey(secretKey);
+  const transaction = VersionedTransaction.deserialize(Buffer.from(base64Tx, 'base64'));
+  transaction.sign([keypair]);
+  const signed = Buffer.from(transaction.serialize()).toString('base64');
   const res  = await fetch(RPC, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       jsonrpc: '2.0', id: 1,
       method: 'sendTransaction',
-      params: [txBytes.toString('base64'), { encoding: 'base64', preflightCommitment: 'confirmed' }]
+      params: [signed, { encoding: 'base64', preflightCommitment: 'confirmed' }]
     })
   });
   const data = await res.json();
@@ -199,12 +198,25 @@ export const createTriggerOrder = async (
 
 // ── Recurring (DCA) order ─────────────────────────────────────────────────────
 export const createRecurringOrder = async (
-  fromMint: string, toMint: string,
+  fromMintOrSymbol: string, toMintOrSymbol: string,
   fromDecimals: number,
   amountPerCycle: number, intervalSecs: number, numberOfOrders: number,
   publicKey: string, secretKey: Uint8Array
 ): Promise<string> => {
-  const inAmt = Math.floor(amountPerCycle * Math.pow(10, fromDecimals));
+  let fromMint = fromMintOrSymbol;
+  let toMint = toMintOrSymbol;
+  let resolvedFromDec = fromDecimals;
+  if (fromMintOrSymbol.length < 32) {
+    const t = await resolveToken(fromMintOrSymbol);
+    if (!t) throw new Error(`Unknown token: ${fromMintOrSymbol}`);
+    fromMint = t.mint; resolvedFromDec = t.decimals;
+  }
+  if (toMintOrSymbol.length < 32) {
+    const t = await resolveToken(toMintOrSymbol);
+    if (!t) throw new Error(`Unknown token: ${toMintOrSymbol}`);
+    toMint = t.mint;
+  }
+  const inAmt = Math.floor(amountPerCycle * Math.pow(10, resolvedFromDec));
   const res   = await fetch(`${JUP_RECURRING}/programmatic/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
