@@ -1,19 +1,42 @@
 import 'react-native-get-random-values';
 import nacl from 'tweetnacl';
 
-export const TOKENS: Record<string, string> = {
-  SOL:   'So11111111111111111111111111111111111111112',
-  USDC:  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  USDT:  'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
-  JUP:   'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
-  BONK:  'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
-  WIF:   'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
+// Token info cache: symbol -> { mint, decimals, logoURI }
+const tokenCache: Record<string, { mint: string; decimals: number; logoURI: string }> = {};
 
+const SEED_TOKENS = [
+  { symbol: 'SOL',  mint: 'So11111111111111111111111111111111111111112',  decimals: 9, logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png' },
+  { symbol: 'USDC', mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', decimals: 6, logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png' },
+  { symbol: 'USDT', mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', decimals: 6, logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg' },
+  { symbol: 'JUP',  mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',  decimals: 6, logoURI: 'https://static.jup.ag/jup/icon.png' },
+  { symbol: 'BONK', mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', decimals: 5, logoURI: 'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I' },
+  { symbol: 'WIF',  mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', decimals: 6, logoURI: 'https://img.jup.ag/tokens/EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm' },
+];
+SEED_TOKENS.forEach(t => { tokenCache[t.symbol.toUpperCase()] = { mint: t.mint, decimals: t.decimals, logoURI: t.logoURI }; });
+
+export const resolveToken = async (symbolOrMint: string): Promise<{ mint: string; decimals: number; logoURI: string } | null> => {
+  const key = symbolOrMint.toUpperCase();
+  if (tokenCache[key]) return tokenCache[key];
+  try {
+    const res = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(symbolOrMint)}`);
+    const list = await res.json();
+    if (!Array.isArray(list) || list.length === 0) return null;
+    const match = list.find((t: any) => t.symbol?.toUpperCase() === key) || list[0];
+    const token = { mint: match.id, decimals: match.decimals, logoURI: match.icon || '' };
+    tokenCache[key] = token;
+    tokenCache[match.id] = token;
+    return token;
+  } catch {
+    return null;
+  }
 };
 
-export const DECIMALS: Record<string, number> = {
-  SOL: 9, USDC: 6, USDT: 6, JUP: 6, BONK: 5, WIF: 6,
-};
+export const TOKENS: Record<string, string> = new Proxy({} as Record<string, string>, {
+  get: (_: any, sym: string) => tokenCache[sym.toUpperCase()]?.mint
+});
+export const DECIMALS: Record<string, number> = new Proxy({} as Record<string, number>, {
+  get: (_: any, sym: string) => tokenCache[sym.toUpperCase()]?.decimals ?? 6
+});
 
 const RPC = 'https://api.mainnet-beta.solana.com';
 const JUP_QUOTE  = 'https://lite-api.jup.ag/swap/v1/quote';
@@ -39,24 +62,39 @@ export type AIResponse = {
 };
 
 // ── Jupiter quote ────────────────────────────────────────────────────────────
-export const getJupiterQuote = async (inputMint: string, outputMint: string, amount: number, fromDecimals: number = 6, toDecimals: number = 6) => {
-  if (!inputMint || !outputMint) return null;
-  const amountSmallest = Math.floor(amount * Math.pow(10, fromDecimals));
+export const getJupiterQuote = async (inputMintOrSymbol: string, outputMintOrSymbol: string, amount: number, fromDecimals: number = 6, toDecimals: number = 6) => {
+  if (!inputMintOrSymbol || !outputMintOrSymbol) return null;
+  let inputMint = inputMintOrSymbol;
+  let outputMint = outputMintOrSymbol;
+  let resolvedFromDec = fromDecimals;
+  let resolvedToDec = toDecimals;
+  if (inputMintOrSymbol.length < 32) {
+    const t = await resolveToken(inputMintOrSymbol);
+    if (!t) return null;
+    inputMint = t.mint; resolvedFromDec = t.decimals;
+  }
+  if (outputMintOrSymbol.length < 32) {
+    const t = await resolveToken(outputMintOrSymbol);
+    if (!t) return null;
+    outputMint = t.mint; resolvedToDec = t.decimals;
+  }
+  const amountSmallest = Math.floor(amount * Math.pow(10, resolvedFromDec));
   const url = `${JUP_QUOTE}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountSmallest}&slippageBps=50`;
   const res  = await fetch(url);
   const data = await res.json();
   if (data.error) return null;
-  const outAmount    = Number(data.outAmount) / Math.pow(10, toDecimals);
-  const priceImpact  = parseFloat(data.priceImpactPct || '0').toFixed(4);
-  const route        = data.routePlan?.map((r: any) => r.swapInfo?.label).filter(Boolean).join(' → ') || 'Direct';
-  return { outAmount, priceImpact, route, raw: data };
+  const outAmount   = Number(data.outAmount) / Math.pow(10, resolvedToDec);
+  const priceImpact = parseFloat(data.priceImpactPct || '0').toFixed(4);
+  const route       = data.routePlan?.map((r: any) => r.swapInfo?.label).filter(Boolean).join(' → ') || 'Direct';
+  return { outAmount, priceImpact, route, raw: data, inputMint, outputMint, fromDecimals: resolvedFromDec, toDecimals: resolvedToDec };
 };
 
 // ── Token price ──────────────────────────────────────────────────────────────
 export const getTokenPrice = async (token: string): Promise<string> => {
   try {
-    const mint = TOKENS[token];
-    if (!mint) return 'Unknown token';
+    const resolved = await resolveToken(token);
+    if (!resolved) return `Unknown token: ${token}`;
+    const mint = resolved.mint;
     const res  = await fetch(`${JUP_PRICE}?ids=${mint}`);
     const data = await res.json();
     const price = data.data?.[mint]?.price;
@@ -69,28 +107,37 @@ export const getTokenPrice = async (token: string): Promise<string> => {
 
 // ── Execute swap via Jupiter Ultra API ───────────────────────────────────────
 export const executeSwap = async (
-  fromMint: string, toMint: string, amount: number,
+  fromMintOrSymbol: string, toMintOrSymbol: string, amount: number,
   fromDecimals: number, publicKey: string,
   secretKey: Uint8Array, rpcUrl: string
 ): Promise<string> => {
-  const amountRaw = Math.floor(amount * Math.pow(10, fromDecimals));
+  let fromMint = fromMintOrSymbol;
+  let toMint = toMintOrSymbol;
+  let resolvedFromDec = fromDecimals;
+  if (fromMintOrSymbol.length < 32) {
+    const t = await resolveToken(fromMintOrSymbol);
+    if (!t) throw new Error(`Unknown token: ${fromMintOrSymbol}`);
+    fromMint = t.mint; resolvedFromDec = t.decimals;
+  }
+  if (toMintOrSymbol.length < 32) {
+    const t = await resolveToken(toMintOrSymbol);
+    if (!t) throw new Error(`Unknown token: ${toMintOrSymbol}`);
+    toMint = t.mint;
+  }
+  const amountRaw = Math.floor(amount * Math.pow(10, resolvedFromDec));
   const orderRes  = await fetch(`${JUP_ORDER}?inputMint=${fromMint}&outputMint=${toMint}&amount=${amountRaw}&taker=${publicKey}`);
   const orderData = await orderRes.json();
   if (orderData.error) throw new Error(orderData.error);
   if (!orderData.transaction) throw new Error('No transaction from Jupiter');
-  const txBytes = Buffer.from(orderData.transaction, 'base64');
-  // Handle both legacy and versioned (v0) transactions
-  const isVersioned = (txBytes[0] & 0x80) !== 0;
-  const sigCount = isVersioned ? txBytes[1] : txBytes[0];
-  const sigStart = isVersioned ? 2 : 1;
-  const messageOffset = sigStart + sigCount * 64;
-  const message   = txBytes.slice(messageOffset);
-  const signature = nacl.sign.detached(message, secretKey);
-  for (let i = 0; i < 64; i++) txBytes[sigStart + i] = signature[i];
+  const { VersionedTransaction, Keypair } = require('@solana/web3.js');
+  const keypair = Keypair.fromSecretKey(secretKey);
+  const transaction = VersionedTransaction.deserialize(Buffer.from(orderData.transaction, 'base64'));
+  transaction.sign([keypair]);
+  const signedTransaction = Buffer.from(transaction.serialize()).toString('base64');
   const execRes  = await fetch(JUP_EXEC, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ signedTransaction: txBytes.toString('base64'), requestId: orderData.requestId })
+    body: JSON.stringify({ signedTransaction, requestId: orderData.requestId })
   });
   const execData = await execRes.json();
   if (execData.error) throw new Error(JSON.stringify(execData.error));
