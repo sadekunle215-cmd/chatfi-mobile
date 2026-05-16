@@ -180,14 +180,18 @@ export const createTriggerOrder = async (
   const amountRaw  = Math.floor(amount * Math.pow(10, fromDecimals));
   const receiveAmt = direction === 'below' ? amount / targetPrice : amount * targetPrice;
   const takingRaw  = Math.floor(receiveAmt * Math.pow(10, toDecimals));
-  const orderRes   = await fetch(`${JUP_TRIGGER}/createOrder`, {
+  const orderRes   = await fetch('https://chatfi.pro/api/jupiter', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      inputMint: fromMint, outputMint: toMint,
-      maker: publicKey, payer: publicKey,
-      params: { makingAmount: amountRaw.toString(), takingAmount: takingRaw.toString() },
-      computeUnitPrice: 'auto'
+      url: `${JUP_TRIGGER}/createOrder`,
+      method: 'POST',
+      body: {
+        inputMint: fromMint, outputMint: toMint,
+        maker: publicKey, payer: publicKey,
+        params: { makingAmount: amountRaw.toString(), takingAmount: takingRaw.toString() },
+        computeUnitPrice: 'auto'
+      }
     })
   });
   const orderData = await orderRes.json();
@@ -217,16 +221,20 @@ export const createRecurringOrder = async (
     toMint = t.mint;
   }
   const inAmt = Math.floor(amountPerCycle * Math.pow(10, resolvedFromDec));
-  const res   = await fetch(`${JUP_RECURRING}/programmatic/create`, {
+  const res   = await fetch('https://chatfi.pro/api/jupiter', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      userPublicKey: publicKey,
-      inAmount: inAmt.toString(),
-      inAmountPerCycle: inAmt.toString(),
-      cycleSecondsApart: intervalSecs,
-      inputMint: fromMint, outputMint: toMint,
-      numberOfOrders, startAt: null
+      url: `${JUP_RECURRING}/programmatic/create`,
+      method: 'POST',
+      body: {
+        userPublicKey: publicKey,
+        inAmount: inAmt.toString(),
+        inAmountPerCycle: inAmt.toString(),
+        cycleSecondsApart: intervalSecs,
+        inputMint: fromMint, outputMint: toMint,
+        numberOfOrders, startAt: null
+      }
     })
   });
   const data = await res.json();

@@ -1308,6 +1308,48 @@ export default function App() {
       );
     }
 
+    if (type === 'earn_markets') {
+      const tokens = data.tokens || [];
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:4}}>🏦 Jupiter Earn Markets</Text>
+          <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>Deposit tokens to earn yield</Text>
+          {tokens.slice(0,8).map((t:any,i:number)=>{
+            const sym = t.asset?.symbol || t.uiSymbol || t.symbol || '?';
+            const logo = t.asset?.logoUrl || '';
+            const totalRate = parseInt(t.totalRate||'0');
+            const supplyRate = parseInt(t.supplyRate||'0');
+            const rewardsRate = parseInt(t.rewardsRate||'0');
+            const apyPct = (totalRate / 100).toFixed(2);
+            const totalAssets = parseInt(t.totalAssets||'0');
+            const decimals = t.decimals || 6;
+            const tvlHuman = totalAssets / Math.pow(10, decimals);
+            const tvlStr = tvlHuman >= 1_000_000 ? `$${(tvlHuman/1_000_000).toFixed(1)}M` : tvlHuman >= 1_000 ? `$${(tvlHuman/1_000).toFixed(1)}K` : `$${tvlHuman.toFixed(0)}`;
+            return (
+              <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:10,borderBottomWidth:i<tokens.length-1?1:0,borderBottomColor:C.border}}>
+                {logo ? <Image source={{uri:logo}} style={{width:28,height:28,borderRadius:14,marginRight:10}} /> : <View style={{width:28,height:28,borderRadius:14,backgroundColor:C.border,marginRight:10}}/>}
+                <View style={{flex:1}}>
+                  <Text style={{color:C.text,fontWeight:'700',fontSize:14}}>{sym}</Text>
+                  <Text style={{color:C.muted,fontSize:11}}>TVL: {tvlStr}</Text>
+                </View>
+                <View style={{alignItems:'flex-end'}}>
+                  <Text style={{color:C.green,fontWeight:'700',fontSize:14}}>{apyPct}% APY</Text>
+                  {rewardsRate > 0 && <Text style={{color:'#f59e0b',fontSize:10}}>+{(rewardsRate/100).toFixed(2)}% rewards</Text>}
+                </View>
+              </View>
+            );
+          })}
+          <TouchableOpacity
+            style={{marginTop:12,backgroundColor:C.green,borderRadius:10,padding:12,alignItems:'center'}}
+            onPress={()=>Linking.openURL('https://jup.ag/lend/earn')}
+          >
+            <Text style={{color:'#0d1117',fontWeight:'700'}}>Deposit on Jupiter Earn</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     if (type === 'lock') {
       return (
         <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
@@ -1578,7 +1620,13 @@ export default function App() {
               body: JSON.stringify({url:'https://api.jup.ag/lend/v1/earn/tokens',method:'GET'})
             });
             const mktData = await mktRes.json();
-            setMsgs(p => [...p, { id: Date.now(), text: JSON.stringify(mktData, null, 2), from: 'bot' }]);
+            const tokens = Array.isArray(mktData) ? mktData : [];
+            if (!tokens.length) {
+              setMsgs(p => [...p, { id: Date.now(), text: 'No earn markets available right now.', from: 'bot' }]);
+              break;
+            }
+            const cardId = Date.now() + 1;
+            setMsgs(p => [...p, { id: cardId, from: 'bot', text: '', card: { type: 'earn_markets', data: { tokens } } }]);
           } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch earn markets: ${e.message}`, from: 'bot' }]); }
           break;
         }
@@ -1623,9 +1671,14 @@ export default function App() {
             const from = (t.from||'USDC').toUpperCase();
             const to = (t.to||'SOL').toUpperCase();
             const amount = t.amount || t.amountUSD;
-            if (!TOKENS[from] || !TOKENS[to] || !amount) { failed++; continue; }
+            const fromToken = await resolveToken(from);
+            const toToken = await resolveToken(to);
+            if (!fromToken || !toToken || !amount) {
+              setMsgs(p => [...p, { id: Date.now(), text: `❌ ${from}→${to} failed: Unknown token`, from: 'bot' }]);
+              failed++; continue;
+            }
             try {
-              const txSig = await executeSwapTx(TOKENS[from], TOKENS[to], parseFloat(amount), DECIMALS[from]||6, pk, secretKey, RPC_URL);
+              const txSig = await executeSwapTx(fromToken.mint, toToken.mint, parseFloat(amount), fromToken.decimals||6, pk, secretKey, RPC_URL);
               setMsgs(p => [...p, { id: Date.now(), text: `✅ ${from}→${to}: ${txSig.slice(0,16)}...
 https://solscan.io/tx/${txSig}`, from: 'bot' }]);
               done++;
