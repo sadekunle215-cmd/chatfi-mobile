@@ -1476,57 +1476,57 @@ export default function App() {
     }
 
     if (type === 'earn_markets') {
-      const tokens = data.tokens || [];
+      const vaults = (data.tokens||[]).map((t:any)=>{
+        const sym=t.asset?.symbol||t.uiSymbol||t.symbol||'?';
+        const logo=t.asset?.logoUrl||t.asset?.logoURI||'';
+        const mint=t.asset?.address||t.mint||'';
+        const dec=t.asset?.decimals??t.decimals??6;
+        const pr=(v:any)=>{const n=parseFloat(v||0);return(!n||n<=0)?0:n>100?n/100:n;};
+        const total=pr(t.totalRate),supply=pr(t.supplyRate),rewards=pr(t.rewardsRate);
+        const apy=total||supply;
+        const apyStr=apy>=10?apy.toFixed(1):apy.toFixed(2);
+        const assets=parseInt(t.totalAssets||'0'),borrows=parseInt(t.totalBorrows||'0');
+        const tvl=assets/Math.pow(10,dec);
+        const tvlStr=tvl>=1e6?'$'+(tvl/1e6).toFixed(1)+'M':tvl>=1e3?'$'+(tvl/1e3).toFixed(1)+'K':'$'+tvl.toFixed(0);
+        const util=assets>0?Math.min(100,Math.round(borrows/assets*100)):null;
+        return {sym,logo,mint,dec,apy,apyStr,supply,rewards,tvlStr,util,raw:t};
+      }).sort((a:any,b:any)=>b.apy-a.apy);
       return (
         <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
           <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:4}}>🏦 Jupiter Earn Markets</Text>
-          <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>Deposit tokens to earn yield</Text>
-          {tokens.slice(0,8).map((t:any,i:number)=>{
-            const sym = t.asset?.symbol || t.uiSymbol || t.symbol || '?';
-            const logo = t.asset?.logoUrl || '';
-            const parseRate = (raw:any) => {
-              const n = parseFloat(raw || 0);
-              if (!n || n <= 0) return 0;
-              return n > 100 ? n / 100 : n; // bps → percent OR already percent
-            };
-            const totalRate = parseRate(t.totalRate);
-            const supplyRate = parseRate(t.supplyRate);
-            const rewardsRate = parseRate(t.rewardsRate);
-            const apyVal = totalRate || supplyRate;
-            const apyPct = apyVal >= 10 ? apyVal.toFixed(1) : apyVal.toFixed(2);
-            const totalAssets = parseInt(t.totalAssets||'0');
-            const decimals = t.decimals || 6;
-            const tvlHuman = totalAssets / Math.pow(10, decimals);
-            const tvlStr = tvlHuman >= 1_000_000 ? `$${(tvlHuman/1_000_000).toFixed(1)}M` : tvlHuman >= 1_000 ? `$${(tvlHuman/1_000).toFixed(1)}K` : `$${tvlHuman.toFixed(0)}`;
-            return (
-              <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:10,borderBottomWidth:i<tokens.length-1?1:0,borderBottomColor:C.border}}>
-                {logo ? <Image source={{uri:logo}} style={{width:28,height:28,borderRadius:14,marginRight:10}} /> : <View style={{width:28,height:28,borderRadius:14,backgroundColor:C.border,marginRight:10}}/>}
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:2}}>🏦 Jupiter Earn Vaults</Text>
+          <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>Sorted by APY — tap Deposit on any vault</Text>
+          {vaults.map((v:any,i:number)=>(
+            <View key={i} style={{borderWidth:1,borderColor:C.border,borderRadius:10,padding:12,marginBottom:8,backgroundColor:C.bg}}>
+              <View style={{flexDirection:'row',alignItems:'flex-start'}}>
                 <View style={{flex:1}}>
-                  <Text style={{color:C.text,fontWeight:'700',fontSize:14}}>{sym}</Text>
-                  <Text style={{color:C.muted,fontSize:11}}>TVL: {tvlStr}</Text>
+                  <View style={{flexDirection:'row',alignItems:'center',marginBottom:2}}>
+                    {v.logo?<Image source={{uri:v.logo}} style={{width:20,height:20,borderRadius:10,marginRight:6}}/>:null}
+                    <Text style={{color:C.text,fontWeight:'700',fontSize:14}}>{v.sym} Earn</Text>
+                  </View>
+                  <Text style={{color:C.muted,fontSize:11}}>TVL: {v.tvlStr}{v.util!=null?' · Util: '+v.util+'%':''}</Text>
+                  <View style={{flexDirection:'row',gap:4,marginTop:4,flexWrap:'wrap'}}>
+                    {v.supply>0&&<View style={{backgroundColor:'#16a34a22',borderRadius:4,paddingHorizontal:6,paddingVertical:2}}><Text style={{color:C.green,fontSize:10}}>Supply {v.supply>=10?v.supply.toFixed(1):v.supply.toFixed(2)}%</Text></View>}
+                    {v.rewards>0&&<View style={{backgroundColor:'#78350f',borderRadius:4,paddingHorizontal:6,paddingVertical:2}}><Text style={{color:'#f59e0b',fontSize:10}}>Rewards {v.rewards>=10?v.rewards.toFixed(1):v.rewards.toFixed(2)}%</Text></View>}
+                  </View>
                 </View>
-                <View style={{alignItems:'flex-end'}}>
-                  <Text style={{color:C.green,fontWeight:'700',fontSize:14}}>{apyPct}% APY</Text>
-                  {rewardsRate > 0 && <Text style={{color:'#f59e0b',fontSize:10}}>+{rewardsRate >= 10 ? rewardsRate.toFixed(1) : rewardsRate.toFixed(2)}% rewards</Text>}
+                <View style={{alignItems:'flex-end',marginLeft:8}}>
+                  <Text style={{color:C.green,fontWeight:'800',fontSize:22,lineHeight:26}}>{v.apyStr}%</Text>
+                  <Text style={{color:C.muted,fontSize:10,marginBottom:6}}>Total APY</Text>
+                  <TouchableOpacity
+                    style={{backgroundColor:C.green,borderRadius:6,paddingHorizontal:14,paddingVertical:5,marginBottom:4}}
+                    onPress={()=>setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:'',card:{type:'earn_deposit',data:{tokens:data.tokens,preVault:{sym:v.sym,mint:v.mint,dec:v.dec,apyStr:v.apyStr}}}}])}>
+                    <Text style={{color:'#0d1117',fontWeight:'600',fontSize:12}}>Deposit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{borderWidth:1,borderColor:C.border,borderRadius:6,paddingHorizontal:12,paddingVertical:4}}
+                    onPress={()=>setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:'',card:{type:'earn_withdraw',data:{tokens:data.tokens,preVault:{sym:v.sym,mint:v.mint,dec:v.dec,apyStr:v.apyStr}}}}])}>
+                    <Text style={{color:C.muted,fontSize:11}}>Withdraw</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-            );
-          })}
-          <View style={{marginTop:12,flexDirection:'row',gap:8}}>
-            <TouchableOpacity
-              style={{flex:1,backgroundColor:C.green,borderRadius:10,padding:12,alignItems:'center'}}
-              onPress={()=>setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:'',card:{type:'earn_deposit',data:{tokens}}}])}
-            >
-              <Text style={{color:'#0d1117',fontWeight:'700'}}>⬇ Deposit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{flex:1,borderRadius:10,padding:12,alignItems:'center',borderWidth:1,borderColor:C.green}}
-              onPress={()=>setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:'',card:{type:'earn_withdraw',data:{tokens}}}])}
-            >
-              <Text style={{color:C.green,fontWeight:'700'}}>↑ Withdraw</Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          ))}
         </View>
       );
     }
@@ -1534,89 +1534,63 @@ export default function App() {
 
     if (type === 'earn_deposit' || type === 'earn_withdraw') {
       const isDeposit = type === 'earn_deposit';
-      const tokens = data.tokens || [];
-      const [selectedSym, setSelectedSym] = React.useState(tokens[0]?.asset?.symbol || tokens[0]?.uiSymbol || '');
+      const vault = data.preVault; // {sym, mint, dec, apyStr}
+      if (!vault) return <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8}}><Text style={{color:C.muted}}>No vault selected. Use the Earn Vaults list.</Text></View>;
       const [amount, setAmount] = React.useState('');
       const [loading, setLoading] = React.useState(false);
-      const selectedToken = tokens.find((t:any) => (t.asset?.symbol||t.uiSymbol||t.symbol) === selectedSym);
-      const apy = selectedToken ? (parseInt(selectedToken.totalRate||'0')/100).toFixed(2) : '';
-
       const execute = async () => {
-        if (!selectedSym || !amount) { Alert.alert('Missing info','Select a token and enter amount'); return; }
+        if (!amount || parseFloat(amount) <= 0) { Alert.alert('Enter amount'); return; }
         const authed = await requireAuth();
         if (!authed) return;
         setLoading(true);
         try {
-          const resolved = await resolveToken(selectedSym);
-          if (!resolved) throw new Error('Token not found');
-          const decimals = resolved.decimals || 6;
+          const decimals = vault.dec || 6;
           const amountRaw = Math.floor(parseFloat(amount) * Math.pow(10, decimals));
           const endpoint = isDeposit ? 'deposit' : 'withdraw';
-          const res = await fetch(`https://lite-api.jup.ag/lend/v1/earn/${endpoint}`, {
+          const res = await fetch('https://lite-api.jup.ag/lend/v1/earn/'+endpoint, {
             method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ asset: resolved.mint, signer: pubkey, amount: amountRaw })
+            body: JSON.stringify({ asset: vault.mint, signer: pubkey, amount: amountRaw })
           });
           const txData = await res.json();
-          if (txData.error) throw new Error(typeof txData.error === 'string' ? txData.error : JSON.stringify(txData.error));
+          if (txData.error) throw new Error(typeof txData.error==='string'?txData.error:JSON.stringify(txData.error));
           const txB64 = txData.transaction || txData.tx || txData.data;
           if (!txB64) throw new Error('No transaction returned from Earn API');
           const { secretKey: sk } = deriveWallet(wallet!);
           const { VersionedTransaction, Keypair } = require('@solana/web3.js');
-          const keypair = Keypair.fromSecretKey(sk);
-          let tx;
-          try {
-            tx = VersionedTransaction.deserialize(Buffer.from(txB64,'base64'));
-          } catch {
-            throw new Error('Failed to deserialize transaction');
-          }
-          tx.sign([keypair]);
+          const tx = VersionedTransaction.deserialize(Buffer.from(txB64,'base64'));
+          tx.sign([Keypair.fromSecretKey(sk)]);
           const signed = Buffer.from(tx.serialize()).toString('base64');
           const sendRes = await rpcFetch('sendTransaction',[signed,{encoding:'base64',skipPreflight:false,preflightCommitment:'confirmed'}]);
           if (sendRes.error) throw new Error(sendRes.error.message);
-          showToast(`✅ ${isDeposit?'Deposited':'Withdrawn'} ${amount} ${selectedSym}!`,'success');
+          showToast('✅ '+(isDeposit?'Deposited':'Withdrawn')+' '+amount+' '+vault.sym,'success');
           fetchPortfolio();
-        } catch(e:any) { Alert.alert(`${isDeposit?'Deposit':'Withdraw'} failed`, e.message); }
+        } catch(e:any) { Alert.alert(isDeposit?'Deposit failed':'Withdraw failed', e.message); }
         finally { setLoading(false); }
       };
-
       return (
         <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
           <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:4}}>{isDeposit?'⬇ Deposit to Earn':'↑ Withdraw from Earn'}</Text>
-          <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>{isDeposit?'Earn yield on your tokens via Jupiter':'Withdraw your deposited tokens'}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}>
-            {tokens.slice(0,8).map((t:any,i:number)=>{
-              const sym = t.asset?.symbol || t.uiSymbol || t.symbol || '?';
-              const rate = (parseInt(t.totalRate||'0')/100).toFixed(2);
-              return (
-                <TouchableOpacity key={i} onPress={()=>setSelectedSym(sym)}
-                  style={{paddingHorizontal:12,paddingVertical:8,borderRadius:20,marginRight:8,
-                    backgroundColor:selectedSym===sym?C.green:'transparent',
-                    borderWidth:1,borderColor:selectedSym===sym?C.green:C.border}}>
-                  <Text style={{color:selectedSym===sym?'#0d1117':C.text,fontWeight:'600',fontSize:13}}>{sym}</Text>
-                  <Text style={{color:selectedSym===sym?'#0d1117':C.green,fontSize:10}}>{rate}% APY</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-          {apy ? <Text style={{color:C.green,fontSize:12,marginBottom:8}}>APY: {apy}%</Text> : null}
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:2}}>{isDeposit?'⬇ Deposit to Earn':'↑ Withdraw from Earn'}</Text>
+          <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',padding:12,backgroundColor:C.bg,borderRadius:8,marginBottom:12}}>
+            <Text style={{color:C.text,fontWeight:'700'}}>{vault.sym} Earn Vault</Text>
+            <Text style={{color:C.green,fontWeight:'700'}}>{vault.apyStr}% APY</Text>
+          </View>
           <TextInput
             style={{backgroundColor:C.bg,borderRadius:10,padding:12,color:C.text,fontSize:16,marginBottom:12,borderWidth:1,borderColor:C.border}}
             value={amount} onChangeText={setAmount}
-            placeholder={`Amount of ${selectedSym||'token'}`}
-            placeholderTextColor={C.muted} keyboardType="numeric"
+            placeholder={'Amount of '+vault.sym}
+            placeholderTextColor={C.muted} keyboardType='numeric'
           />
           <TouchableOpacity
             style={{backgroundColor:loading?C.border:C.green,borderRadius:10,padding:12,alignItems:'center'}}
             disabled={loading} onPress={execute}>
             {loading
-              ? <ActivityIndicator color="#0d1117"/>
-              : <Text style={{color:'#0d1117',fontWeight:'700'}}>{isDeposit?`⬇ Deposit ${selectedSym}`:`↑ Withdraw ${selectedSym}`}</Text>}
+              ? <ActivityIndicator color='#0d1117'/>
+              : <Text style={{color:'#0d1117',fontWeight:'700'}}>{isDeposit?'⬇ Deposit '+vault.sym:'↑ Withdraw '+vault.sym}</Text>}
           </TouchableOpacity>
         </View>
       );
     }
-
     if (type === 'studio_launch') { return <StudioLaunchCard card={card} wallet={wallet} deriveWallet={deriveWallet} setMsgs={setMsgs} C={C} s={s} />; }
 
     if (type === 'lock') {
