@@ -1365,10 +1365,6 @@ export default function App() {
   };
 
 
-  const updateCard = (msgId: number, updates: any) => {
-    setMsgs(p => p.map(m => m.id === msgId ? {...m, card: {...m.card, ...updates}} : m));
-  };
-
   const sendMsg = async (overrideText?: string) => {
     const q = (overrideText || inputRef.current || input).trim();
     if (!q || aiLoading) return;
