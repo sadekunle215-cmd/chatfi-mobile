@@ -1411,6 +1411,119 @@ export default function App() {
       );
     }
 
+    if (type === 'studio_launch') {
+      const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      const [studioImg, setStudioImg] = React.useState<{uri:string,type:string,base64:string}|null>(null);
+      const [studioStatus, setStudioStatus] = React.useState<string>('idle'); // idle|loading|done|error
+      const [studioMint, setStudioMint] = React.useState<string>('');
+      const [studioErr, setStudioErr] = React.useState<string>('');
+
+      const pickImage = async () => {
+        const { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync, MediaTypeOptions } = require('expo-image-picker');
+        const perm = await requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) { Alert.alert('Permission needed','Allow photo access to upload token image'); return; }
+        const result = await launchImageLibraryAsync({ mediaTypes: MediaTypeOptions.Images, allowsEditing: true, aspect:[1,1], quality:0.8, base64:true });
+        if (!result.canceled && result.assets[0]) {
+          const asset = result.assets[0];
+          setStudioImg({ uri: asset.uri, type: asset.mimeType || 'image/jpeg', base64: asset.base64 || '' });
+        }
+      };
+
+      const launchToken = async () => {
+        if (!studioImg) { Alert.alert('Missing image','Please pick a token image first'); return; }
+        setStudioStatus('loading');
+        setStudioErr('');
+        try {
+          const { name, symbol, description, creator } = data;
+          // Step 1: get transaction + presigned URLs
+          const createPayload = {
+            buildCurveByMarketCapParam: {
+              quoteMint: USDC, initialMarketCap: 16000, migrationMarketCap: 69000, tokenQuoteDecimal: 6,
+              lockedVestingParam: { totalLockedVestingAmount:0, cliffUnlockAmount:0, numberOfVestingPeriod:0, totalVestingDuration:0, cliffDurationFromMigrationTime:0 },
+            },
+            antiSniping: false, fee:{ feeBps:100 }, isLpLocked: true,
+            tokenName: name, tokenSymbol: symbol.toUpperCase(),
+            tokenImageContentType: studioImg.type, creator,
+          };
+          const createRes = await fetch('https://chatfi.pro/api/jupiter', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ url:'https://api.jup.ag/studio/v1/dbc-pool/create-tx', method:'POST', body: createPayload })
+          });
+          const createData = await createRes.json();
+          if (createData.error) throw new Error(JSON.stringify(createData.error));
+          if (!createData.transaction) throw new Error('No transaction from Studio API');
+          const { transaction: txB64, imagePresignedUrl, metadataPresignedUrl, imageUrl, mint } = createData;
+
+          // Step 2: upload image
+          const imgBytes = Uint8Array.from(atob(studioImg.base64), c => c.charCodeAt(0));
+          await fetch(imagePresignedUrl, { method:'PUT', headers:{'Content-Type': studioImg.type}, body: imgBytes });
+
+          // Step 3: upload metadata
+          await fetch(metadataPresignedUrl, { method:'PUT', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ name, symbol: symbol.toUpperCase(), description: description||'', image: imageUrl }) });
+
+          // Step 4: sign transaction
+          const { VersionedTransaction, Keypair } = require('@solana/web3.js');
+          const { secretKey: sk2 } = deriveWallet(wallet!);
+          const keypair = Keypair.fromSecretKey(sk2);
+          const tx = VersionedTransaction.deserialize(Buffer.from(txB64,'base64'));
+          tx.sign([keypair]);
+          const signedB64 = Buffer.from(tx.serialize()).toString('base64');
+
+          // Step 5: submit
+          const formData = new FormData();
+          formData.append('transaction', signedB64);
+          formData.append('owner', creator);
+          formData.append('content', description||'');
+          try {
+            await fetch('https://api.jup.ag/studio/v1/dbc-pool/submit', { method:'POST', body: formData });
+          } catch {
+            await fetch('https://chatfi.pro/api/studio-submit', { method:'POST', body: formData });
+          }
+
+          setStudioMint(mint);
+          setStudioStatus('done');
+          setMsgs(p => [...p, { id: Date.now(), from:'bot', text: `✅ Token ${name} (${symbol.toUpperCase()}) created!\nMint: ${mint.slice(0,8)}...\nhttps://jup.ag/studio/${mint}` }]);
+        } catch(e:any) {
+          setStudioErr(e.message);
+          setStudioStatus('error');
+        }
+      };
+
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:4}}>🎨 Launch Token on Jupiter</Text>
+          <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>Dynamic Bonding Curve (DBC)</Text>
+          <View style={{backgroundColor:C.bg,borderRadius:10,padding:10,marginBottom:12}}>
+            <Text style={{color:C.text,fontWeight:'600'}}>{data.name} ({data.symbol?.toUpperCase()})</Text>
+            <Text style={{color:C.muted,fontSize:12}}>Supply: {parseInt(data.supply||'1000000000').toLocaleString()}</Text>
+            {data.description ? <Text style={{color:C.muted,fontSize:12}}>{data.description}</Text> : null}
+          </View>
+          <TouchableOpacity onPress={pickImage}
+            style={{borderWidth:1,borderColor:studioImg?C.green:C.border,borderStyle:'dashed',borderRadius:10,padding:16,alignItems:'center',marginBottom:12}}>
+            {studioImg
+              ? <Image source={{uri:studioImg.uri}} style={{width:60,height:60,borderRadius:10}}/>
+              : <Text style={{color:C.muted}}>📷 Tap to pick token image</Text>}
+          </TouchableOpacity>
+          {studioStatus === 'idle' && (
+            <TouchableOpacity onPress={launchToken}
+              style={{backgroundColor:C.green,borderRadius:10,padding:12,alignItems:'center'}}>
+              <Text style={{color:'#0d1117',fontWeight:'700'}}>🚀 Launch Token</Text>
+            </TouchableOpacity>
+          )}
+          {studioStatus === 'loading' && <ActivityIndicator color={C.green}/>}
+          {studioStatus === 'done' && (
+            <TouchableOpacity onPress={()=>Linking.openURL(`https://jup.ag/studio/${studioMint}`)}
+              style={{backgroundColor:C.green,borderRadius:10,padding:12,alignItems:'center'}}>
+              <Text style={{color:'#0d1117',fontWeight:'700'}}>View on Jupiter Studio →</Text>
+            </TouchableOpacity>
+          )}
+          {studioStatus === 'error' && <Text style={{color:C.red,fontSize:12,marginTop:8}}>{studioErr}</Text>}
+        </View>
+      );
+    }
+
     if (type === 'lock') {
       return (
         <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
@@ -1733,22 +1846,12 @@ export default function App() {
             setMsgs(p => [...p, { id: Date.now(), text: prompt, from: 'bot' }]);
             break;
           }
-          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Creating token ${name} (${symbol})...`, from: 'bot' }]);
-          try {
-            const studioRes = await fetch('https://chatfi.pro/api/studio', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name, symbol, supply: parseInt(supply), decimals: parseInt(dec || '9'), description: description || '', creator: pk })
-            });
-            const studioData = await studioRes.json();
-            if (studioData.error) throw new Error(studioData.error);
-            if (studioData.transaction) {
-              const txSig = await signAndSendTx(studioData.transaction, secretKey);
-              setMsgs(p => [...p, { id: Date.now(), text: `✅ Token created!\nName: ${name} (${symbol})\nSupply: ${supply}\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
-            } else {
-              setMsgs(p => [...p, { id: Date.now(), text: `✅ Token ${name} (${symbol}) submitted!\n${studioData.message || 'Check Jupiter Studio for status.'}`, from: 'bot' }]);
-            }
-          } catch(e: any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Token creation failed: ${e.message}`, from: 'bot' }]); }
+          // Show studio card — user picks image and launches from there
+          const studioCardId = Date.now() + 1;
+          setMsgs(p => [...p, { id: studioCardId, from: 'bot', text: '', card: {
+            type: 'studio_launch',
+            data: { name, symbol, supply: supply || '1000000000', decimals: dec || '9', description: description || '', creator: pk }
+          }}]);
           break;
         }
 
