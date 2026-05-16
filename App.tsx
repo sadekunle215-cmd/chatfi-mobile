@@ -1438,15 +1438,21 @@ export default function App() {
             body: JSON.stringify({ asset: resolved.mint, signer: pubkey, amount: amountRaw })
           });
           const txData = await res.json();
-          if (txData.error) throw new Error(JSON.stringify(txData.error));
-          if (!txData.transaction) throw new Error('No transaction returned');
-          const { VersionedTransaction, Keypair } = require('@solana/web3.js');
+          if (txData.error) throw new Error(typeof txData.error === 'string' ? txData.error : JSON.stringify(txData.error));
+          const txB64 = txData.transaction || txData.tx || txData.data;
+          if (!txB64) throw new Error('No transaction returned from Earn API');
           const { secretKey: sk } = deriveWallet(wallet!);
+          const { VersionedTransaction, Keypair } = require('@solana/web3.js');
           const keypair = Keypair.fromSecretKey(sk);
-          const tx = VersionedTransaction.deserialize(Buffer.from(txData.transaction,'base64'));
+          let tx;
+          try {
+            tx = VersionedTransaction.deserialize(Buffer.from(txB64,'base64'));
+          } catch {
+            throw new Error('Failed to deserialize transaction');
+          }
           tx.sign([keypair]);
           const signed = Buffer.from(tx.serialize()).toString('base64');
-          const sendRes = await rpcFetch('sendTransaction',[signed,{encoding:'base64',preflightCommitment:'confirmed'}]);
+          const sendRes = await rpcFetch('sendTransaction',[signed,{encoding:'base64',skipPreflight:false,preflightCommitment:'confirmed'}]);
           if (sendRes.error) throw new Error(sendRes.error.message);
           showToast(`✅ ${isDeposit?'Deposited':'Withdrawn'} ${amount} ${selectedSym}!`,'success');
           fetchPortfolio();
