@@ -377,7 +377,7 @@ export async function getTokenLogo(mint: string): Promise<string> {
     const symbolLen = raw.readUInt32LE(offset); offset += 4 + symbolLen;
     // uri: u32 length + data (max 200 bytes, null padded)
     const uriLen = raw.readUInt32LE(offset); offset += 4;
-    const uri = raw.slice(offset, offset + uriLen).toString('utf8').replace(//g, '').trim();
+    const uri = raw.slice(offset, offset + uriLen).toString('utf8').replace(/\x00/g, '').trim();
 
     if (!uri) return '';
 
