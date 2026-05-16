@@ -803,6 +803,119 @@ function DappBrowser({ walletAddress }) {
   );
 }
 
+const StudioLaunchCard = ({ card, wallet, deriveWallet, setMsgs, C, s }: any) => {
+  const data = card.data || {};
+  const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+  const [studioImg, setStudioImg] = React.useState<{uri:string,type:string,base64:string}|null>(null);
+  const [studioStatus, setStudioStatus] = React.useState<string>('idle');
+  const [studioMint, setStudioMint] = React.useState<string>('');
+  const [studioErr, setStudioErr] = React.useState<string>('');
+
+  const pickImage = async () => {
+    const ImagePicker = require('expo-image-picker');
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert('Permission needed','Allow photo access to upload token image'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing:true, aspect:[1,1], quality:0.8, base64:true });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setStudioImg({ uri: asset.uri, type: asset.mimeType || 'image/jpeg', base64: asset.base64 || '' });
+    }
+  };
+
+  const launchToken = async () => {
+    if (!studioImg) { Alert.alert('Missing image','Please pick a token image first'); return; }
+    setStudioStatus('loading'); setStudioErr('');
+    try {
+      const { name, symbol, description, creator } = data;
+      // Step 1: get tx + presigned URLs via proxy
+      const createRes = await fetch('https://chatfi.pro/api/jupiter', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          url:'https://api.jup.ag/studio/v1/dbc-pool/create-tx',
+          method:'POST',
+          body: {
+            buildCurveByMarketCapParam: {
+              quoteMint: USDC, initialMarketCap: 16000, migrationMarketCap: 69000, tokenQuoteDecimal: 6,
+              lockedVestingParam: { totalLockedVestingAmount:0, cliffUnlockAmount:0, numberOfVestingPeriod:0, totalVestingDuration:0, cliffDurationFromMigrationTime:0 },
+            },
+            antiSniping: false, fee:{ feeBps:100 }, isLpLocked: true,
+            tokenName: name, tokenSymbol: (symbol||'').toUpperCase(),
+            tokenImageContentType: studioImg.type, creator,
+          }
+        })
+      });
+      const createData = await createRes.json();
+      if (createData.error) throw new Error(JSON.stringify(createData.error));
+      if (!createData.transaction) throw new Error('No transaction from Studio API');
+      const { transaction: txB64, imagePresignedUrl, metadataPresignedUrl, imageUrl, mint } = createData;
+
+      // Step 2: upload image directly (presigned URL, no auth needed)
+      const imgBytes = Uint8Array.from(atob(studioImg.base64), (c:string) => c.charCodeAt(0));
+      await fetch(imagePresignedUrl, { method:'PUT', headers:{'Content-Type': studioImg.type}, body: imgBytes });
+
+      // Step 3: upload metadata
+      await fetch(metadataPresignedUrl, { method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, symbol:(symbol||'').toUpperCase(), description: description||'', image: imageUrl }) });
+
+      // Step 4: sign tx
+      const { VersionedTransaction, Keypair } = require('@solana/web3.js');
+      const { secretKey: sk2 } = deriveWallet(wallet);
+      const keypair = Keypair.fromSecretKey(sk2);
+      const tx = VersionedTransaction.deserialize(Buffer.from(txB64,'base64'));
+      tx.sign([keypair]);
+      const signedB64 = Buffer.from(tx.serialize()).toString('base64');
+
+      // Step 5: submit via proxy
+      const submitRes = await fetch('https://chatfi.pro/api/jupiter', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          url:'https://api.jup.ag/studio/v1/dbc-pool/submit',
+          method:'POST',
+          body:{ transaction: signedB64, owner: creator, content: description||'' }
+        })
+      });
+      const submitData = await submitRes.json();
+      if (submitData.error) throw new Error(JSON.stringify(submitData.error));
+
+      setStudioMint(mint);
+      setStudioStatus('done');
+      setMsgs((p:any) => [...p, { id: Date.now(), from:'bot', text: `✅ Token ${name} (${(symbol||'').toUpperCase()}) created!\nMint: ${mint.slice(0,8)}...\nhttps://jup.ag/studio/${mint}` }]);
+    } catch(e:any) { setStudioErr(e.message); setStudioStatus('error'); }
+  };
+
+  return (
+    <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+      <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+      <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:4}}>🎨 Launch Token on Jupiter</Text>
+      <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>Dynamic Bonding Curve (DBC)</Text>
+      <View style={{backgroundColor:C.bg,borderRadius:10,padding:10,marginBottom:12}}>
+        <Text style={{color:C.text,fontWeight:'600'}}>{data.name} ({(data.symbol||'').toUpperCase()})</Text>
+        <Text style={{color:C.muted,fontSize:12}}>Supply: {parseInt(data.supply||'1000000000').toLocaleString()}</Text>
+        {data.description ? <Text style={{color:C.muted,fontSize:12}}>{data.description}</Text> : null}
+      </View>
+      <TouchableOpacity onPress={pickImage}
+        style={{borderWidth:1,borderColor:studioImg?C.green:C.border,borderStyle:'dashed',borderRadius:10,padding:16,alignItems:'center',marginBottom:12}}>
+        {studioImg
+          ? <Image source={{uri:studioImg.uri}} style={{width:60,height:60,borderRadius:10}}/>
+          : <Text style={{color:C.muted}}>📷 Tap to pick token image</Text>}
+      </TouchableOpacity>
+      {studioStatus === 'idle' && (
+        <TouchableOpacity onPress={launchToken} style={{backgroundColor:C.green,borderRadius:10,padding:12,alignItems:'center'}}>
+          <Text style={{color:'#0d1117',fontWeight:'700'}}>🚀 Launch Token</Text>
+        </TouchableOpacity>
+      )}
+      {studioStatus === 'loading' && <ActivityIndicator color={C.green}/>}
+      {studioStatus === 'done' && (
+        <TouchableOpacity onPress={()=>Linking.openURL(`https://jup.ag/studio/${studioMint}`)}
+          style={{backgroundColor:C.green,borderRadius:10,padding:12,alignItems:'center'}}>
+          <Text style={{color:'#0d1117',fontWeight:'700'}}>View on Jupiter Studio →</Text>
+        </TouchableOpacity>
+      )}
+      {studioStatus === 'error' && <Text style={{color:'#ef4444',fontSize:12,marginTop:8}}>❌ {studioErr}</Text>}
+    </View>
+  );
+};
+
 export default function App() {
   const [tab, setTab] = useState('portfolio');
   const [splashDone, setSplashDone] = useState(false);
@@ -1372,10 +1485,16 @@ export default function App() {
           {tokens.slice(0,8).map((t:any,i:number)=>{
             const sym = t.asset?.symbol || t.uiSymbol || t.symbol || '?';
             const logo = t.asset?.logoUrl || '';
-            const totalRate = parseInt(t.totalRate||'0');
-            const supplyRate = parseInt(t.supplyRate||'0');
-            const rewardsRate = parseInt(t.rewardsRate||'0');
-            const apyPct = (totalRate / 100).toFixed(2);
+            const parseRate = (raw:any) => {
+              const n = parseFloat(raw || 0);
+              if (!n || n <= 0) return 0;
+              return n > 100 ? n / 100 : n; // bps → percent OR already percent
+            };
+            const totalRate = parseRate(t.totalRate);
+            const supplyRate = parseRate(t.supplyRate);
+            const rewardsRate = parseRate(t.rewardsRate);
+            const apyVal = totalRate || supplyRate;
+            const apyPct = apyVal >= 10 ? apyVal.toFixed(1) : apyVal.toFixed(2);
             const totalAssets = parseInt(t.totalAssets||'0');
             const decimals = t.decimals || 6;
             const tvlHuman = totalAssets / Math.pow(10, decimals);
@@ -1389,7 +1508,7 @@ export default function App() {
                 </View>
                 <View style={{alignItems:'flex-end'}}>
                   <Text style={{color:C.green,fontWeight:'700',fontSize:14}}>{apyPct}% APY</Text>
-                  {rewardsRate > 0 && <Text style={{color:'#f59e0b',fontSize:10}}>+{(rewardsRate/100).toFixed(2)}% rewards</Text>}
+                  {rewardsRate > 0 && <Text style={{color:'#f59e0b',fontSize:10}}>+{rewardsRate >= 10 ? rewardsRate.toFixed(1) : rewardsRate.toFixed(2)}% rewards</Text>}
                 </View>
               </View>
             );
@@ -1498,117 +1617,7 @@ export default function App() {
       );
     }
 
-    if (type === 'studio_launch') {
-      const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-      const [studioImg, setStudioImg] = React.useState<{uri:string,type:string,base64:string}|null>(null);
-      const [studioStatus, setStudioStatus] = React.useState<string>('idle'); // idle|loading|done|error
-      const [studioMint, setStudioMint] = React.useState<string>('');
-      const [studioErr, setStudioErr] = React.useState<string>('');
-
-      const pickImage = async () => {
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) { Alert.alert('Permission needed','Allow photo access to upload token image'); return; }
-        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect:[1,1], quality:0.8, base64:true });
-        if (!result.canceled && result.assets[0]) {
-          const asset = result.assets[0];
-          setStudioImg({ uri: asset.uri, type: asset.mimeType || 'image/jpeg', base64: asset.base64 || '' });
-        }
-      };
-
-      const launchToken = async () => {
-        if (!studioImg) { Alert.alert('Missing image','Please pick a token image first'); return; }
-        setStudioStatus('loading');
-        setStudioErr('');
-        try {
-          const { name, symbol, description, creator } = data;
-          // Step 1: get transaction + presigned URLs
-          const createPayload = {
-            buildCurveByMarketCapParam: {
-              quoteMint: USDC, initialMarketCap: 16000, migrationMarketCap: 69000, tokenQuoteDecimal: 6,
-              lockedVestingParam: { totalLockedVestingAmount:0, cliffUnlockAmount:0, numberOfVestingPeriod:0, totalVestingDuration:0, cliffDurationFromMigrationTime:0 },
-            },
-            antiSniping: false, fee:{ feeBps:100 }, isLpLocked: true,
-            tokenName: name, tokenSymbol: symbol.toUpperCase(),
-            tokenImageContentType: studioImg.type, creator,
-          };
-          const createRes = await fetch('https://lite-api.jup.ag/studio/v1/dbc-pool/create-tx', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify(createPayload)
-          });
-          const createData = await createRes.json();
-          if (createData.error) throw new Error(JSON.stringify(createData.error));
-          if (!createData.transaction) throw new Error('No transaction from Studio API');
-          const { transaction: txB64, imagePresignedUrl, metadataPresignedUrl, imageUrl, mint } = createData;
-
-          // Step 2: upload image
-          const imgBytes = Uint8Array.from(atob(studioImg.base64), c => c.charCodeAt(0));
-          await fetch(imagePresignedUrl, { method:'PUT', headers:{'Content-Type': studioImg.type}, body: imgBytes });
-
-          // Step 3: upload metadata
-          await fetch(metadataPresignedUrl, { method:'PUT', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ name, symbol: symbol.toUpperCase(), description: description||'', image: imageUrl }) });
-
-          // Step 4: sign transaction
-          const { VersionedTransaction, Keypair } = require('@solana/web3.js');
-          const { secretKey: sk2 } = deriveWallet(wallet!);
-          const keypair = Keypair.fromSecretKey(sk2);
-          const tx = VersionedTransaction.deserialize(Buffer.from(txB64,'base64'));
-          tx.sign([keypair]);
-          const signedB64 = Buffer.from(tx.serialize()).toString('base64');
-
-          // Step 5: submit
-          const formData = new FormData();
-          formData.append('transaction', signedB64);
-          formData.append('owner', creator);
-          formData.append('content', description||'');
-          try {
-            await fetch('https://api.jup.ag/studio/v1/dbc-pool/submit', { method:'POST', body: formData });
-          } catch {
-            await fetch('https://chatfi.pro/api/studio-submit', { method:'POST', body: formData });
-          }
-
-          setStudioMint(mint);
-          setStudioStatus('done');
-          setMsgs(p => [...p, { id: Date.now(), from:'bot', text: `✅ Token ${name} (${symbol.toUpperCase()}) created!\nMint: ${mint.slice(0,8)}...\nhttps://jup.ag/studio/${mint}` }]);
-        } catch(e:any) {
-          setStudioErr(e.message);
-          setStudioStatus('error');
-        }
-      };
-
-      return (
-        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
-          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:4}}>🎨 Launch Token on Jupiter</Text>
-          <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>Dynamic Bonding Curve (DBC)</Text>
-          <View style={{backgroundColor:C.bg,borderRadius:10,padding:10,marginBottom:12}}>
-            <Text style={{color:C.text,fontWeight:'600'}}>{data.name} ({data.symbol?.toUpperCase()})</Text>
-            <Text style={{color:C.muted,fontSize:12}}>Supply: {parseInt(data.supply||'1000000000').toLocaleString()}</Text>
-            {data.description ? <Text style={{color:C.muted,fontSize:12}}>{data.description}</Text> : null}
-          </View>
-          <TouchableOpacity onPress={pickImage}
-            style={{borderWidth:1,borderColor:studioImg?C.green:C.border,borderStyle:'dashed',borderRadius:10,padding:16,alignItems:'center',marginBottom:12}}>
-            {studioImg
-              ? <Image source={{uri:studioImg.uri}} style={{width:60,height:60,borderRadius:10}}/>
-              : <Text style={{color:C.muted}}>📷 Tap to pick token image</Text>}
-          </TouchableOpacity>
-          {studioStatus === 'idle' && (
-            <TouchableOpacity onPress={launchToken}
-              style={{backgroundColor:C.green,borderRadius:10,padding:12,alignItems:'center'}}>
-              <Text style={{color:'#0d1117',fontWeight:'700'}}>🚀 Launch Token</Text>
-            </TouchableOpacity>
-          )}
-          {studioStatus === 'loading' && <ActivityIndicator color={C.green}/>}
-          {studioStatus === 'done' && (
-            <TouchableOpacity onPress={()=>Linking.openURL(`https://jup.ag/studio/${studioMint}`)}
-              style={{backgroundColor:C.green,borderRadius:10,padding:12,alignItems:'center'}}>
-              <Text style={{color:'#0d1117',fontWeight:'700'}}>View on Jupiter Studio →</Text>
-            </TouchableOpacity>
-          )}
-          {studioStatus === 'error' && <Text style={{color:C.red,fontSize:12,marginTop:8}}>{studioErr}</Text>}
-        </View>
-      );
-    }
+    if (type === 'studio_launch') { return <StudioLaunchCard card={card} wallet={wallet} deriveWallet={deriveWallet} setMsgs={setMsgs} C={C} s={s} />; }
 
     if (type === 'lock') {
       return (
@@ -1649,22 +1658,54 @@ export default function App() {
     }
 
     if (type === 'predictions') {
+      const events = data.events || [];
       return (
         <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
           <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Prediction Markets</Text>
-          {(data.events||[]).map((event:any,i:number)=>(
-            <View key={i} style={{marginBottom:12,paddingBottom:12,borderBottomWidth:i<data.events.length-1?1:0,borderBottomColor:C.border}}>
-              <Text style={{color:C.text,fontWeight:'600',fontSize:13,marginBottom:4}}>{event.title}</Text>
-              <Text style={{color:C.muted,fontSize:11,marginBottom:6}}>{event.category} · Vol: ${((event.volume||0)/1e6).toFixed(1)}M</Text>
-              {(event.markets||[]).slice(0,2).map((m:any,j:number)=>(
-                <View key={j} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:3}}>
-                  <Text style={{color:C.muted,fontSize:12,flex:1}} numberOfLines={1}>{m.question}</Text>
-                  <Text style={{color:C.green,fontSize:12,fontWeight:'700',marginLeft:8}}>YES {((m.yesPrice||0)*100).toFixed(0)}%</Text>
-                </View>
-              ))}
-            </View>
-          ))}
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:4}}>🎯 Prediction Markets</Text>
+          <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>{events.length} markets · Min $5 USDC</Text>
+          {events.map((event:any,i:number)=>{
+            const title = event.metadata?.title || event.title || 'Unknown Event';
+            const cat = event.metadata?.category || event.category || '';
+            const vol = event.metadata?.volume || event.volume || 0;
+            const markets = event.markets || [];
+            const openMks = markets.filter((mk:any) => !mk.status || mk.status === 'open').slice(0,3);
+            return (
+              <View key={i} style={{marginBottom:14,paddingBottom:14,borderBottomWidth:i<events.length-1?1:0,borderBottomColor:C.border}}>
+                <Text style={{color:C.text,fontWeight:'700',fontSize:13,marginBottom:2}}>{title}</Text>
+                <Text style={{color:C.muted,fontSize:11,marginBottom:6}}>
+                  {cat}{cat&&vol?' · ':''}{vol>0?`$${(vol/1e6).toFixed(1)}M vol`:''}
+                </Text>
+                {openMks.map((mk:any,j:number)=>{
+                  const mkTitle = mk.metadata?.title || mk.title || mk.question || '';
+                  const yesPriceRaw = mk.pricing?.buyYesPriceUsd;
+                  const noPriceRaw = mk.pricing?.buyNoPriceUsd;
+                  const yesProb = yesPriceRaw != null ? Math.round(Math.min(99, Math.max(1, yesPriceRaw/1e4))) : null;
+                  const noProb = noPriceRaw != null ? Math.round(Math.min(99, Math.max(1, noPriceRaw/1e4))) : null;
+                  const mkId = mk.marketId || mk.id;
+                  return (
+                    <View key={j} style={{marginBottom:8}}>
+                      <Text style={{color:C.muted,fontSize:12,marginBottom:4}} numberOfLines={2}>{mkTitle}</Text>
+                      <View style={{flexDirection:'row',gap:6}}>
+                        <TouchableOpacity
+                          style={{flex:1,backgroundColor:'rgba(173,250,29,0.15)',borderRadius:8,padding:8,alignItems:'center',borderWidth:1,borderColor:C.green}}
+                          onPress={()=>dispatchAction('PLACE_PREDICTION',{searchQuery:title,outcome:mkTitle,side:'yes',amount:'10'})}
+                        >
+                          <Text style={{color:C.green,fontWeight:'700',fontSize:12}}>YES {yesProb!=null?`${yesProb}%`:''}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{flex:1,backgroundColor:'rgba(239,68,68,0.1)',borderRadius:8,padding:8,alignItems:'center',borderWidth:1,borderColor:'#ef4444'}}
+                          onPress={()=>dispatchAction('PLACE_PREDICTION',{searchQuery:title,outcome:mkTitle,side:'no',amount:'10'})}
+                        >
+                          <Text style={{color:'#ef4444',fontWeight:'700',fontSize:12}}>NO {noProb!=null?`${noProb}%`:''}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
         </View>
       );
     }
@@ -2145,21 +2186,142 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
           break;
         }
 
+        case 'SHOW_PREDICTION':
         case 'FETCH_PREDICTIONS': {
           try {
-            const res = await fetch('https://lite-api.jup.ag/prediction/v1/events?includeMarkets=true&sortBy=volume&sortDirection=desc&end=40');
-            const d = await res.json();
-            const events = d.events || d || [];
+            const cat = data?.sport || data?.category || null;
+            const query = data?.query || data?.searchQuery || (data?.teamA && data?.teamB ? `${data.teamA} ${data.teamB}` : null);
+            const limit = parseInt(data?.limit) || 20;
+            const fetchLimit = Math.max(20, Math.min(limit, 100));
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `🔍 Fetching prediction markets...` }]);
+
+            const extractEvents = (raw:any) => {
+              if (Array.isArray(raw)) return raw;
+              if (Array.isArray(raw?.data)) return raw.data;
+              if (Array.isArray(raw?.events)) return raw.events;
+              return [];
+            };
+
+            let events:any[] = [];
+            // Try search first if query provided
+            if (query) {
+              try {
+                const res = await fetch('https://chatfi.pro/api/jupiter', {
+                  method:'POST', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({ url:`https://lite-api.jup.ag/prediction/v1/events/search?query=${encodeURIComponent(query)}&limit=${fetchLimit}&includeMarkets=true`, method:'GET' })
+                });
+                const raw = await res.json();
+                events = extractEvents(raw);
+              } catch {}
+            }
+            // Fallback to category fetch
+            if (!events.length) {
+              try {
+                let url = `https://lite-api.jup.ag/prediction/v1/events?includeMarkets=true&sortBy=volume&sortDirection=desc&end=${fetchLimit*2}`;
+                if (cat && cat !== 'null') url += `&category=${cat.toLowerCase()}`;
+                const res = await fetch('https://chatfi.pro/api/jupiter', {
+                  method:'POST', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({ url, method:'GET' })
+                });
+                const raw = await res.json();
+                events = extractEvents(raw);
+                // client-side filter if query
+                if (query && events.length) {
+                  const lq = query.toLowerCase();
+                  const filtered = events.filter((e:any) =>
+                    e.metadata?.title?.toLowerCase().includes(lq) ||
+                    e.title?.toLowerCase().includes(lq) ||
+                    (e.markets||[]).some((mk:any) => mk.metadata?.title?.toLowerCase().includes(lq))
+                  );
+                  if (filtered.length) events = filtered;
+                }
+              } catch {}
+            }
+
+            if (!events.length) {
+              setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: '❌ No prediction markets found. Try: "show sports predictions" or "Arsenal vs Man City".' }]);
+              break;
+            }
             const cardId = Date.now() + 1;
             setMsgs(p => [...p, {
               id: cardId, from: 'bot', text: '',
-              card: {
-                type: 'predictions',
-                data: { events: events.slice(0, 8) }
-              }
+              card: { type: 'predictions', data: { events: events.slice(0, limit) } }
             }]);
           } catch(e:any) {
-            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: 'Failed to fetch predictions.' }]);
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `❌ Failed to fetch predictions: ${e.message}` }]);
+          }
+          break;
+        }
+
+        case 'PLACE_PREDICTION': {
+          const { searchQuery, outcome, side, amount } = data || {};
+          if (!searchQuery || !outcome || !amount) {
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: 'Please specify match, outcome, side (yes/no) and amount.' }]);
+            break;
+          }
+          const amtNum = parseFloat(amount);
+          if (!amtNum || amtNum < 5) {
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: 'Minimum bet is $5 USDC.' }]);
+            break;
+          }
+          setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `⏳ Placing ${(side||'yes').toUpperCase()} $${amtNum} on ${outcome}...` }]);
+          try {
+            // 1. Find market
+            const res = await fetch('https://chatfi.pro/api/jupiter', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ url:`https://lite-api.jup.ag/prediction/v1/events/search?query=${encodeURIComponent(searchQuery)}&limit=10&includeMarkets=true`, method:'GET' })
+            });
+            const raw = await res.json();
+            const events = Array.isArray(raw) ? raw : (raw?.data || raw?.events || []);
+            if (!events.length) throw new Error(`No market found for: ${searchQuery}`);
+
+            // 2. Find matching outcome market
+            const outcomeLower = (outcome||'').toLowerCase();
+            let foundMarketId = null;
+            for (const evt of events) {
+              const openMks = (evt.markets||[]).filter((mk:any) => !mk.status || mk.status === 'open');
+              const match = openMks.find((mk:any) => {
+                const t = (mk.metadata?.title || mk.title || '').toLowerCase();
+                return t.includes(outcomeLower) || outcomeLower.includes(t);
+              }) || openMks[0];
+              if (match) { foundMarketId = match.marketId || match.id; break; }
+            }
+            if (!foundMarketId) throw new Error(`No open market found for outcome: ${outcome}`);
+
+            // 3. Place order
+            const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+            const depositAmount = Math.floor(amtNum * 1_000_000);
+            const isYes = (side||'yes') === 'yes';
+            const orderRes = await fetch('https://chatfi.pro/api/jupiter', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({
+                url:'https://lite-api.jup.ag/prediction/v1/orders',
+                method:'POST',
+                body:{ ownerPubkey: pk, marketId: foundMarketId, isYes, isBuy: true, depositAmount, depositMint: USDC_MINT }
+              })
+            });
+            const orderData = await orderRes.json();
+            if (!orderData?.transaction) throw new Error(orderData?.message || orderData?.error || 'No transaction returned');
+
+            // 4. Sign and send
+            const { VersionedTransaction: VT, Keypair: KP } = require('@solana/web3.js');
+            const keypair = KP.fromSecretKey(secretKey);
+            const tx = VT.deserialize(Buffer.from(orderData.transaction,'base64'));
+            tx.sign([keypair]);
+            const signed = Buffer.from(tx.serialize()).toString('base64');
+            const sendRes = await fetch('https://chatfi.pro/api/jupiter', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ url:'https://api.mainnet-beta.solana.com', method:'POST',
+                body:{ jsonrpc:'2.0', id:1, method:'sendTransaction', params:[signed,{encoding:'base64',skipPreflight:true}] }
+              })
+            });
+            const sendData = await sendRes.json();
+            const sig = sendData?.result;
+            if (!sig) throw new Error(sendData?.error?.message || 'Transaction failed');
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `✅ ${(side||'yes').toUpperCase()} $${amtNum} on ${outcome} placed!
+https://solscan.io/tx/${sig}` }]);
+          } catch(e:any) {
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `❌ Bet failed: ${e.message}` }]);
           }
           break;
         }
