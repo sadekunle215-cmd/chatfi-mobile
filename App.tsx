@@ -1556,20 +1556,8 @@ export default function App() {
               body: JSON.stringify({url:'https://api.jup.ag/lend/v1/earn/markets', method:'GET'})
             });
             const mktData = await mktRes.json();
-            const markets = Array.isArray(mktData) ? mktData : mktData?.markets || [];
-            const cardId = Date.now() + 1;
-            setMsgs(p => [...p, {
-              id: cardId, from: 'bot', text: '',
-              card: { type: 'earn', data: { markets } }
-            }]);
-            const positions = [];
-            if (positions.length === 0) {
-              setMsgs(p => [...p, { id: Date.now(), text: 'No active earn positions found.\nTo start earning, deposit tokens on jup.ag/earn', from: 'bot' }]);
-            } else {
-              const posText = positions.map((p:any) => `• ${p.symbol}: $${p.valueUSD?.toFixed(2)} @ ${p.apy?.toFixed(2)}% APY`).join('\n');
-              setMsgs(p => [...p, { id: Date.now(), text: `📈 Your Earn Positions:\n${posText}`, from: 'bot' }]);
-            }
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch earn positions: ${e.message}`, from: 'bot' }]); }
+            setMsgs(p => [...p, { id: Date.now(), text: JSON.stringify(mktData, null, 2), from: 'bot' }]);
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch earn markets: ${e.message}`, from: 'bot' }]); }
           break;
         }
         case 'SHOW_STUDIO': {
