@@ -1269,6 +1269,67 @@ export default function App() {
       );
     }
 
+    if (type === 'token_info') {
+      const fmt = (n:number|null, prefix='$') => {
+        if (!n) return 'N/A';
+        if (n >= 1_000_000_000) return `${prefix}${(n/1_000_000_000).toFixed(2)}B`;
+        if (n >= 1_000_000) return `${prefix}${(n/1_000_000).toFixed(2)}M`;
+        if (n >= 1_000) return `${prefix}${(n/1_000).toFixed(2)}K`;
+        return `${prefix}${n.toFixed(4)}`;
+      };
+      const pc = data.priceChange24h;
+      const isUp = pc && parseFloat(pc) >= 0;
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <View style={{flexDirection:'row',alignItems:'center',marginBottom:12}}>
+            {data.logo ? <Image source={{uri:data.logo}} style={{width:40,height:40,borderRadius:20,marginRight:10}}/> : <View style={{width:40,height:40,borderRadius:20,backgroundColor:C.border,marginRight:10}}/>}
+            <View style={{flex:1}}>
+              <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                <Text style={{color:C.text,fontWeight:'700',fontSize:18}}>{data.symbol}</Text>
+                {data.isVerified && <Text style={{color:C.green,fontSize:11}}>✓ Verified</Text>}
+              </View>
+              <Text style={{color:C.muted,fontSize:12}}>{data.name}</Text>
+            </View>
+          </View>
+          <Text style={{color:C.green,fontSize:30,fontWeight:'700',marginBottom:4}}>
+            {data.price ? `$${data.price < 0.01 ? data.price.toFixed(8) : data.price.toFixed(4)}` : 'N/A'}
+          </Text>
+          {pc != null && (
+            <Text style={{color:isUp?C.green:C.red,fontSize:13,marginBottom:12}}>
+              {isUp?'▲':'▼'} {Math.abs(parseFloat(pc)).toFixed(2)}% (24h)
+            </Text>
+          )}
+          <View style={{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:12}}>
+            {[
+              {label:'Market Cap', val:fmt(data.mcap)},
+              {label:'FDV', val:fmt(data.fdv)},
+              {label:'Liquidity', val:fmt(data.liquidity)},
+            ].map((item,i)=>(
+              <View key={i} style={{flex:1,minWidth:'28%',backgroundColor:C.bg,borderRadius:10,padding:8}}>
+                <Text style={{color:C.muted,fontSize:10}}>{item.label}</Text>
+                <Text style={{color:C.text,fontWeight:'600',fontSize:13}}>{item.val}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={{flexDirection:'row',gap:8}}>
+            <TouchableOpacity
+              style={{flex:1,backgroundColor:C.green,borderRadius:10,padding:10,alignItems:'center'}}
+              onPress={()=>dispatchAction('SHOW_SWAP',{from:'USDC',to:data.symbol,amount:''})}
+            >
+              <Text style={{color:'#0d1117',fontWeight:'700'}}>Buy {data.symbol}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{flex:1,borderRadius:10,padding:10,alignItems:'center',borderWidth:1,borderColor:C.green}}
+              onPress={()=>dispatchAction('SHOW_SWAP',{from:data.symbol,to:'USDC',amount:''})}
+            >
+              <Text style={{color:C.green,fontWeight:'700'}}>Sell {data.symbol}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
     if (type === 'portfolio') {
       return (
         <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
@@ -1457,17 +1518,46 @@ export default function App() {
         }
         case 'FETCH_PRICE': {
           try {
-            const mint = TOKENS[data.token] || data.token;
-            const res = await fetch(`https://lite-api.jup.ag/price/v2?ids=${mint}`);
-            const d = await res.json();
-            const price = d.data?.[mint]?.price;
+            const sym = (data.token || '').toUpperCase();
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `🔍 Fetching ${sym} details...` }]);
+            // Step 1: resolve token via Jupiter Token V2
+            const resolved = await resolveToken(sym);
+            if (!resolved) {
+              setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `❌ Unknown token: ${sym}` }]);
+              break;
+            }
+            const mint = resolved.mint;
+            // Step 2: get full token info from Token V2
+            const [tokenRes, priceRes] = await Promise.all([
+              fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(mint)}`),
+              fetch(`https://lite-api.jup.ag/price/v2?ids=${mint}`)
+            ]);
+            const tokenList = await tokenRes.json();
+            const priceData = await priceRes.json();
+            const tokenInfo = Array.isArray(tokenList) ? tokenList[0] : null;
+            const price = priceData.data?.[mint]?.price;
             const cardId = Date.now() + 1;
             setMsgs(p => [...p, {
               id: cardId, from: 'bot', text: '',
-              card: { type: 'price', data: { token: data.token, price: price ? parseFloat(price).toFixed(4) : 'N/A' } }
+              card: {
+                type: 'token_info',
+                data: {
+                  symbol: tokenInfo?.symbol || sym,
+                  name: tokenInfo?.name || sym,
+                  logo: tokenInfo?.icon || resolved.logoURI || '',
+                  price: price ? parseFloat(price) : null,
+                  mcap: tokenInfo?.mcap || null,
+                  fdv: tokenInfo?.fdv || null,
+                  liquidity: tokenInfo?.liquidity || null,
+                  volume24h: tokenInfo?.stats24h?.volumeChange || null,
+                  priceChange24h: tokenInfo?.stats24h?.priceChange || null,
+                  isVerified: tokenInfo?.isVerified || false,
+                  mint,
+                }
+              }
             }]);
-          } catch {
-            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `Could not fetch ${data.token} price.` }]);
+          } catch(e:any) {
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `❌ Could not fetch token info: ${e.message}` }]);
           }
           break;
         }
