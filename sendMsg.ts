@@ -42,7 +42,7 @@ const RPC = 'https://api.mainnet-beta.solana.com';
 const JUP_QUOTE  = 'https://lite-api.jup.ag/swap/v1/quote';
 const JUP_ORDER  = 'https://lite-api.jup.ag/ultra/v1/order';
 const JUP_EXEC   = 'https://lite-api.jup.ag/ultra/v1/execute';
-const JUP_PRICE  = 'https://lite-api.jup.ag/price/v2';
+const JUP_PRICE  = 'https://lite-api.jup.ag/price/v3';
 const JUP_TRIGGER = 'https://trigger.jup.ag/v1';
 const JUP_RECURRING = 'https://dca.jup.ag/v2';
 
@@ -95,11 +95,28 @@ export const getTokenPrice = async (token: string): Promise<string> => {
     const resolved = await resolveToken(token);
     if (!resolved) return `Unknown token: ${token}`;
     const mint = resolved.mint;
-    const res  = await fetch(`${JUP_PRICE}?ids=${mint}`);
-    const data = await res.json();
-    const price = data.data?.[mint]?.price;
-    if (price) return `${token} is currently $${parseFloat(price).toFixed(4)} USD`;
-    return `Could not fetch ${token} price right now.`;
+    // Fetch price
+    const priceRes = await fetch(`${JUP_PRICE}?ids=${mint}`);
+    const priceData = await priceRes.json();
+    const priceInfo = priceData.data?.[mint];
+    const price = priceInfo?.usdPrice ?? priceInfo?.price;
+    const change24h = priceInfo?.priceChange24h;
+    // Fetch token metadata
+    const metaRes = await fetch(`https://lite-api.jup.ag/tokens/v2/token/${mint}`);
+    const meta = await metaRes.json();
+    if (!price) return `Could not fetch ${token} price right now.`;
+    let reply = `**${meta?.symbol || token}** (${meta?.name || token})
+`;
+    reply += `💰 Price: $${parseFloat(price).toFixed(6)}
+`;
+    if (change24h !== undefined) reply += `📈 24h Change: ${parseFloat(change24h).toFixed(2)}%
+`;
+    if (meta?.decimals !== undefined) reply += `🔢 Decimals: ${meta.decimals}
+`;
+    if (meta?.tags?.length) reply += `🏷️ Tags: ${meta.tags.join(', ')}
+`;
+    reply += `📋 Mint: ${mint}`;
+    return reply;
   } catch {
     return `Could not fetch ${token} price right now.`;
   }
