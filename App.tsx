@@ -1129,6 +1129,246 @@ export default function App() {
     } catch { Alert.alert('Error', 'Invalid seed phrase'); }
   };
 
+
+
+
+  const updateCard = (msgId: number, updates: any) => {
+    setMsgs(p => p.map(m => m.id === msgId ? {...m, card: {...m.card, ...updates}} : m));
+  };
+
+
+
+
+  const renderCard = (card: any) => {
+    const { type, data, onConfirm, onCancel, status } = card;
+
+    if (type === 'swap') {
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Confirm Swap</Text>
+          <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+            <View style={{alignItems:'center',flex:1}}>
+              <Text style={{color:C.muted,fontSize:11}}>FROM</Text>
+              <Text style={{color:C.text,fontWeight:'700',fontSize:18}}>{data.amount} {data.from}</Text>
+            </View>
+            <Text style={{color:C.green,fontSize:20}}>→</Text>
+            <View style={{alignItems:'center',flex:1}}>
+              <Text style={{color:C.muted,fontSize:11}}>TO</Text>
+              <Text style={{color:C.text,fontWeight:'700',fontSize:18}}>{data.outAmount ? `~${parseFloat(data.outAmount).toFixed(4)}` : '...'} {data.to}</Text>
+            </View>
+          </View>
+          {data.priceImpact && <Text style={{color:C.muted,fontSize:12,textAlign:'center',marginBottom:4}}>Price impact: {data.priceImpact}%</Text>}
+          <Text style={{color:C.muted,fontSize:12,textAlign:'center',marginBottom:12}}>Network fee: ~0.000005 SOL</Text>
+          {status === 'loading' && <ActivityIndicator color={C.green} />}
+          {status === 'success' && <Text style={{color:C.green,textAlign:'center',fontWeight:'700'}}>✅ Swap Complete!</Text>}
+          {status === 'error' && <Text style={{color:C.red,textAlign:'center'}}>{card.error}</Text>}
+          {!status && (
+            <View style={{flexDirection:'row',gap:8}}>
+              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
+                <Text style={{color:C.muted}}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onConfirm} style={{flex:2,padding:12,borderRadius:10,backgroundColor:C.green,alignItems:'center'}}>
+                <Text style={{color:'#0d1117',fontWeight:'700'}}>Confirm Swap</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    if (type === 'trigger') {
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Confirm Limit Order</Text>
+          <View style={{marginBottom:8}}>
+            <View style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <Text style={{color:C.muted}}>Action</Text>
+              <Text style={{color:C.text,fontWeight:'600'}}>{data.direction==='below'?'Buy':'Sell'} {data.from}</Text>
+            </View>
+            <View style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <Text style={{color:C.muted}}>Amount</Text>
+              <Text style={{color:C.text,fontWeight:'600'}}>{data.amount} {data.from}</Text>
+            </View>
+            <View style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <Text style={{color:C.muted}}>Trigger Price</Text>
+              <Text style={{color:C.green,fontWeight:'600'}}>${data.targetPrice}</Text>
+            </View>
+            <View style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6}}>
+              <Text style={{color:C.muted}}>Condition</Text>
+              <Text style={{color:C.text,fontWeight:'600'}}>{data.direction==='below'?'When price drops below':'When price rises above'}</Text>
+            </View>
+          </View>
+          {status === 'loading' && <ActivityIndicator color={C.green} />}
+          {status === 'success' && <Text style={{color:C.green,textAlign:'center',fontWeight:'700'}}>✅ Limit Order Placed!</Text>}
+          {status === 'error' && <Text style={{color:C.red,textAlign:'center'}}>{card.error}</Text>}
+          {!status && (
+            <View style={{flexDirection:'row',gap:8}}>
+              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
+                <Text style={{color:C.muted}}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onConfirm} style={{flex:2,padding:12,borderRadius:10,backgroundColor:C.green,alignItems:'center'}}>
+                <Text style={{color:'#0d1117',fontWeight:'700'}}>Place Order</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    if (type === 'recurring') {
+      const intervalLabel = data.intervalSecs===86400?'daily':data.intervalSecs===604800?'weekly':data.intervalSecs===3600?'hourly':`every ${data.intervalSecs}s`;
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Confirm DCA Order</Text>
+          <View style={{marginBottom:8}}>
+            <View style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <Text style={{color:C.muted}}>Pair</Text>
+              <Text style={{color:C.text,fontWeight:'600'}}>{data.from} → {data.to}</Text>
+            </View>
+            <View style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <Text style={{color:C.muted}}>Amount per cycle</Text>
+              <Text style={{color:C.text,fontWeight:'600'}}>{data.amountPerCycle} {data.from}</Text>
+            </View>
+            <View style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <Text style={{color:C.muted}}>Frequency</Text>
+              <Text style={{color:C.green,fontWeight:'600'}}>{intervalLabel}</Text>
+            </View>
+            <View style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6}}>
+              <Text style={{color:C.muted}}>Orders</Text>
+              <Text style={{color:C.text,fontWeight:'600'}}>{data.numberOfOrders}</Text>
+            </View>
+          </View>
+          {status === 'loading' && <ActivityIndicator color={C.green} />}
+          {status === 'success' && <Text style={{color:C.green,textAlign:'center',fontWeight:'700'}}>✅ DCA Order Created!</Text>}
+          {status === 'error' && <Text style={{color:C.red,textAlign:'center'}}>{card.error}</Text>}
+          {!status && (
+            <View style={{flexDirection:'row',gap:8}}>
+              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
+                <Text style={{color:C.muted}}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onConfirm} style={{flex:2,padding:12,borderRadius:10,backgroundColor:C.green,alignItems:'center'}}>
+                <Text style={{color:'#0d1117',fontWeight:'700'}}>Start DCA</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    if (type === 'price') {
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.muted,fontSize:12,marginBottom:4}}>{data.token} Price</Text>
+          <Text style={{color:C.green,fontSize:32,fontWeight:'700'}}>${data.price}</Text>
+          {data.change24h && <Text style={{color:parseFloat(data.change24h)>=0?C.green:C.red,fontSize:13,marginTop:4}}>{parseFloat(data.change24h)>=0?'▲':'▼'} {Math.abs(parseFloat(data.change24h)).toFixed(2)}% (24h)</Text>}
+        </View>
+      );
+    }
+
+    if (type === 'portfolio') {
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Your Portfolio</Text>
+          {(data.tokens||[]).slice(0,5).map((t:any,i:number)=>(
+            <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderBottomWidth:i<4?1:0,borderBottomColor:C.border}}>
+              <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
+              <View style={{alignItems:'flex-end'}}>
+                <Text style={{color:C.text}}>{t.amount?.toFixed(4)}</Text>
+                <Text style={{color:C.muted,fontSize:11}}>${((t.amount||0)*(t.price||0)).toFixed(2)}</Text>
+              </View>
+            </View>
+          ))}
+          <TouchableOpacity onPress={()=>setTab('portfolio')} style={{marginTop:12,padding:10,borderRadius:10,borderWidth:1,borderColor:C.green,alignItems:'center'}}>
+            <Text style={{color:C.green,fontWeight:'600'}}>View Full Portfolio →</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (type === 'earn') {
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Jupiter Earn Markets</Text>
+          {(data.markets||[]).slice(0,5).map((m:any,i:number)=>(
+            <View key={i} style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingVertical:8,borderBottomWidth:i<4?1:0,borderBottomColor:C.border}}>
+              <Text style={{color:C.text,fontWeight:'600'}}>{m.symbol||'?'}</Text>
+              <View style={{alignItems:'flex-end'}}>
+                <Text style={{color:C.green,fontWeight:'700'}}>{((m.supplyApy||m.apy||0)*100).toFixed(2)}% APY</Text>
+                {m.tvl&&<Text style={{color:C.muted,fontSize:11}}>${(m.tvl/1e6).toFixed(1)}M TVL</Text>}
+              </View>
+            </View>
+          ))}
+        </View>
+      );
+    }
+
+    if (type === 'lock') {
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Confirm Token Lock</Text>
+          <View style={{marginBottom:12}}>
+            <View style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <Text style={{color:C.muted}}>Token</Text>
+              <Text style={{color:C.text,fontWeight:'600'}}>{data.amount} {data.token}</Text>
+            </View>
+            <View style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6}}>
+              <Text style={{color:C.muted}}>Lock Duration</Text>
+              <Text style={{color:C.green,fontWeight:'600'}}>{data.days} days</Text>
+            </View>
+          </View>
+          {status === 'loading' && <ActivityIndicator color={C.green} />}
+          {status === 'success' && <Text style={{color:C.green,textAlign:'center',fontWeight:'700'}}>✅ Tokens Locked!</Text>}
+          {status === 'error' && <Text style={{color:C.red,textAlign:'center'}}>{card.error}</Text>}
+          {!status && (
+            <View style={{flexDirection:'row',gap:8}}>
+              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
+                <Text style={{color:C.muted}}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onConfirm} style={{flex:2,padding:12,borderRadius:10,backgroundColor:C.green,alignItems:'center'}}>
+                <Text style={{color:'#0d1117',fontWeight:'700'}}>Lock Tokens</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    if (type === 'predictions') {
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Prediction Markets</Text>
+          {(data.events||[]).map((event:any,i:number)=>(
+            <View key={i} style={{marginBottom:12,paddingBottom:12,borderBottomWidth:i<data.events.length-1?1:0,borderBottomColor:C.border}}>
+              <Text style={{color:C.text,fontWeight:'600',fontSize:13,marginBottom:4}}>{event.title}</Text>
+              <Text style={{color:C.muted,fontSize:11,marginBottom:6}}>{event.category} · Vol: ${((event.volume||0)/1e6).toFixed(1)}M</Text>
+              {(event.markets||[]).slice(0,2).map((m:any,j:number)=>(
+                <View key={j} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:3}}>
+                  <Text style={{color:C.muted,fontSize:12,flex:1}} numberOfLines={1}>{m.question}</Text>
+                  <Text style={{color:C.green,fontSize:12,fontWeight:'700',marginLeft:8}}>YES {((m.yesPrice||0)*100).toFixed(0)}%</Text>
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+
+  const updateCard = (msgId: number, updates: any) => {
+    setMsgs(p => p.map(m => m.id === msgId ? {...m, card: {...m.card, ...updates}} : m));
+  };
+
   const sendMsg = async (overrideText?: string) => {
     const q = (overrideText || inputRef.current || input).trim();
     if (!q || aiLoading) return;
@@ -1172,20 +1412,64 @@ export default function App() {
           break;
         }
         case 'FETCH_PRICE': {
-          const price = await getTokenPrice(data.token);
-          setMsgs(p => [...p, { id: Date.now(), text: price, from: 'bot' }]);
+          try {
+            const mint = TOKENS[data.token] || data.token;
+            const res = await fetch(`https://lite-api.jup.ag/price/v2?ids=${mint}`);
+            const d = await res.json();
+            const price = d.data?.[mint]?.price;
+            const cardId = Date.now() + 1;
+            setMsgs(p => [...p, {
+              id: cardId, from: 'bot', text: '',
+              card: { type: 'price', data: { token: data.token, price: price ? parseFloat(price).toFixed(4) : 'N/A' } }
+            }]);
+          } catch {
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `Could not fetch ${data.token} price.` }]);
+          }
           break;
         }
         case 'FETCH_PORTFOLIO': {
-          setTab('portfolio');
           fetchPortfolio();
+          const cardId = Date.now() + 1;
+          const tokens = [
+            ...(solBalance ? [{ symbol: 'SOL', amount: solBalance, price: solPrice }] : []),
+            ...tokenBalances.slice(0, 4)
+          ];
+          setMsgs(p => [...p, {
+            id: cardId, from: 'bot', text: '',
+            card: { type: 'portfolio', data: { tokens } }
+          }]);
           break;
         }
         case 'SHOW_SWAP': {
-          setFromToken(data.from || 'SOL');
-          setToToken(data.to || 'USDC');
-          if (data.amount) setAmt(String(data.amount));
-          setTab('swap');
+          const from = (data.from || 'SOL').toUpperCase();
+          const to = (data.to || 'USDC').toUpperCase();
+          const amount = data.amount || data.amountUSD || '';
+          // Fetch quote first
+          let outAmount = '...';
+          let priceImpact = '0';
+          try {
+            const q = await getJupiterQuote(TOKENS[from]||from, TOKENS[to]||to, parseFloat(amount)||1, DECIMALS[from]||6, DECIMALS[to]||6);
+            if (q) { outAmount = q.outAmount.toFixed(4); priceImpact = q.priceImpact; }
+          } catch {}
+          const cardId = Date.now() + 1;
+          const cardData = { from, to, amount, outAmount, priceImpact };
+          setMsgs(p => [...p, {
+            id: cardId, from: 'bot', text: '',
+            card: {
+              type: 'swap', data: cardData,
+              onCancel: () => updateCard(cardId, { status: 'cancelled' }),
+              onConfirm: async () => {
+                updateCard(cardId, { status: 'loading' });
+                try {
+                  const { publicKey: pk2, secretKey: sk2 } = deriveWallet(wallet!);
+                  const txSig = await executeSwapTx(TOKENS[from]||from, TOKENS[to]||to, parseFloat(amount), DECIMALS[from]||6, pk2, sk2, 'https://api.mainnet-beta.solana.com');
+                  updateCard(cardId, { status: 'success' });
+                  setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `✅ Swap done! https://solscan.io/tx/${txSig}` }]);
+                  fetchPortfolio();
+                } catch(e:any) { updateCard(cardId, { status: 'error', error: e.message }); }
+              }
+            }
+          }]);
           break;
         }
         case 'SHOW_TRIGGER': {
@@ -1234,34 +1518,55 @@ export default function App() {
         case 'SHOW_LOCK': {
           const { token, amount, days } = data;
           if (!token || !amount || !days) {
-            setMsgs(p => [...p, { id: Date.now(), text: 'Please specify token, amount and days to lock. Example: lock 100 JUP for 30 days', from: 'bot' }]);
+            setMsgs(p => [...p, { id: Date.now(), text: 'Please specify token, amount and days. Example: lock 100 JUP for 30 days', from: 'bot' }]);
             break;
           }
           const mint = TOKENS[token];
           if (!mint) { setMsgs(p => [...p, { id: Date.now(), text: `Unknown token: ${token}`, from: 'bot' }]); break; }
-          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Locking ${amount} ${token} for ${days} days...`, from: 'bot' }]);
-          try {
-            const cliffSecs = parseInt(days) * 86400;
-            const amtRaw = Math.floor(parseFloat(amount) * Math.pow(10, DECIMALS[token] || 6));
-            const lockRes = await fetch('https://chatfi.pro/api/lock', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'create', funder: pk, mint, amount: amtRaw, cliffSecs, vestingSecs: cliffSecs })
-            });
-            const lockData = await lockRes.json();
-            if (lockData.error) throw new Error(lockData.error);
-            const txSig = await signAndSendTx(lockData.transaction, secretKey);
-            setMsgs(p => [...p, { id: Date.now(), text: `✅ Locked ${amount} ${token} for ${days} days!\nTx: ${txSig.slice(0,20)}...\nhttps://solscan.io/tx/${txSig}`, from: 'bot' }]);
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Lock failed: ${e.message}`, from: 'bot' }]); }
+          const cardId = Date.now() + 1;
+          setMsgs(p => [...p, {
+            id: cardId, from: 'bot', text: '',
+            card: {
+              type: 'lock', data: { token, amount, days },
+              onCancel: () => updateCard(cardId, { status: 'cancelled' }),
+              onConfirm: async () => {
+                updateCard(cardId, { status: 'loading' });
+                try {
+                  const { publicKey: pk2, secretKey: sk2 } = deriveWallet(wallet!);
+                  const cliffSecs = parseInt(days) * 86400;
+                  const amtRaw = Math.floor(parseFloat(amount) * Math.pow(10, DECIMALS[token] || 6));
+                  const lockRes = await fetch('https://chatfi.pro/api/lock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'create', funder: pk2, mint, amount: amtRaw, cliffSecs, vestingSecs: cliffSecs })
+                  });
+                  const lockData = await lockRes.json();
+                  if (lockData.error) throw new Error(lockData.error);
+                  const txSig = await signAndSendTx(lockData.transaction, sk2);
+                  updateCard(cardId, { status: 'success' });
+                  setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: 'Locked! https://solscan.io/tx/' + txSig }]);
+                } catch(e) { updateCard(cardId, { status: 'error', error: e.message }); }
+              }
+            }
+          }]);
           break;
         }
-        case 'SHOW_EARN': {
-          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your earn positions...', from: 'bot' }]);
+        case 'SHOW_EARN':
+        case 'FETCH_EARN': {
           try {
-            const earnRes = await fetch(`https://chatfi.pro/api/lend-positions?wallet=${pk}`);
-            const earnData = await earnRes.json();
-            if (earnData.error) throw new Error(earnData.error);
-            const positions = earnData.positions || [];
+            const mktRes = await fetch('https://chatfi.pro/api/jupiter', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({url:'https://api.jup.ag/lend/v1/earn/markets', method:'GET'})
+            });
+            const mktData = await mktRes.json();
+            const markets = Array.isArray(mktData) ? mktData : mktData?.markets || [];
+            const cardId = Date.now() + 1;
+            setMsgs(p => [...p, {
+              id: cardId, from: 'bot', text: '',
+              card: { type: 'earn', data: { markets } }
+            }]);
+            const positions = [];
             if (positions.length === 0) {
               setMsgs(p => [...p, { id: Date.now(), text: 'No active earn positions found.\nTo start earning, deposit tokens on jup.ag/earn', from: 'bot' }]);
             } else {
@@ -1491,6 +1796,76 @@ ${txt}`, from: 'bot' }]);
           setMsgs(p => [...p, { id: Date.now(), text: `🔔 Price alert set!
 ${alertToken} ${alertCond} $${alertPrice}
 I will notify you in chat when it triggers.`, from: 'bot' }]);
+          break;
+        }
+
+        case 'FETCH_PREDICTIONS': {
+          try {
+            const res = await fetch('https://lite-api.jup.ag/prediction/v1/events?includeMarkets=true&sortBy=volume&sortDirection=desc&end=40');
+            const d = await res.json();
+            const events = d.events || d || [];
+            const cardId = Date.now() + 1;
+            setMsgs(p => [...p, {
+              id: cardId, from: 'bot', text: '',
+              card: {
+                type: 'predictions',
+                data: { events: events.slice(0, 8) }
+              }
+            }]);
+          } catch(e:any) {
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: 'Failed to fetch predictions.' }]);
+          }
+          break;
+        }
+
+        case 'COPY_TRADE': {
+          const { wallet: copyWallet, limit } = data;
+          if (!copyWallet) {
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: 'Please provide a wallet address to copy trades from.' }]);
+            break;
+          }
+          try {
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `Fetching recent trades from ${copyWallet.slice(0,8)}...` }]);
+            const sr = await rpcFetch('getSignaturesForAddress', [copyWallet, { limit: limit || 5 }]);
+            const sigs = Array.isArray(sr.result) ? sr.result : [];
+            const trades = sigs.slice(0, 5).map((s:any) => `• ${s.signature.slice(0,16)}... ${s.blockTime ? new Date(s.blockTime*1000).toLocaleDateString() : ''}`).join('
+');
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `Recent trades from ${copyWallet.slice(0,8)}...:
+${trades}
+
+View on Solscan to mirror these trades.` }]);
+          } catch(e:any) {
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `Failed to fetch trades: ${e.message}` }]);
+          }
+          break;
+        }
+
+        case 'SHOW_TRIGGER_V2': {
+          // Map to SHOW_TRIGGER
+          const d2 = {
+            from: data.from,
+            to: data.to,
+            amount: data.amount,
+            targetPrice: data.triggerPriceUsd,
+            direction: data.triggerCondition || 'below'
+          };
+          const cardId = Date.now() + 1;
+          setMsgs(p => [...p, {
+            id: cardId, from: 'bot', text: '',
+            card: {
+              type: 'trigger', data: d2,
+              onCancel: () => updateCard(cardId, { status: 'cancelled' }),
+              onConfirm: async () => {
+                updateCard(cardId, { status: 'loading' });
+                try {
+                  const { publicKey: pk2, secretKey: sk2 } = deriveWallet(wallet!);
+                  const txSig = await createTriggerOrder(TOKENS[d2.from]||d2.from, TOKENS[d2.to]||d2.to, DECIMALS[d2.from]||6, DECIMALS[d2.to]||6, parseFloat(d2.amount), parseFloat(d2.targetPrice), d2.direction, pk2, sk2);
+                  updateCard(cardId, { status: 'success' });
+                  setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: 'Limit order placed! https://solscan.io/tx/' + txSig }]);
+                } catch(e:any) { updateCard(cardId, { status: 'error', error: e.message }); }
+              }
+            }
+          }]);
           break;
         }
 
@@ -1988,9 +2363,15 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
                 </View>
                 <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }}>
               {msgs.map(m => (
-                <View key={m.id} style={[s.bubble, m.from === 'user' ? s.userBubble : s.botBubble]}>
-                  {m.from === 'bot' && <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>}
-                  <Text style={s.bubbleTxt}>{m.text}</Text>
+                <View key={m.id} style={m.from === 'user' ? [s.bubble, s.userBubble] : {marginBottom:8}}>
+                  {m.from === 'bot' && !m.card && (
+                    <View style={[s.bubble, s.botBubble]}>
+                      <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+                      <Text style={s.bubbleTxt}>{m.text}</Text>
+                    </View>
+                  )}
+                  {m.from === 'user' && <Text style={s.bubbleTxt}>{m.text}</Text>}
+                  {m.card && renderCard(m.card)}
                 </View>
               ))}
               {aiLoading && (
