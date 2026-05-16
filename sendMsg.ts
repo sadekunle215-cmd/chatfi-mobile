@@ -305,6 +305,9 @@ ACTIONS:
 - "FETCH_PRICE" → token price. actionData: {token}
 - "SHOW_EARN" → earn positions. actionData: {}
 - "FETCH_EARN" → earn markets. actionData: {}
+- "EARN_DEPOSIT" → deposit into Jupiter Earn. actionData: {sym,amount,portion}
+- "EARN_WITHDRAW" → withdraw from Jupiter Earn. actionData: {sym,amount,portion}
+- "FETCH_TOKEN_INFO" → full token details. actionData: {token}
 - "SHOW_LOCK" → lock tokens. actionData: {token,amount,days}
 - "FETCH_LOCKS" → show locks. actionData: {}
 - "SHOW_STUDIO" → create token. actionData: {name,symbol,supply,decimals,description}
@@ -321,6 +324,9 @@ RULES:
 - portfolio/balances → FETCH_PORTFOLIO
 - price of X → FETCH_PRICE
 - earn/yield/APY → SHOW_EARN
+- deposit to earn/put into earn → EARN_DEPOSIT
+- withdraw from earn → EARN_WITHDRAW
+- token info/details/stats → FETCH_TOKEN_INFO
 - lock/vesting → SHOW_LOCK
 - my locks → FETCH_LOCKS
 - create token → SHOW_STUDIO

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WebView } from 'react-native-webview';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import Svg, { Line as SvgLine, Rect as SvgRect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking } from 'react-native';
@@ -1401,11 +1402,103 @@ export default function App() {
               </View>
             );
           })}
+          <View style={{marginTop:12,flexDirection:'row',gap:8}}>
+            <TouchableOpacity
+              style={{flex:1,backgroundColor:C.green,borderRadius:10,padding:12,alignItems:'center'}}
+              onPress={()=>setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:'',card:{type:'earn_deposit',data:{tokens}}}])}
+            >
+              <Text style={{color:'#0d1117',fontWeight:'700'}}>⬇ Deposit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{flex:1,borderRadius:10,padding:12,alignItems:'center',borderWidth:1,borderColor:C.green}}
+              onPress={()=>setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:'',card:{type:'earn_withdraw',data:{tokens}}}])}
+            >
+              <Text style={{color:C.green,fontWeight:'700'}}>↑ Withdraw</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+
+    if (type === 'earn_deposit' || type === 'earn_withdraw') {
+      const isDeposit = type === 'earn_deposit';
+      const tokens = data.tokens || [];
+      const [selectedSym, setSelectedSym] = React.useState(tokens[0]?.asset?.symbol || tokens[0]?.uiSymbol || '');
+      const [amount, setAmount] = React.useState('');
+      const [loading, setLoading] = React.useState(false);
+      const selectedToken = tokens.find((t:any) => (t.asset?.symbol||t.uiSymbol||t.symbol) === selectedSym);
+      const apy = selectedToken ? (parseInt(selectedToken.totalRate||'0')/100).toFixed(2) : '';
+
+      const execute = async () => {
+        if (!selectedSym || !amount) { Alert.alert('Missing info','Select a token and enter amount'); return; }
+        const authed = await requireAuth();
+        if (!authed) return;
+        setLoading(true);
+        try {
+          const resolved = await resolveToken(selectedSym);
+          if (!resolved) throw new Error('Token not found');
+          const decimals = resolved.decimals || 6;
+          const amountRaw = Math.floor(parseFloat(amount) * Math.pow(10, decimals));
+          const endpoint = isDeposit ? 'deposit' : 'withdraw';
+          const res = await fetch('https://chatfi.pro/api/jupiter', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+              url:`https://api.jup.ag/lend/v1/earn/${endpoint}`,
+              method:'POST',
+              body:{ asset: resolved.mint, signer: pubkey, amount: amountRaw }
+            })
+          });
+          const txData = await res.json();
+          if (txData.error) throw new Error(JSON.stringify(txData.error));
+          if (!txData.transaction) throw new Error('No transaction returned');
+          const { VersionedTransaction, Keypair } = require('@solana/web3.js');
+          const { secretKey: sk } = deriveWallet(wallet!);
+          const keypair = Keypair.fromSecretKey(sk);
+          const tx = VersionedTransaction.deserialize(Buffer.from(txData.transaction,'base64'));
+          tx.sign([keypair]);
+          const signed = Buffer.from(tx.serialize()).toString('base64');
+          const sendRes = await rpcFetch('sendTransaction',[signed,{encoding:'base64',preflightCommitment:'confirmed'}]);
+          if (sendRes.error) throw new Error(sendRes.error.message);
+          showToast(`✅ ${isDeposit?'Deposited':'Withdrawn'} ${amount} ${selectedSym}!`,'success');
+          fetchPortfolio();
+        } catch(e:any) { Alert.alert(`${isDeposit?'Deposit':'Withdraw'} failed`, e.message); }
+        finally { setLoading(false); }
+      };
+
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:4}}>{isDeposit?'⬇ Deposit to Earn':'↑ Withdraw from Earn'}</Text>
+          <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>{isDeposit?'Earn yield on your tokens via Jupiter':'Withdraw your deposited tokens'}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}>
+            {tokens.slice(0,8).map((t:any,i:number)=>{
+              const sym = t.asset?.symbol || t.uiSymbol || t.symbol || '?';
+              const rate = (parseInt(t.totalRate||'0')/100).toFixed(2);
+              return (
+                <TouchableOpacity key={i} onPress={()=>setSelectedSym(sym)}
+                  style={{paddingHorizontal:12,paddingVertical:8,borderRadius:20,marginRight:8,
+                    backgroundColor:selectedSym===sym?C.green:'transparent',
+                    borderWidth:1,borderColor:selectedSym===sym?C.green:C.border}}>
+                  <Text style={{color:selectedSym===sym?'#0d1117':C.text,fontWeight:'600',fontSize:13}}>{sym}</Text>
+                  <Text style={{color:selectedSym===sym?'#0d1117':C.green,fontSize:10}}>{rate}% APY</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          {apy ? <Text style={{color:C.green,fontSize:12,marginBottom:8}}>APY: {apy}%</Text> : null}
+          <TextInput
+            style={{backgroundColor:C.bg,borderRadius:10,padding:12,color:C.text,fontSize:16,marginBottom:12,borderWidth:1,borderColor:C.border}}
+            value={amount} onChangeText={setAmount}
+            placeholder={`Amount of ${selectedSym||'token'}`}
+            placeholderTextColor={C.muted} keyboardType="numeric"
+          />
           <TouchableOpacity
-            style={{marginTop:12,backgroundColor:C.green,borderRadius:10,padding:12,alignItems:'center'}}
-            onPress={()=>Linking.openURL('https://jup.ag/lend/earn')}
-          >
-            <Text style={{color:'#0d1117',fontWeight:'700'}}>Deposit on Jupiter Earn</Text>
+            style={{backgroundColor:loading?C.border:C.green,borderRadius:10,padding:12,alignItems:'center'}}
+            disabled={loading} onPress={execute}>
+            {loading
+              ? <ActivityIndicator color="#0d1117"/>
+              : <Text style={{color:'#0d1117',fontWeight:'700'}}>{isDeposit?`⬇ Deposit ${selectedSym}`:`↑ Withdraw ${selectedSym}`}</Text>}
           </TouchableOpacity>
         </View>
       );
@@ -1419,10 +1512,9 @@ export default function App() {
       const [studioErr, setStudioErr] = React.useState<string>('');
 
       const pickImage = async () => {
-        const { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync, MediaTypeOptions } = require('expo-image-picker');
-        const perm = await requestMediaLibraryPermissionsAsync();
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!perm.granted) { Alert.alert('Permission needed','Allow photo access to upload token image'); return; }
-        const result = await launchImageLibraryAsync({ mediaTypes: MediaTypeOptions.Images, allowsEditing: true, aspect:[1,1], quality:0.8, base64:true });
+        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect:[1,1], quality:0.8, base64:true });
         if (!result.canceled && result.assets[0]) {
           const asset = result.assets[0];
           setStudioImg({ uri: asset.uri, type: asset.mimeType || 'image/jpeg', base64: asset.base64 || '' });
@@ -1833,6 +1925,21 @@ export default function App() {
           } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch earn markets: ${e.message}`, from: 'bot' }]); }
           break;
         }
+        case 'EARN_DEPOSIT':
+        case 'EARN_WITHDRAW': {
+          try {
+            const mktRes = await fetch('https://chatfi.pro/api/jupiter', {
+              method: 'POST', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({url:'https://api.jup.ag/lend/v1/earn/tokens',method:'GET'})
+            });
+            const mktData = await mktRes.json();
+            const tokens = Array.isArray(mktData) ? mktData : [];
+            const cardType = action === 'EARN_DEPOSIT' ? 'earn_deposit' : 'earn_withdraw';
+            const sym = (data.sym||'').toUpperCase();
+            setMsgs(p => [...p, { id: Date.now()+1, from: 'bot', text: '', card: { type: cardType, data: { tokens, preselect: sym } } }]);
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
         case 'SHOW_STUDIO': {
           const { name, symbol, supply, decimals: dec, description } = data;
           if (!name || !symbol || !supply) {
@@ -2133,27 +2240,33 @@ I will notify you in chat when it triggers.`, from: 'bot' }]);
         case 'FETCH_TOKEN_INFO': {
           const sym = (data.symbol||data.token||'').toUpperCase();
           if (!sym) { setMsgs(p => [...p, { id: Date.now(), text: 'Please specify a token symbol.', from: 'bot' }]); break; }
-          setMsgs(p => [...p, { id: Date.now(), text: `⏳ Fetching info for ${sym}...`, from: 'bot' }]);
+          setMsgs(p => [...p, { id: Date.now(), text: `🔍 Fetching ${sym}...`, from: 'bot' }]);
           try {
-            const mint = TOKENS[sym];
-            const infoRes = await fetch(`https://lite-api.jup.ag/tokens/v1/token/${mint||sym}`);
+            const resolved = await resolveToken(sym);
+            if (!resolved) throw new Error('Token not found');
+            const mint = resolved.mint;
+            const [infoRes, priceRes] = await Promise.all([
+              fetch('https://chatfi.pro/api/jupiter', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url:`https://lite-api.jup.ag/tokens/v1/token/${mint}`, method:'GET'}) }),
+              fetch('https://chatfi.pro/api/jupiter', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url:`https://lite-api.jup.ag/price/v2?ids=${mint}`, method:'GET'}) })
+            ]);
             const info = await infoRes.json();
-            if (!info?.address) throw new Error('Token not found');
-            const priceRes = await fetch(`https://lite-api.jup.ag/price/v2?ids=${info.address}`);
             const priceData = await priceRes.json();
-            const price = priceData?.[info.address]?.price || priceData?.data?.[info.address]?.price;
-            let msg = `🪙 ${info.name} (${info.symbol})
-`;
-            msg += `Mint: ${info.address?.slice(0,20)}...
-`;
-            if (price) msg += `Price: $${parseFloat(price).toFixed(6)}
-`;
-            if (info.decimals != null) msg += `Decimals: ${info.decimals}
-`;
-            if (info.tags?.length) msg += `Tags: ${info.tags.slice(0,3).join(', ')}
-`;
-            setMsgs(p => [...p, { id: Date.now(), text: msg, from: 'bot' }]);
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch token info: ${e.message}`, from: 'bot' }]); }
+            const price = priceData?.data?.[mint]?.price || priceData?.[mint]?.price;
+            const priceChange = priceData?.data?.[mint]?.priceChange24h;
+            setMsgs(p => p.filter(m => m.text !== `🔍 Fetching ${sym}...`));
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: '', card: { type: 'token_info', data: {
+              symbol: info.symbol || sym,
+              name: info.name || sym,
+              logo: info.logoURI || resolved.logoURI || '',
+              price: price ? parseFloat(price) : null,
+              priceChange24h: priceChange || null,
+              mcap: info.mcap || null,
+              fdv: info.fdv || null,
+              liquidity: info.liquidity || null,
+              isVerified: info.isVerified || false,
+              mint,
+            }}}]);
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Could not fetch token info: ${e.message}`, from: 'bot' }]); }
           break;
         }
       }
