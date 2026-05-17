@@ -926,6 +926,7 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
   const isHttps = activeUrl?.startsWith('https');
   const [editingUrl, setEditingUrl] = React.useState(false);
   const [showMenu, setShowMenu] = React.useState(false);
+  const [showTabSwitcher, setShowTabSwitcher] = React.useState(false);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -944,6 +945,11 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
               {activeUrl ? hostname : 'Search or enter URL...'}
             </Text>
             {loading && <ActivityIndicator size="small" color={C.green} />}
+          </TouchableOpacity>
+                    {/* Tab count button */}
+          <TouchableOpacity onPress={() => { setShowMenu(false); setShowTabSwitcher(true); }}
+            style={{ width:34, height:28, borderRadius:7, borderWidth:2, borderColor:C.text, alignItems:'center', justifyContent:'center' }}>
+            <Text style={{ color:C.text, fontWeight:'700', fontSize:12 }}>{tabs.length}</Text>
           </TouchableOpacity>
           {/* 3-dot menu button */}
           <TouchableOpacity onPress={() => setShowMenu(m => !m)} style={{ padding: 8 }}>
@@ -1116,6 +1122,54 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
         </View>
       )}
 
+
+      {/* Tab Switcher Modal */}
+      <Modal visible={showTabSwitcher} animationType="fade" transparent={false} onRequestClose={() => setShowTabSwitcher(false)}>
+        <View style={{ flex:1, backgroundColor:C.bg }}>
+          <View style={{ backgroundColor:C.card, paddingTop:(StatusBar.currentHeight||0)+12, paddingBottom:12, paddingHorizontal:16, flexDirection:'row', alignItems:'center', justifyContent:'space-between', borderBottomWidth:1, borderBottomColor:C.border }}>
+            <Text style={{ color:C.text, fontWeight:'700', fontSize:16 }}>{tabs.length} Tab{tabs.length!==1?'s':''}</Text>
+            <TouchableOpacity onPress={() => { addTab(); setShowTabSwitcher(false); }}
+              style={{ backgroundColor:C.green, borderRadius:20, width:32, height:32, alignItems:'center', justifyContent:'center' }}>
+              <Text style={{ color:'#000', fontWeight:'700', fontSize:20 }}>+</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowTabSwitcher(false)}
+              style={{ backgroundColor:C.card, borderRadius:8, paddingHorizontal:14, paddingVertical:6 }}>
+              <Text style={{ color:C.green, fontWeight:'700', fontSize:14 }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding:12 }}>
+            <View style={{ flexDirection:'row', flexWrap:'wrap', gap:12 }}>
+              {tabs.map(tab => {
+                const isActive = tab.id === activeTabId;
+                const tHost = (() => { try { return new URL(tab.url).hostname; } catch { return tab.url; } })();
+                return (
+                  <TouchableOpacity key={tab.id}
+                    onPress={() => { switchTab(tab); setShowTabSwitcher(false); }}
+                    style={{ width:'47%', backgroundColor:C.card, borderRadius:16, overflow:'hidden', borderWidth:isActive?2:0, borderColor:C.green }}>
+                    <View style={{ backgroundColor:C.bg, height:120, alignItems:'center', justifyContent:'center', padding:12 }}>
+                      <Image source={{ uri:'https://www.google.com/s2/favicons?domain='+tHost+'&sz=64' }}
+                        style={{ width:40, height:40, borderRadius:10, marginBottom:8 }} />
+                      <Text style={{ color:C.text, fontSize:12, fontWeight:'600', textAlign:'center' }} numberOfLines={2}>{tab.title||tHost}</Text>
+                    </View>
+                    <View style={{ paddingHorizontal:10, paddingVertical:8, flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
+                      <Text style={{ color:C.muted, fontSize:11, flex:1 }} numberOfLines={1}>{tHost}</Text>
+                      <TouchableOpacity onPress={() => closeTab(tab.id)} style={{ padding:4 }}>
+                        <Text style={{ color:C.muted, fontSize:16 }}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+          <View style={{ flexDirection:'row', justifyContent:'center', padding:16, borderTopWidth:1, borderTopColor:C.border }}>
+            <TouchableOpacity onPress={() => { tabs.forEach(t => closeTab(t.id)); setShowTabSwitcher(false); }}
+              style={{ paddingHorizontal:20, paddingVertical:10 }}>
+              <Text style={{ color:C.red, fontWeight:'600' }}>Close All</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
     </View>
   );
