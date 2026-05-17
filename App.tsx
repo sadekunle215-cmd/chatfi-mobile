@@ -865,14 +865,13 @@ const StudioLaunchCard = ({ card, wallet, deriveWallet, setMsgs, C, s }: any) =>
       tx.sign([keypair]);
       const signedB64 = Buffer.from(tx.serialize()).toString('base64');
 
-      // Step 5: submit via proxy
-      const submitRes = await fetch('https://chatfi.pro/api/jupiter', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          url:'https://api.jup.ag/studio/v1/dbc-pool/submit',
-          method:'POST',
-          body:{ transaction: signedB64, owner: creator, content: description||'' }
-        })
+      // Step 5: submit via studio-submit proxy (multipart)
+      const formData = new FormData();
+      formData.append('transaction', signedB64);
+      formData.append('owner', creator);
+      formData.append('content', description||'');
+      const submitRes = await fetch('https://chatfi.pro/api/studio-submit', {
+        method:'POST', body: formData
       });
       const submitData = await submitRes.json();
       if (submitData.error) throw new Error(JSON.stringify(submitData.error));
