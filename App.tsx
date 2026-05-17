@@ -662,6 +662,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
 const SOLANA_WALLET_INJECTION = `
 (function() {
   if (window.solana && window.solana.isChatFi) return;
+
   const callbacks = {};
   let callId = 0;
   const listeners = {};
@@ -675,26 +676,18 @@ const SOLANA_WALLET_INJECTION = `
     });
   }
 
-  document.addEventListener('message', function(e) {
+  function handleMessage(e) {
     try {
-      const data = JSON.parse(e.data);
+      const data = JSON.parse(typeof e.data === 'string' ? e.data : JSON.stringify(e.data));
       if (data.id && callbacks[data.id]) {
         if (data.error) callbacks[data.id].reject(new Error(data.error));
         else callbacks[data.id].resolve(data.result);
         delete callbacks[data.id];
       }
     } catch(err) {}
-  });
-  window.addEventListener('message', function(e) {
-    try {
-      const data = JSON.parse(e.data);
-      if (data.id && callbacks[data.id]) {
-        if (data.error) callbacks[data.id].reject(new Error(data.error));
-        else callbacks[data.id].resolve(data.result);
-        delete callbacks[data.id];
-      }
-    } catch(err) {}
-  });
+  }
+  document.addEventListener('message', handleMessage);
+  window.addEventListener('message', handleMessage);
 
   const addr = '\${PUBLIC_KEY}';
   const publicKey = {
@@ -708,6 +701,7 @@ const SOLANA_WALLET_INJECTION = `
   const wallet = {
     isPhantom: true,
     isChatFi: true,
+    isSolflare: false,
     publicKey,
     isConnected: !!addr,
     connect: async (opts) => {
@@ -722,13 +716,11 @@ const SOLANA_WALLET_INJECTION = `
     },
     signTransaction: async (tx) => {
       const bytes = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
-      const b64 = btoa(String.fromCharCode(...bytes));
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(bytes instanceof Uint8Array ? bytes : tx.serialize({ requireAllSignatures: false }))));
       const result = await sendToNative('signTransaction', { tx: b64 });
       return tx;
     },
-    signAllTransactions: async (txs) => {
-      return Promise.all(txs.map(tx => wallet.signTransaction(tx)));
-    },
+    signAllTransactions: async (txs) => Promise.all(txs.map(tx => wallet.signTransaction(tx))),
     signMessage: async (message) => {
       const b64 = btoa(String.fromCharCode(...message));
       const result = await sendToNative('signMessage', { message: b64 });
@@ -737,27 +729,113 @@ const SOLANA_WALLET_INJECTION = `
     },
     signAndSendTransaction: async (tx, opts) => {
       const bytes = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
-      const b64 = btoa(String.fromCharCode(...bytes));
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(bytes instanceof Uint8Array ? bytes : tx.serialize({ requireAllSignatures: false }))));
       const sig = await sendToNative('signAndSend', { tx: b64 });
       return { signature: sig };
     },
-    on: (event, cb) => { if (!listeners[event]) listeners[event] = []; listeners[event].push(cb); },
-    off: (event, cb) => { if (listeners[event]) listeners[event] = listeners[event].filter(l => l !== cb); },
+    request: async ({ method, params }) => {
+      if (method === 'connect') return wallet.connect(params);
+      if (method === 'disconnect') return wallet.disconnect();
+      if (method === 'signTransaction') return wallet.signTransaction(params?.transaction);
+      if (method === 'signMessage') return wallet.signMessage(params?.message);
+      throw new Error('Method not supported: ' + method);
+    },
+    on: (event, cb) => { if (!listeners[event]) listeners[event] = []; listeners[event].push(cb); return wallet; },
+    off: (event, cb) => { if (listeners[event]) listeners[event] = listeners[event].filter(l => l !== cb); return wallet; },
     _emit: (event, ...args) => { (listeners[event] || []).forEach(cb => { try { cb(...args); } catch(e) {} }); },
     removeAllListeners: () => { Object.keys(listeners).forEach(k => delete listeners[k]); },
   };
 
   window.solana = wallet;
   window.phantom = { solana: wallet };
+  window.backpack = { solana: wallet };
+  window.solflare = wallet;
+
+  // Wallet Standard registration
+  const SOLANA_MAINNET_CHAIN = 'solana:mainnet';
+  const standardWallet = {
+    version: '1.0.0',
+    name: 'ChatFi',
+    icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIHJ4PSIyNCIgZmlsbD0iIzBkMTExNyIvPjx0ZXh0IHg9IjY0IiB5PSI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSI2NCIgZmlsbD0iIzM5ZmYxNCI+8J+XgDwvdGV4dD48L3N2Zz4=',
+    chains: [SOLANA_MAINNET_CHAIN],
+    features: {
+      'standard:connect': {
+        version: '1.0.0',
+        connect: async ({ silent } = {}) => {
+          await wallet.connect();
+          return { accounts: [{ address: addr, publicKey: publicKey.toBytes(), chains: [SOLANA_MAINNET_CHAIN], features: Object.keys(standardWallet.features) }] };
+        },
+      },
+      'standard:disconnect': {
+        version: '1.0.0',
+        disconnect: async () => { await wallet.disconnect(); },
+      },
+      'standard:events': {
+        version: '1.0.0',
+        on: (event, cb) => { wallet.on(event, cb); return () => wallet.off(event, cb); },
+      },
+      'solana:signTransaction': {
+        version: '1.0.0',
+        supportedTransactionVersions: ['legacy', 0],
+        signTransaction: async (...inputs) => {
+          return Promise.all(inputs.map(async ({ transaction }) => {
+            const signed = await wallet.signTransaction({ serialize: () => transaction });
+            return { signedTransaction: transaction };
+          }));
+        },
+      },
+      'solana:signAndSendTransaction': {
+        version: '1.0.0',
+        supportedTransactionVersions: ['legacy', 0],
+        signAndSendTransaction: async (...inputs) => {
+          return Promise.all(inputs.map(async ({ transaction, options }) => {
+            const b64 = btoa(String.fromCharCode(...transaction));
+            const sig = await sendToNative('signAndSend', { tx: b64 });
+            const sigBytes = Uint8Array.from(atob(sig.length > 50 ? sig : btoa(sig)), c => c.charCodeAt(0));
+            return { signature: typeof sig === 'string' && sig.length < 100 ? Uint8Array.from(sig.split('').map(c=>c.charCodeAt(0))) : sigBytes };
+          }));
+        },
+      },
+      'solana:signMessage': {
+        version: '1.0.0',
+        signMessage: async (...inputs) => {
+          return Promise.all(inputs.map(async ({ message, account }) => {
+            const result = await wallet.signMessage(message);
+            return { signedMessage: message, signature: result.signature };
+          }));
+        },
+      },
+    },
+    accounts: addr ? [{ address: addr, publicKey: new Uint8Array(32), chains: [SOLANA_MAINNET_CHAIN], features: ['standard:connect','standard:disconnect','standard:events','solana:signTransaction','solana:signAndSendTransaction','solana:signMessage'] }] : [],
+  };
+
+  // Register with Wallet Standard
+  const registerWallet = (callback) => callback({ register: (w) => { window.__chatfi_wallet = w; } });
+  if (window.__wallet_standard_app_ready__) {
+    window.__wallet_standard_app_ready__(standardWallet);
+  }
+  if (typeof window.addEventListener === 'function') {
+    window.addEventListener('wallet-standard:app-ready', ({ detail: app }) => {
+      try { app.register(standardWallet); } catch(e) {}
+    });
+  }
+  // Also try the global registration pattern
+  const event = new CustomEvent('wallet-standard:register-wallet', { detail: { register: (w) => {} }, bubbles: true });
+  try {
+    (window.__wallet_standard_register_wallet__ || (() => {}))(standardWallet);
+  } catch(e) {}
+  try {
+    window.dispatchEvent(new CustomEvent('wallet-standard:register-wallet', {
+      bubbles: true,
+      detail: { register: (callback) => callback(standardWallet) }
+    }));
+  } catch(e) {}
 
   window.dispatchEvent(new Event('load'));
   window.dispatchEvent(new CustomEvent('solana#initialized'));
-  if (addr) {
-    setTimeout(() => wallet._emit('connect', publicKey), 100);
-  }
+  if (addr) setTimeout(() => wallet._emit('connect', publicKey), 100);
 })();
-`;
-
+`
 function DappBrowser({ walletAddress, secretKey, wallet }) {
   const [url, setUrl] = React.useState('https://chatfi.pro');
   const [activeUrl, setActiveUrl] = React.useState('https://chatfi.pro');
