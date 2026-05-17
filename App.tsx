@@ -22,7 +22,7 @@ const TOKEN_LOGOS: Record<string, string> = {
 
 const C = {
   bg: '#0d1117', card: 'rgba(28,41,54,0.55)', card2: 'rgba(22,32,48,0.45)',
-  border: 'rgba(120,180,220,0.18)', green: '#C7F284', blue: '#79e0f2',
+  border: 'rgba(120,180,220,0.18)', modal: '#1C2936', modal2: '#162030', green: '#C7F284', blue: '#79e0f2',
   text: '#e8f4e8', muted: '#7a9bb5', red: '#ff5555', orange: '#ffaa00',
   gradTop: '#1C2936', gradBot: '#0d1117',
 };
@@ -203,7 +203,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
     <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
-        <View style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%', paddingBottom:72 }}>
+        <View style={{ backgroundColor:C.modal, borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%', paddingBottom:72 }}>
 
           {/* Header */}
           <View style={{ flexDirection:'row', alignItems:'center', marginBottom:20 }}>
@@ -271,12 +271,12 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               <View style={{ borderRadius:14, overflow:'hidden', marginBottom:16, height:380 }}>
                 <WebView
                   source={{ uri: 'https://dexscreener.com/solana/'+token.mint+'?embed=1&theme=dark&trades=0&info=0' }}
-                  style={{ flex:1, backgroundColor:'#161b22' }}
+                  style={{ flex:1, backgroundColor:C.modal }}
                   javaScriptEnabled={true}
                   domStorageEnabled={true}
                   startInLoadingState={true}
                   renderLoading={() => (
-                    <View style={{ flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#161b22' }}>
+                    <View style={{ flex:1, alignItems:'center', justifyContent:'center', backgroundColor:C.modal }}>
                       <ActivityIndicator color={'#39ff14'} />
                       <Text style={{ color:'#888', fontSize:12, marginTop:8 }}>Loading chart...</Text>
                     </View>
@@ -288,10 +288,10 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               <View style={{ borderRadius:14, overflow:'hidden', marginBottom:16, height:380 }}>
                 <WebView
                   source={{ uri: 'https://dexscreener.com/solana/'+token.mint+'?embed=1&theme=dark&trades=0&info=0' }}
-                  style={{ flex:1, backgroundColor:'#161b22' }}
+                  style={{ flex:1, backgroundColor:C.modal }}
                   startInLoadingState={true}
                   renderLoading={() => (
-                    <View style={{ flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#161b22' }}>
+                    <View style={{ flex:1, alignItems:'center', justifyContent:'center', backgroundColor:C.modal }}>
                       <ActivityIndicator color={'#39ff14'} />
                       <Text style={{ color:'#888', fontSize:12, marginTop:8 }}>Loading chart...</Text>
                     </View>
@@ -399,7 +399,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ backgroundColor:'#161b22', borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:'90%', paddingBottom:72 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ backgroundColor:C.modal, borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:'90%', paddingBottom:72 }}>
 
           {view === 'main' && (
             <ScrollView keyboardShouldPersistTaps='handled'>
@@ -3609,7 +3609,7 @@ https://solscan.io/tx/${sig}` }]);
     <SafeAreaView style={s.root}>
       <Modal visible={showTxModal} animationType="slide" transparent onRequestClose={()=>setShowTxModal(false)}>
         <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.7)",justifyContent:"flex-end"}}>
-          <View style={{backgroundColor:"#161b22",borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:"80%",paddingBottom:72}}>
+          <View style={{backgroundColor:C.modal,borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:"80%",paddingBottom:72}}>
             <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",padding:20,borderBottomWidth:1,borderBottomColor:C.border}}>
               <Text style={{color:C.text,fontSize:18,fontWeight:"700"}}>Transaction History</Text>
               <TouchableOpacity onPress={()=>setShowTxModal(false)}>
@@ -3648,7 +3648,7 @@ https://solscan.io/tx/${sig}` }]);
       {/* Transaction Confirm Modal */}
       <Modal visible={showConfirmModal} animationType="slide" transparent onRequestClose={()=>setShowConfirmModal(false)}>
         <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.7)",justifyContent:"flex-end"}}>
-          <View style={{backgroundColor:"#161b22",borderTopLeftRadius:20,borderTopRightRadius:20,padding:24,paddingBottom:36}}>
+          <View style={{backgroundColor:C.modal,borderTopLeftRadius:20,borderTopRightRadius:20,padding:24,paddingBottom:36}}>
             <Text style={{color:C.text,fontSize:18,fontWeight:"700",marginBottom:4}}>{confirmData?.title}</Text>
             <Text style={{color:C.muted,fontSize:14,marginBottom:20}}>{confirmData?.summary}</Text>
             {(confirmData?.details||[]).map((d:any,i:number)=>(
