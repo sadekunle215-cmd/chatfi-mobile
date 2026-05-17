@@ -690,18 +690,32 @@ const SOLANA_WALLET_INJECTION = `
   window.addEventListener('message', handleMessage);
 
   const addr = '\${PUBLIC_KEY}';
+  const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  function bs58Decode(s) {
+    const bytes = [0];
+    for (let i = 0; i < s.length; i++) {
+      let carry = ALPHABET.indexOf(s[i]);
+      for (let j = 0; j < bytes.length; j++) { carry += bytes[j] * 58; bytes[j] = carry & 0xff; carry >>= 8; }
+      while (carry > 0) { bytes.push(carry & 0xff); carry >>= 8; }
+    }
+    for (let i = 0; i < s.length && s[i] === '1'; i++) bytes.push(0);
+    return new Uint8Array(bytes.reverse());
+  }
+  const addrBytes = addr ? bs58Decode(addr) : new Uint8Array(32);
   const publicKey = {
     toString: () => addr,
     toBase58: () => addr,
-    toBytes: () => new Uint8Array(32),
+    toBytes: () => addrBytes,
     equals: (other) => other?.toBase58?.() === addr,
     toJSON: () => addr,
   };
 
   const wallet = {
-    isPhantom: true,
+    isPhantom: false,
     isChatFi: true,
     isSolflare: false,
+    isTrust: false,
+    isBackpack: false,
     publicKey,
     isConnected: !!addr,
     connect: async (opts) => {
@@ -755,7 +769,7 @@ const SOLANA_WALLET_INJECTION = `
   const SOLANA_MAINNET_CHAIN = 'solana:mainnet';
   const standardWallet = {
     version: '1.0.0',
-    name: 'ChatFi',
+    name: 'ChatFi Wallet',
     icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIHJ4PSIyNCIgZmlsbD0iIzBkMTExNyIvPjx0ZXh0IHg9IjY0IiB5PSI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSI2NCIgZmlsbD0iIzM5ZmYxNCI+8J+XgDwvdGV4dD48L3N2Zz4=',
     chains: [SOLANA_MAINNET_CHAIN],
     features: {
