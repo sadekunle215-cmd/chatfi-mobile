@@ -1118,7 +1118,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
       const outMint = toToken2.mint;
       const inDec = fromToken2.decimals || 9;
       const amtRaw = Math.round(parseFloat(swapAmt) * Math.pow(10, inDec));
-      const r = await fetch(`https://lite-api.jup.ag/ultra/v1/quote?inputMint=${inMint}&outputMint=${outMint}&amount=${amtRaw}&taker=${pubkey||''}`);
+      const r = await fetch(`https://api.jup.ag/swap/v2/order?inputMint=${inMint}&outputMint=${outMint}&amount=${amtRaw}&taker=${pubkey||''}&slippageBps=50`);
       const d = await r.json();
       const outAmt = d.outAmount ? (parseInt(d.outAmount) / Math.pow(10, toToken2.decimals||6)).toFixed(4) : null;
       setQuoteOut(outAmt);
@@ -1145,7 +1145,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
       const {publicKey:pk, secretKey} = deriveWallet(wallet);
       const inDec = fromToken2.decimals||9;
       const amtRaw = Math.round(parseFloat(triggerAmt)*Math.pow(10,inDec));
-      const r = await fetch('https://lite-api.jup.ag/trigger/v1/createOrder',{
+      const r = await fetch('https://api.jup.ag/trigger/v1/createOrder',{
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({inputMint:fromToken2.mint,outputMint:toToken2.mint,maker:pk,
           params:{makingAmount:String(amtRaw),takingAmount:String(Math.round(parseFloat(triggerPrice)*Math.pow(10,toToken2.decimals||6))),
@@ -1153,7 +1153,9 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
       });
       const d = await r.json();
       if (d.error) throw new Error(d.error);
-      showToast('Trigger order placed!','success');
+      if (!d.transaction) throw new Error(d.error || "No transaction");
+      const txSig = await signAndSendTx(d.transaction, secretKey);
+      showToast("Trigger placed! Tx: "+txSig.slice(0,12)+"...","success");
       setTriggerAmt(''); setTriggerPrice('');
     } catch(e:any) { showToast('Trigger failed: '+e.message,'error'); }
     setTriggerLoading(false);
@@ -1170,7 +1172,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
 
   const doPerp = async () => {
     if (!wallet||!perpAmt) { showToast('Enter amount','error'); return; }
-    showToast('Perps trading coming soon — use Jupiter app for now','error');
+    showToast('Perps: Use jup.ag/perps for now — API coming soon','info');
   };
 
   const swapTabStyle = (t:string) => ({
