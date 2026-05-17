@@ -1782,6 +1782,39 @@ export default function App() {
           <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
           <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:2}}>🏦 Jupiter Earn Vaults</Text>
           <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>Sorted by APY — tap Deposit on any vault</Text>
+          {(data.userPositions||[]).length>0&&(
+            <View style={{marginBottom:12}}>
+              <Text style={{color:C.text,fontWeight:'700',fontSize:13,marginBottom:8}}>📊 Your Active Positions</Text>
+              {(data.userPositions||[]).map((pos:any,i:number)=>{
+                const vault = vaults.find((v:any)=>v.sym===pos.sym)||vaults[0];
+                return (
+                  <View key={i} style={{borderWidth:1,borderColor:C.green,borderRadius:10,padding:12,marginBottom:8,backgroundColor:C.bg}}>
+                    <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+                      <View>
+                        <Text style={{color:C.text,fontWeight:'700',fontSize:14}}>{pos.sym} Position</Text>
+                        <Text style={{color:C.green,fontWeight:'700',fontSize:18,marginTop:2}}>{pos.amt.toFixed(pos.amt<1?4:2)} {pos.sym}</Text>
+                        {pos.apy>0&&<Text style={{color:C.muted,fontSize:11,marginTop:2}}>{pos.apy.toFixed(2)}% APY</Text>}
+                      </View>
+                      <View style={{alignItems:'flex-end',gap:6}}>
+                        <TouchableOpacity
+                          style={{backgroundColor:C.green,borderRadius:6,paddingHorizontal:14,paddingVertical:6}}
+                          onPress={()=>setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:'',card:{type:'earn_deposit',data:{tokens:data.tokens,preVault:{sym:pos.sym,mint:vault?.mint,dec:vault?.dec,apyStr:vault?.apyStr}}}}])}>
+                          <Text style={{color:'#0d1117',fontWeight:'600',fontSize:12}}>Deposit More</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{borderWidth:1,borderColor:'#ff4444',borderRadius:6,paddingHorizontal:14,paddingVertical:5}}
+                          onPress={()=>setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:'',card:{type:'earn_withdraw',data:{tokens:data.tokens,preVault:{sym:pos.sym,mint:vault?.mint,dec:vault?.dec,apyStr:vault?.apyStr}}}}])}>
+                          <Text style={{color:'#ff4444',fontSize:12,fontWeight:'600'}}>Withdraw</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+              <View style={{height:1,backgroundColor:C.border,marginBottom:12}}/>
+              <Text style={{color:C.text,fontWeight:'700',fontSize:13,marginBottom:8}}>🏦 All Vaults</Text>
+            </View>
+          )}
           {vaults.map((v:any,i:number)=>(
             <View key={i} style={{borderWidth:1,borderColor:C.border,borderRadius:10,padding:12,marginBottom:8,backgroundColor:C.bg}}>
               <View style={{flexDirection:'row',alignItems:'flex-start'}}>
