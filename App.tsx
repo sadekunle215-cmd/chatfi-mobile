@@ -723,8 +723,8 @@ const SOLANA_WALLET_INJECTION = `
 `;
 
 function DappBrowser({ walletAddress, secretKey, wallet }) {
-  const [url, setUrl] = React.useState('');
-  const [activeUrl, setActiveUrl] = React.useState('');
+  const [url, setUrl] = React.useState('https://chatfi.pro');
+  const [activeUrl, setActiveUrl] = React.useState('https://chatfi.pro');
   const [loading, setLoading] = React.useState(false);
   const [canGoBack, setCanGoBack] = React.useState(false);
   const [canGoForward, setCanGoForward] = React.useState(false);
