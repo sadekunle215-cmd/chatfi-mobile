@@ -1256,9 +1256,9 @@ export default function App() {
       setLoading(true);
       try {
         const dec=vault.dec||6;
-        const amtRaw=Math.floor(parseFloat(amount)*Math.pow(10,dec));
+        const amtRaw=Math.floor(parseFloat(amount)*Math.pow(10,dec)).toString();
         const ep=isDeposit?"deposit":"withdraw";
-        const res=await fetch("https://lite-api.jup.ag/lend/v1/earn/"+ep,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({asset:vault.mint,signer:pubkey,amount:amtRaw})});
+        const res=await fetch("https://chatfi.pro/api/jupiter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:"https://api.jup.ag/lend/v1/earn/"+ep,method:"POST",body:{asset:vault.mint,signer:pubkey,amount:amtRaw}})});
         const txData=await res.json();
         if(txData.error)throw new Error(typeof txData.error==="string"?txData.error:JSON.stringify(txData.error));
         const txB64=txData.transaction||txData.tx||txData.data;
