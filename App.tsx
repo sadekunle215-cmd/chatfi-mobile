@@ -1179,6 +1179,26 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
   const [swapSubTab, setSwapSubTab] = React.useState<'swap'|'trigger'>('swap');
   const [swapAmt, setSwapAmt] = React.useState('');
   const [swapLoading, setSwapLoading] = React.useState(false);
+  const [tradeHistory, setTradeHistory] = React.useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (pubkey) fetchTradeHistory();
+  }, [pubkey]);
+
+  const fetchTradeHistory = async () => {
+    if (!pubkey) return;
+    setHistoryLoading(true);
+    try {
+      const r = await fetch(`https://lite-api.jup.ag/ultra/v1/balances/${pubkey}`);
+      // Use Helius transaction history
+      const res = await fetch(`https://api.helius.xyz/v0/addresses/${pubkey}/transactions?api-key=mainnet&type=SWAP&limit=10`);
+      const data = await res.json();
+      const txs = Array.isArray(data) ? data : [];
+      setTradeHistory(txs.slice(0, 10));
+    } catch(e) { setTradeHistory([]); }
+    setHistoryLoading(false);
+  };
   const [quoteOut, setQuoteOut] = React.useState<string|null>(null);
   const [showTokenPicker, setShowTokenPicker] = React.useState<'from'|'to'|null>(null);
   const [tokenSearch, setTokenSearch] = React.useState('');
@@ -1425,6 +1445,50 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Trading History */}
+      <View style={{marginTop:24}}>
+        <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16}}>Trade History</Text>
+          <TouchableOpacity onPress={fetchTradeHistory} style={{padding:4}}>
+            <Text style={{color:C.green,fontSize:12}}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+        {historyLoading && <ActivityIndicator color={C.green} style={{marginTop:8}}/>}
+        {!historyLoading && tradeHistory.length === 0 && (
+          <Text style={{color:C.muted,textAlign:'center',marginTop:8}}>No recent trades found</Text>
+        )}
+        {tradeHistory.map((tx:any, i:number) => {
+          const type = tx.type || 'SWAP';
+          const desc = tx.description || '';
+          const time = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleDateString() : '';
+          const sig = tx.signature || '';
+          const nativeChange = tx.nativeTransfers?.[0];
+          const tokenTransfers = tx.tokenTransfers || [];
+          // Find input/output for swap
+          const inTx = tokenTransfers.find((t:any) => t.fromUserAccount === pubkey);
+          const outTx = tokenTransfers.find((t:any) => t.toUserAccount === pubkey);
+          const inAmt = inTx ? (inTx.tokenAmount||0).toFixed(4) : '';
+          const inSym = inTx?.mint?.slice(0,6) || '';
+          const outAmt = outTx ? (outTx.tokenAmount||0).toFixed(4) : '';
+          const outSym = outTx?.mint?.slice(0,6) || '';
+          const label = (inAmt && outAmt) ? `${inAmt} → ${outAmt}` : desc.slice(0,40) || sig.slice(0,16)+'...';
+          return (
+            <View key={i} style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:12,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
+                <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card,alignItems:'center',justifyContent:'center'}}>
+                  <Text style={{fontSize:16}}>⇄</Text>
+                </View>
+                <View>
+                  <Text style={{color:C.text,fontWeight:'600',fontSize:13}}>{type}</Text>
+                  <Text style={{color:C.muted,fontSize:11}}>{label}</Text>
+                </View>
+              </View>
+              <Text style={{color:C.muted,fontSize:11}}>{time}</Text>
+            </View>
+          );
+        })}
+      </View>
 
       {swapSubTab==='trigger' && (
         <View>
