@@ -1867,7 +1867,7 @@ export default function App() {
               <Text style={{color:C.green,fontWeight:'700',marginBottom:6}}>✅ Tokens locked!</Text>
               <View style={{backgroundColor:C.bg,borderRadius:8,padding:10,marginBottom:8}}>
                 <Text style={{color:C.text,fontSize:12,marginBottom:6}} selectable>{link}</Text>
-                <TouchableOpacity onPress={()=>{require('@react-native-clipboard/clipboard').default.setString(link);showToast('Link copied!','success');}} style={{backgroundColor:C.green,borderRadius:6,padding:8,alignItems:'center'}}>
+                <TouchableOpacity onPress={()=>{Clipboard.setString(link);showToast('Link copied!','success');}} style={{backgroundColor:C.green,borderRadius:6,padding:8,alignItems:'center'}}>
                   <Text style={{color:'#0d1117',fontWeight:'700'}}>Copy Invite Link</Text>
                 </TouchableOpacity>
               </View>
@@ -2222,17 +2222,18 @@ export default function App() {
                 if(!mint2)throw new Error('Unknown token: '+sendToken);
                 const dec2=DECIMALS[sendToken]||(await resolveToken(sendToken))?.decimals||6;
                 const amtRaw=Math.floor(parseFloat(sendAmt)*Math.pow(10,dec2)).toString();
-                const bs58=require('bs58');
-                const nacl2=require('tweetnacl');
-                let inviteCode=''; while(inviteCode.length<12){inviteCode=bs58.encode(nacl2.randomBytes(13)).substring(0,12);}
+                const BASE58='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+                const toBase58=(buf:Uint8Array)=>{const r=[];for(const b of buf){let c=b;for(let j=0;j<r.length;j++){const x=(BASE58.indexOf(r[j])<<8)+c;r[j]=BASE58[x%58];c=(x/58)|0;}while(c){r.push(BASE58[c%58]);c=(c/58)|0;}}r.reverse();return r.join('');};
+                let inviteCode=''; while(inviteCode.length<12){inviteCode=toBase58(nacl.randomBytes(13)).substring(0,12);}
                 const sr=await fetch('https://chatfi.pro/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sender:pk2,amount:amtRaw,mint:mint2,inviteCode})});
                 const sd=await sr.json();
                 if(sd.error)throw new Error(sd.error);
                 if(!sd.partiallySignedTx)throw new Error('No transaction from server');
-                const {VersionedTransaction}=require('@solana/web3.js');
-                const tx=VersionedTransaction.deserialize(Buffer.from(sd.partiallySignedTx,'base64'));
+                const {VersionedTransaction:VT2}=require('@solana/web3.js');
+                const txBytes=Uint8Array.from(Buffer.from(sd.partiallySignedTx,'base64'));
+                const tx=VT2.deserialize(txBytes);
                 const msgB=tx.message.serialize();
-                const senderSig=nacl2.sign.detached(msgB,sk2);
+                const senderSig=nacl.sign.detached(msgB,sk2);
                 const senderIdx=tx.message.staticAccountKeys.findIndex((k:any)=>k.toString()===pk2);
                 if(senderIdx>=0)tx.signatures[senderIdx]=senderSig;
                 const rpcRes=await rpcFetch('sendTransaction',[Buffer.from(tx.serialize()).toString('base64'),{encoding:'base64',skipPreflight:true}]); 
