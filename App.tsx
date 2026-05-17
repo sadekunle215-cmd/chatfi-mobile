@@ -931,6 +931,26 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
               setUrl(s.url);
               setPageTitle(s.title);
             }}
+            onShouldStartLoadWithRequest={(request) => {
+              const url = request.url;
+              // OAuth providers — open in external browser
+              const oauthDomains = [
+                'accounts.google.com',
+                'oauth.google.com',
+                'appleid.apple.com',
+                'twitter.com/i/oauth',
+                'x.com/i/oauth',
+                'discord.com/oauth2',
+                'github.com/login/oauth',
+                'facebook.com/dialog',
+              ];
+              const isOAuth = oauthDomains.some(d => url.includes(d));
+              if (isOAuth) {
+                Linking.openURL(url).catch(() => {});
+                return false;
+              }
+              return true;
+            }}
             injectedJavaScriptBeforeContentLoaded={SOLANA_WALLET_INJECTION.replace(/\${PUBLIC_KEY}/g, walletAddress || '')}
             onMessage={async (event) => {
               try {

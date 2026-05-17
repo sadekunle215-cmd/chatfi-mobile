@@ -32,14 +32,14 @@
     },
     "extra": {
       "eas": {
-        "projectId": "bcfb045d-3a2b-499b-aafc-343eec30c416"
+        "projectId": "1931cf8d-b1d1-4300-99b2-734050046e8a"
       }
     },
-    "owner": "sama6643",
+    "owner": "john6643",
     "eas": {
-      "projectId": "bcfb045d-3a2b-499b-aafc-343eec30c416"
+      "projectId": "1931cf8d-b1d1-4300-99b2-734050046e8a"
     },
     "runtimeVersion": "1.0.0"
   },
-  "owner": "sama6643"
+  "owner": "john6643"
 }
