@@ -750,6 +750,73 @@ const SOLANA_WALLET_INJECTION = `
   window.solana = wallet;
   window.phantom = { solana: wallet };
 
+  // Wallet Standard API (used by newer dApps like Kamino, Drift, Jupiter)
+  const walletStandard = {
+    version: '1.0.0',
+    name: 'ChatFi',
+    icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxNiIgZmlsbD0iI0M3RjI4NCIvPjwvc3ZnPg==',
+    chains: ['solana:mainnet'],
+    features: {
+      'standard:connect': {
+        version: '1.0.0',
+        connect: async () => {
+          wallet.isConnected = true;
+          return { accounts: [{ address: addr, publicKey: publicKey.toBytes(), chains: ['solana:mainnet'], features: ['standard:connect', 'solana:signTransaction', 'solana:signMessage'] }] };
+        },
+      },
+      'standard:disconnect': {
+        version: '1.0.0',
+        disconnect: async () => { wallet.isConnected = false; },
+      },
+      'standard:events': {
+        version: '1.0.0',
+        on: (event, cb) => wallet.on(event, cb),
+      },
+      'solana:signTransaction': {
+        version: '1.0.0',
+        signTransaction: async (...txs) => {
+          return Promise.all(txs.map(async ({ transaction }) => {
+            const b64 = btoa(String.fromCharCode(...transaction));
+            const result = await sendToNative('signTransaction', { tx: b64 });
+            return { signedTransaction: transaction };
+          }));
+        },
+      },
+      'solana:signMessage': {
+        version: '1.0.0',
+        signMessage: async ({ message, account }) => {
+          const b64 = btoa(String.fromCharCode(...message));
+          const result = await sendToNative('signMessage', { message: b64 });
+          const sig = Uint8Array.from(atob(result), c => c.charCodeAt(0));
+          return { signedMessage: message, signature: sig };
+        },
+      },
+      'solana:signAndSendTransaction': {
+        version: '1.0.0',
+        signAndSendTransaction: async (...txs) => {
+          return Promise.all(txs.map(async ({ transaction }) => {
+            const b64 = btoa(String.fromCharCode(...transaction));
+            const sig = await sendToNative('signAndSend', { tx: b64 });
+            return { signature: Uint8Array.from(atob(sig), c => c.charCodeAt(0)) };
+          }));
+        },
+      },
+    },
+    accounts: addr ? [{ address: addr, publicKey: new Uint8Array(32), chains: ['solana:mainnet'], features: ['standard:connect', 'solana:signTransaction', 'solana:signMessage'] }] : [],
+  };
+
+  // Register with Wallet Standard
+  if (!window.navigator.wallets) {
+    window.navigator.wallets = [];
+  }
+  window.navigator.wallets.push(walletStandard);
+
+  // Dispatch wallet standard event
+  window.dispatchEvent(new CustomEvent('wallet-standard:app-ready', { detail: { register: (w) => {} } }));
+  if (window.__wallet_standard__) {
+    try { window.__wallet_standard__.register(walletStandard); } catch(e) {}
+  }
+
   window.dispatchEvent(new Event('load'));
   window.dispatchEvent(new CustomEvent('solana#initialized'));
   if (addr) {
