@@ -1328,17 +1328,38 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
 
       {swapSubTab==='trigger' && (
         <View>
-          <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:C.border}}>
-            <Text style={{color:C.muted,fontSize:11,marginBottom:12,letterSpacing:1}}>TRIGGER ORDER (LIMIT)</Text>
-            <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>Sell {fromToken2.symbol} when price reaches</Text>
-            <TextInput value={triggerPrice} onChangeText={setTriggerPrice} placeholder="Target price in USD"
-              placeholderTextColor={C.muted} keyboardType="numeric"
-              style={{backgroundColor:C.card2,borderRadius:10,padding:12,color:C.text,marginBottom:12,borderWidth:1,borderColor:C.border}} />
-            <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>Amount of {fromToken2.symbol}</Text>
+          <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+            <Text style={{color:C.muted,fontSize:11,marginBottom:10,letterSpacing:1}}>TRIGGER ORDER (LIMIT)</Text>
+            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+              <TouchableOpacity onPress={()=>{setShowTokenPicker('from');setTokenSearch('');setTokenResults([]);}}
+                style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:C.card2,padding:10,borderRadius:12,borderWidth:1,borderColor:C.border,flex:1,marginRight:8}}>
+                {fromToken2.logoURI ? <Image source={{uri:fromToken2.logoURI}} style={{width:28,height:28,borderRadius:14}}/> :
+                <View style={{width:28,height:28,borderRadius:14,backgroundColor:C.card,alignItems:'center',justifyContent:'center'}}>
+                  <Text style={{color:C.green,fontSize:9,fontWeight:'700'}}>{fromToken2.symbol?.slice(0,3)}</Text>
+                </View>}
+                <Text style={{color:C.text,fontWeight:'700'}}>{fromToken2.symbol}</Text>
+                <Text style={{color:C.muted}}>▾</Text>
+              </TouchableOpacity>
+              <Text style={{color:C.muted,fontSize:18,marginHorizontal:4}}>→</Text>
+              <TouchableOpacity onPress={()=>{setShowTokenPicker('to');setTokenSearch('');setTokenResults([]);}}
+                style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:C.card2,padding:10,borderRadius:12,borderWidth:1,borderColor:C.border,flex:1,marginLeft:8}}>
+                {toToken2.logoURI ? <Image source={{uri:toToken2.logoURI}} style={{width:28,height:28,borderRadius:14}}/> :
+                <View style={{width:28,height:28,borderRadius:14,backgroundColor:C.card,alignItems:'center',justifyContent:'center'}}>
+                  <Text style={{color:C.blue,fontSize:9,fontWeight:'700'}}>{toToken2.symbol?.slice(0,3)}</Text>
+                </View>}
+                <Text style={{color:C.text,fontWeight:'700'}}>{toToken2.symbol}</Text>
+                <Text style={{color:C.muted}}>▾</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>Amount of {fromToken2.symbol} to sell</Text>
             <TextInput value={triggerAmt} onChangeText={setTriggerAmt} placeholder="0.00"
               placeholderTextColor={C.muted} keyboardType="numeric"
+              style={{backgroundColor:C.card2,borderRadius:10,padding:12,color:C.text,marginBottom:12,borderWidth:1,borderColor:C.border}} />
+            <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>When {fromToken2.symbol} price reaches (USD)</Text>
+            <TextInput value={triggerPrice} onChangeText={setTriggerPrice} placeholder="e.g. 200"
+              placeholderTextColor={C.muted} keyboardType="numeric"
               style={{backgroundColor:C.card2,borderRadius:10,padding:12,color:C.text,marginBottom:4,borderWidth:1,borderColor:C.border}} />
-            <Text style={{color:C.muted,fontSize:10,marginTop:4}}>Receive: {toToken2.symbol}</Text>
+            {!!(triggerAmt && triggerPrice) && <Text style={{color:C.muted,fontSize:11,marginTop:8}}>You receive ≈ {(parseFloat(triggerAmt||'0')*parseFloat(triggerPrice||'0')).toFixed(4)} {toToken2.symbol}</Text>}
           </View>
           <TouchableOpacity onPress={doTrigger} disabled={triggerLoading}
             style={{backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center'}}>
