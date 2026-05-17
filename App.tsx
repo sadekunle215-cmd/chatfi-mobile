@@ -2238,12 +2238,13 @@ export default function App() {
                 if(senderIdx>=0)tx.signatures[senderIdx]=senderSig;
                 const rpcRes=await rpcFetch('sendTransaction',[Buffer.from(tx.serialize()).toString('base64'),{encoding:'base64',skipPreflight:true}]); 
                 const rpcData=await rpcRes.json();
-                if(rpcData.error)throw new Error(rpcData.error.message);
+                if(rpcData.error)throw new Error(rpcData.error.message||rpcData.error.toString());
+                const sig=rpcData.result||'';
                 const inviteLink='https://jup.ag/send?code='+inviteCode;
                 updateCard(cid,{status:'success',inviteLink});
-                setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:'✅ '+sendAmt+' '+sendToken+' locked!\n\nClaim link:\n'+inviteLink+'\n\nShare this — recipient claims via Jupiter. Tokens return to you if unclaimed.\n\nTx: '+rpcData.result?.slice(0,20)+'...'}]);
+                setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:'✅ '+sendAmt+' '+sendToken+' locked!\n\nYour invite link:\nhttps://jup.ag/send?code='+inviteCode+'\n\nShare this with the recipient — they can claim via Jupiter Mobile. Tokens return to you if unclaimed.'+(sig?'\n\nTx: '+sig.slice(0,20)+'...':'')}]);
                 fetchPortfolio();
-              }catch(e:any){updateCard(cid,{status:'error',error:e.message});}
+              }catch(e:any){updateCard(cid,{status:'error',error:e.message||'Transaction failed'});}
             }
           }}]);
           break;
