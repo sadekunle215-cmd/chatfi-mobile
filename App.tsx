@@ -663,14 +663,27 @@ const SOLANA_WALLET_INJECTION = `
   if (window.solana && window.solana.isChatFi) return;
   const callbacks = {};
   let callId = 0;
+  const listeners = {};
+
   function sendToNative(method, params) {
     return new Promise((resolve, reject) => {
       const id = ++callId;
       callbacks[id] = { resolve, reject };
       window.ReactNativeWebView.postMessage(JSON.stringify({ id, method, params }));
-      setTimeout(() => { if (callbacks[id]) { delete callbacks[id]; reject(new Error('Timeout')); } }, 30000);
+      setTimeout(() => { if (callbacks[id]) { delete callbacks[id]; reject(new Error('Request timeout')); } }, 60000);
     });
   }
+
+  document.addEventListener('message', function(e) {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.id && callbacks[data.id]) {
+        if (data.error) callbacks[data.id].reject(new Error(data.error));
+        else callbacks[data.id].resolve(data.result);
+        delete callbacks[data.id];
+      }
+    } catch(err) {}
+  });
   window.addEventListener('message', function(e) {
     try {
       const data = JSON.parse(e.data);
@@ -679,46 +692,68 @@ const SOLANA_WALLET_INJECTION = `
         else callbacks[data.id].resolve(data.result);
         delete callbacks[data.id];
       }
-    } catch(e) {}
+    } catch(err) {}
   });
+
+  const addr = '\${PUBLIC_KEY}';
   const publicKey = {
-    toString: () => '\${PUBLIC_KEY}',
-    toBase58: () => '\${PUBLIC_KEY}',
+    toString: () => addr,
+    toBase58: () => addr,
     toBytes: () => new Uint8Array(32),
+    equals: (other) => other?.toBase58?.() === addr,
+    toJSON: () => addr,
   };
-  window.solana = {
-    isPhantom: true, isChatFi: true,
-    publicKey, isConnected: true,
-    connect: async () => ({ publicKey }),
-    disconnect: async () => { window.solana.isConnected = false; },
+
+  const wallet = {
+    isPhantom: true,
+    isChatFi: true,
+    publicKey,
+    isConnected: !!addr,
+    connect: async (opts) => {
+      if (!addr) throw new Error('No wallet connected');
+      wallet.isConnected = true;
+      wallet._emit('connect', publicKey);
+      return { publicKey };
+    },
+    disconnect: async () => {
+      wallet.isConnected = false;
+      wallet._emit('disconnect');
+    },
     signTransaction: async (tx) => {
-      const serialized = tx.serialize({ requireAllSignatures: false });
-      const base64 = btoa(String.fromCharCode(...serialized));
-      const result = await sendToNative('signTransaction', { tx: base64 });
+      const bytes = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+      const b64 = btoa(String.fromCharCode(...bytes));
+      const result = await sendToNative('signTransaction', { tx: b64 });
       return tx;
     },
     signAllTransactions: async (txs) => {
-      for (const tx of txs) await window.solana.signTransaction(tx);
-      return txs;
+      return Promise.all(txs.map(tx => wallet.signTransaction(tx)));
     },
     signMessage: async (message) => {
-      const base64 = btoa(String.fromCharCode(...message));
-      const result = await sendToNative('signMessage', { message: base64 });
-      const sigBytes = Uint8Array.from(atob(result), c => c.charCodeAt(0));
-      return { signature: sigBytes, publicKey };
+      const b64 = btoa(String.fromCharCode(...message));
+      const result = await sendToNative('signMessage', { message: b64 });
+      const sig = Uint8Array.from(atob(result), c => c.charCodeAt(0));
+      return { signature: sig, publicKey };
     },
-    signAndSendTransaction: async (tx) => {
-      const serialized = tx.serialize({ requireAllSignatures: false });
-      const base64 = btoa(String.fromCharCode(...serialized));
-      const result = await sendToNative('signAndSend', { tx: base64 });
-      return { signature: result };
+    signAndSendTransaction: async (tx, opts) => {
+      const bytes = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+      const b64 = btoa(String.fromCharCode(...bytes));
+      const sig = await sendToNative('signAndSend', { tx: b64 });
+      return { signature: sig };
     },
-    on: (e, cb) => {}, off: (e, cb) => {},
-    emit: (e, d) => {}, removeAllListeners: () => {},
+    on: (event, cb) => { if (!listeners[event]) listeners[event] = []; listeners[event].push(cb); },
+    off: (event, cb) => { if (listeners[event]) listeners[event] = listeners[event].filter(l => l !== cb); },
+    _emit: (event, ...args) => { (listeners[event] || []).forEach(cb => { try { cb(...args); } catch(e) {} }); },
+    removeAllListeners: () => { Object.keys(listeners).forEach(k => delete listeners[k]); },
   };
-  window.phantom = { solana: window.solana };
+
+  window.solana = wallet;
+  window.phantom = { solana: wallet };
+
+  window.dispatchEvent(new Event('load'));
   window.dispatchEvent(new CustomEvent('solana#initialized'));
-  document.dispatchEvent(new CustomEvent('DOMContentLoaded'));
+  if (addr) {
+    setTimeout(() => wallet._emit('connect', publicKey), 100);
+  }
 })();
 `;
 
