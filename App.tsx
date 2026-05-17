@@ -74,9 +74,9 @@ async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amou
 const TABS = [
   { id: 'chat', label: 'Chat', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
   { id: 'swap', label: 'Trade', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
-  { id: 'portfolio', label: 'Portfolio', icon: 'time-outline', iconActive: 'time' },
+  { id: 'portfolio', label: 'Assets', icon: 'time-outline', iconActive: 'time' },
   { id: 'dapp', label: 'Explore', icon: 'compass-outline', iconActive: 'compass-sharp' },
-  { id: 'settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
+  { id: 'settings', label: 'Setting', icon: 'settings-outline', iconActive: 'settings' },
 ];
 
 const TOKEN_LIST = ['SOL','USDC','JUP','BONK','WIF','USDT'];
@@ -1092,6 +1092,21 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
   const [swapSubTab, setSwapSubTab] = React.useState<'swap'|'trigger'>('swap');
   const [swapAmt, setSwapAmt] = React.useState('');
   const [swapLoading, setSwapLoading] = React.useState(false);
+  const [tradeHistory, setTradeHistory] = React.useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = React.useState(false);
+
+  const fetchTradeHistory = async () => {
+    if (!pubkey) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`https://api.helius.xyz/v0/addresses/${pubkey}/transactions?api-key=mainnet&type=SWAP&limit=10`);
+      const data = await res.json();
+      setTradeHistory(Array.isArray(data) ? data.slice(0,10) : []);
+    } catch(e) { setTradeHistory([]); }
+    setHistoryLoading(false);
+  };
+
+  React.useEffect(() => { if (pubkey) fetchTradeHistory(); }, [pubkey]);
   const [quoteOut, setQuoteOut] = React.useState<string|null>(null);
   const [triggerAmt, setTriggerAmt] = React.useState('');
   const [triggerPrice, setTriggerPrice] = React.useState('');
@@ -1261,6 +1276,42 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
             style={{backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center'}}>
             {swapLoading ? <ActivityIndicator color="#0d1117"/> : <Text style={{color:'#0d1117',fontWeight:'700',fontSize:15}}>Swap</Text>}
           </TouchableOpacity>
+
+          {/* Trade History */}
+          <View style={{marginTop:24}}>
+            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+              <Text style={{color:C.text,fontWeight:'700',fontSize:16}}>Trade History</Text>
+              <TouchableOpacity onPress={fetchTradeHistory} style={{padding:4}}>
+                <Text style={{color:C.green,fontSize:12}}>↻ Refresh</Text>
+              </TouchableOpacity>
+            </View>
+            {historyLoading && <ActivityIndicator color={C.green} style={{marginTop:8}}/>}
+            {!historyLoading && tradeHistory.length===0 && (
+              <Text style={{color:C.muted,textAlign:'center',marginTop:8,fontSize:13}}>No recent swaps found</Text>
+            )}
+            {tradeHistory.map((tx:any,i:number)=>{
+              const time = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleDateString() : '';
+              const inTx = (tx.tokenTransfers||[]).find((t:any)=>t.fromUserAccount===pubkey);
+              const outTx = (tx.tokenTransfers||[]).find((t:any)=>t.toUserAccount===pubkey);
+              const inAmt = inTx ? parseFloat(inTx.tokenAmount||0).toFixed(4) : '';
+              const outAmt = outTx ? parseFloat(outTx.tokenAmount||0).toFixed(4) : '';
+              const label = (inAmt&&outAmt) ? inAmt+' → '+outAmt : (tx.description||tx.signature?.slice(0,16)+'...');
+              return (
+                <View key={i} style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:12,borderBottomWidth:1,borderBottomColor:C.border}}>
+                  <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
+                    <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card,alignItems:'center',justifyContent:'center'}}>
+                      <Text style={{fontSize:16}}>⇄</Text>
+                    </View>
+                    <View>
+                      <Text style={{color:C.text,fontWeight:'600',fontSize:13}}>Swap</Text>
+                      <Text style={{color:C.muted,fontSize:11}}>{label}</Text>
+                    </View>
+                  </View>
+                  <Text style={{color:C.muted,fontSize:11}}>{time}</Text>
+                </View>
+              );
+            })}
+          </View>
         </View>
       )}
 
