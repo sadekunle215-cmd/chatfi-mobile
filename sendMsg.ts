@@ -50,7 +50,7 @@ const JUP_RECURRING = 'https://dca.jup.ag/v2';
 export type ChatAction =
   | 'SWAP' | 'SHOW_SWAP'
   | 'SHOW_TRIGGER' | 'SHOW_RECURRING'
-  | 'SHOW_SEND' | 'FETCH_PORTFOLIO'
+  | 'SHOW_SEND' | 'FETCH_PORTFOLIO' | 'FETCH_EARN_POSITIONS'
   | 'FETCH_PRICE' | 'SHOW_EARN'
   | 'SHOW_LOCK' | 'SHOW_STUDIO'
   | null;
@@ -331,10 +331,11 @@ ACTIONS:
 - "FETCH_SEND_HISTORY" → pending/past sends. actionData: {type:"pending"|"history"}
 - "FETCH_PORTFOLIO" → show portfolio. actionData: {}
 - "FETCH_PRICE" → token price. actionData: {token}
-- "SHOW_EARN" → earn positions. actionData: {}
-- "FETCH_EARN" → earn markets. actionData: {}
-- "EARN_DEPOSIT" → deposit into Jupiter Earn. actionData: {sym,amount,portion}
-- "EARN_WITHDRAW" → withdraw from Jupiter Earn. actionData: {sym,amount,portion}
+- "SHOW_EARN" → show Jupiter earn markets/vaults. actionData: {}
+- "FETCH_EARN" → show Jupiter earn markets/vaults. actionData: {}
+- "FETCH_EARN_POSITIONS" → show user's active earn positions/deposits. actionData: {}
+- "EARN_DEPOSIT" → deposit into Jupiter Earn vault. actionData: {sym,amount,portion}
+- "EARN_WITHDRAW" → withdraw from Jupiter Earn vault. actionData: {sym,amount,portion}
 - "FETCH_TOKEN_INFO" → full token details. actionData: {token}
 - "SHOW_LOCK" → lock tokens. actionData: {token,amount,days}
 - "FETCH_LOCKS" → show locks. actionData: {}
@@ -351,7 +352,8 @@ RULES:
 - send/gift → SHOW_SEND
 - portfolio/balances → FETCH_PORTFOLIO
 - price of X → FETCH_PRICE
-- earn/yield/APY → SHOW_EARN
+- earn markets/vaults/yield/APY → SHOW_EARN
+- my earn positions/my deposits/what I deposited/my yield → FETCH_EARN_POSITIONS
 - deposit to earn/put into earn → EARN_DEPOSIT
 - withdraw from earn → EARN_WITHDRAW
 - token info/details/stats → FETCH_TOKEN_INFO
