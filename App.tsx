@@ -754,6 +754,7 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
   const hostname = activeUrl ? (() => { try { return new URL(activeUrl).hostname; } catch { return activeUrl; } })() : '';
   const isHttps = activeUrl?.startsWith('https');
   const [editingUrl, setEditingUrl] = React.useState(false);
+  const [showMenu, setShowMenu] = React.useState(false);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -761,22 +762,25 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
       {/* Top Browser Bar */}
       <View style={{ backgroundColor: C.card, paddingTop: StatusBar.currentHeight || 0, borderBottomWidth: 1, borderBottomColor: C.border }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, gap: 8 }}>
-          <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9, gap: 6 }}
-            onPress={() => { setEditingUrl(true); }}>
+          {/* URL Bar */}
+          <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, gap: 6 }}
+            onPress={() => setEditingUrl(true)}>
             {activeUrl
               ? <Image source={{ uri: 'https://www.google.com/s2/favicons?domain='+hostname+'&sz=32' }} style={{ width: 16, height: 16, borderRadius: 3 }} />
               : <Ionicons name="search-outline" size={15} color={C.muted} />}
             {isHttps && <Ionicons name="lock-closed" size={12} color={C.green} />}
             <Text style={{ flex: 1, color: activeUrl ? C.text : C.muted, fontSize: 14 }} numberOfLines={1}>
-              {activeUrl ? hostname : 'Search or enter DApp URL...'}
+              {activeUrl ? hostname : 'Search or enter URL...'}
             </Text>
             {loading && <ActivityIndicator size="small" color={C.green} />}
           </TouchableOpacity>
-          <View style={{ backgroundColor: '#0d2a0d', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: C.green }} />
-            <Text style={{ color: C.green, fontSize: 11, fontWeight: '700' }}>Connected</Text>
-          </View>
+          {/* 3-dot menu button */}
+          <TouchableOpacity onPress={() => setShowMenu(m => !m)} style={{ padding: 8 }}>
+            <Ionicons name="ellipsis-vertical" size={20} color={C.text} />
+          </TouchableOpacity>
         </View>
+
+        {/* URL edit input */}
         {editingUrl && (
           <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
             <TextInput
@@ -789,6 +793,37 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
             />
           </View>
         )}
+
+        {/* 3-dot dropdown menu */}
+        {showMenu && (
+          <View style={{ position: 'absolute', top: (StatusBar.currentHeight||0)+48, right: 10, backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border, zIndex: 999, minWidth: 200, shadowColor:'#000', shadowOpacity:0.3, shadowRadius:8, elevation:10 }}>
+            {/* Nav row */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border }}>
+              <TouchableOpacity onPress={() => { webRef.current?.goBack(); setShowMenu(false); }} disabled={!canGoBack} style={{ alignItems: 'center', padding: 6 }}>
+                <Ionicons name="chevron-back" size={22} color={canGoBack ? C.text : C.muted} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { webRef.current?.goForward(); setShowMenu(false); }} disabled={!canGoForward} style={{ alignItems: 'center', padding: 6 }}>
+                <Ionicons name="chevron-forward" size={22} color={canGoForward ? C.text : C.muted} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { webRef.current?.reload(); setShowMenu(false); }} style={{ alignItems: 'center', padding: 6 }}>
+                <Ionicons name="refresh" size={22} color={C.text} />
+              </TouchableOpacity>
+            </View>
+            {/* Menu items */}
+            {[
+              { icon: isBookmarked ? 'star' : 'star-outline', label: isBookmarked ? 'Bookmarked' : 'Add Bookmark', color: isBookmarked ? C.green : C.text, action: () => { addBookmark(); setShowMenu(false); } },
+              { icon: 'list-outline', label: 'Bookmarks', color: C.text, action: () => { setShowBookmarks(s => !s); setShowMenu(false); } },
+              { icon: 'home-outline', label: 'Home', color: C.text, action: () => { setActiveUrl('https://chatfi.pro'); setUrl('https://chatfi.pro'); setShowMenu(false); } },
+            ].map((item, i) => (
+              <TouchableOpacity key={i} onPress={item.action}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 14, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: C.border }}>
+                <Ionicons name={item.icon} size={20} color={item.color} />
+                <Text style={{ color: item.color, fontSize: 15 }}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {loading && <View style={{ height: 2, backgroundColor: C.green }} />}
       </View>
 
@@ -896,27 +931,7 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
         </View>
       )}
 
-      {/* Bottom Nav Bar */}
-      <View style={{ flexDirection: 'row', backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border, paddingVertical: 10, paddingHorizontal: 20, justifyContent: 'space-between', alignItems: 'center' }}>
-        <TouchableOpacity onPress={() => webRef.current?.goBack()} disabled={!canGoBack} style={{ alignItems: 'center', padding: 8 }}>
-          <Ionicons name="chevron-back" size={22} color={canGoBack ? C.text : C.muted} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => webRef.current?.goForward()} disabled={!canGoForward} style={{ alignItems: 'center', padding: 8 }}>
-          <Ionicons name="chevron-forward" size={22} color={canGoForward ? C.text : C.muted} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => { setActiveUrl(''); setUrl(''); }} style={{ alignItems: 'center', padding: 8 }}>
-          <Ionicons name="home-outline" size={22} color={C.text} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={addBookmark} style={{ alignItems: 'center', padding: 8 }}>
-          <Ionicons name={isBookmarked ? "star" : "star-outline"} size={22} color={isBookmarked ? C.green : C.text} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setShowBookmarks(!showBookmarks)} style={{ alignItems: 'center', padding: 8 }}>
-          <Ionicons name="list-outline" size={22} color={showBookmarks ? C.green : C.text} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => webRef.current?.reload()} style={{ alignItems: 'center', padding: 8 }}>
-          <Ionicons name="refresh-outline" size={22} color={C.text} />
-        </TouchableOpacity>
-      </View>
+
     </View>
   );
 }
