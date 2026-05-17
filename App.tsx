@@ -21,8 +21,8 @@ const TOKEN_LOGOS: Record<string, string> = {
 };
 
 const C = {
-  bg: '#0d1117', card: '#1C2936', card2: '#162030',
-  border: '#2a3f52', green: '#C7F284', blue: '#79e0f2',
+  bg: '#0d1117', card: 'rgba(28,41,54,0.55)', card2: 'rgba(22,32,48,0.45)',
+  border: 'rgba(120,180,220,0.18)', green: '#C7F284', blue: '#79e0f2',
   text: '#e8f4e8', muted: '#7a9bb5', red: '#ff5555', orange: '#ffaa00',
   gradTop: '#1C2936', gradBot: '#0d1117',
 };
@@ -92,6 +92,7 @@ const TOKEN_MINTS: Record<string, string> = {
 
 
 const POPULAR_DAPPS = [
+  { name: 'ChatFi', url: 'https://chatfi.pro', domain: 'chatfi.pro', desc: 'Your AI DeFi co-pilot on Solana' },
   { name: 'Jupiter', url: 'https://jup.ag', domain: 'jup.ag', desc: 'Best swap aggregator' },
   { name: 'Raydium', url: 'https://raydium.io', domain: 'raydium.io', desc: 'AMM & liquidity' },
   { name: 'Orca', url: 'https://orca.so', domain: 'orca.so', desc: 'User-friendly DEX' },
