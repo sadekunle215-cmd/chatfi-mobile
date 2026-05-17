@@ -1170,6 +1170,43 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
   const [swapSubTab, setSwapSubTab] = React.useState<'swap'|'trigger'>('swap');
   const [swapAmt, setSwapAmt] = React.useState('');
   const [swapLoading, setSwapLoading] = React.useState(false);
+  const [showPicker, setShowPicker] = React.useState<'from'|'to'|null>(null);
+  const [pickerSearch, setPickerSearch] = React.useState('');
+  const [pickerResults, setPickerResults] = React.useState<any[]>([]);
+  const [pickerLoading, setPickerLoading] = React.useState(false);
+
+  const searchPicker = async (q: string) => {
+    if (!q || q.length < 1) {
+      setPickerResults([
+        {symbol:'SOL',name:'Solana',address:'So11111111111111111111111111111111111111112',logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png',decimals:9},
+        {symbol:'USDC',name:'USD Coin',address:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',decimals:6},
+        {symbol:'USDT',name:'Tether',address:'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',decimals:6},
+        {symbol:'JUP',name:'Jupiter',address:'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',logoURI:'https://static.jup.ag/jup/icon.png',decimals:6},
+        {symbol:'BONK',name:'Bonk',address:'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',logoURI:'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I',decimals:5},
+        {symbol:'WIF',name:'dogwifhat',address:'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',logoURI:'https://bafkreibk3covs5ltyqxa272uodhculbgn2b37k4wgg6sdxydwwphxkznm.ipfs.nftstorage.link',decimals:6},
+        {symbol:'JitoSOL',name:'Jito Staked SOL',address:'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',logoURI:'https://storage.googleapis.com/token-metadata/JitoSOL-256.png',decimals:9},
+        {symbol:'PYTH',name:'Pyth Network',address:'HZ1JovNiVvGrGs6Lqg6JmBzWBMFURQDMEbbTAe7hfGqN',logoURI:'https://pyth.network/token.svg',decimals:6},
+      ]);
+      return;
+    }
+    setPickerLoading(true);
+    try {
+      const res = await fetch('https://lite-api.jup.ag/tokens/v2/search?query='+encodeURIComponent(q)+'&limit=8');
+      const data = await res.json();
+      const tokens = (Array.isArray(data) ? data : (data.tokens||[])).map((t:any)=>({...t,address:t.id||t.address,logoURI:t.logoURI||t.icon||''}));
+      setPickerResults(tokens);
+    } catch(e) { setPickerResults([]); }
+    setPickerLoading(false);
+  };
+
+  const selectToken = (t: any) => {
+    const tok = { symbol: t.symbol, mint: t.address||t.mint, logoURI: t.logoURI||t.icon||'', decimals: t.decimals||6 };
+    if (showPicker === 'from') setFromToken2(tok);
+    else setToToken2(tok);
+    setShowPicker(null);
+    setPickerSearch('');
+    setPickerResults([]);
+  };
   const [tradeHistory, setTradeHistory] = React.useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = React.useState(false);
 
@@ -1301,18 +1338,54 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
         ))}
       </View>
 
+      {/* Token Picker Modal */}
+      <Modal visible={!!showPicker} animationType="slide" transparent onRequestClose={()=>setShowPicker(null)}>
+        <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'}}>
+          <View style={{backgroundColor:C.modal,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,maxHeight:'80%'}}>
+            <Text style={{color:C.text,fontWeight:'700',fontSize:18,marginBottom:12}}>Select Token</Text>
+            <TextInput
+              value={pickerSearch} onChangeText={t=>{setPickerSearch(t);searchPicker(t);}}
+              placeholder="Search by name or paste address..." placeholderTextColor={C.muted}
+              style={{backgroundColor:C.card,borderRadius:10,padding:12,color:C.text,marginBottom:12,fontSize:14}}
+              autoFocus />
+            {pickerLoading && <ActivityIndicator color={C.green} style={{marginTop:8}}/>}
+            <FlatList
+              data={pickerResults}
+              keyExtractor={(t:any)=>t.address||t.mint||t.symbol}
+              renderItem={({item:t}:any)=>(
+                <TouchableOpacity onPress={()=>selectToken(t)}
+                  style={{flexDirection:'row',alignItems:'center',gap:12,paddingVertical:12,borderBottomWidth:1,borderBottomColor:C.border}}>
+                  {t.logoURI ? <Image source={{uri:t.logoURI}} style={{width:36,height:36,borderRadius:18}}/> :
+                  <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center'}}>
+                    <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{t.symbol?.slice(0,3)}</Text>
+                  </View>}
+                  <View>
+                    <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{t.symbol}</Text>
+                    <Text style={{color:C.muted,fontSize:12}}>{t.name}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity onPress={()=>setShowPicker(null)} style={{marginTop:16,padding:14,alignItems:'center'}}>
+              <Text style={{color:C.muted,fontSize:15}}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {swapSubTab==='swap' && (
         <View>
           {/* From */}
           <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:6,borderWidth:1,borderColor:C.border}}>
             <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>YOU PAY</Text>
             <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-              <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+              <TouchableOpacity onPress={()=>{setShowPicker('from');setPickerSearch('');searchPicker('');}} style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                {fromToken2.logoURI ? <Image source={{uri:fromToken2.logoURI}} style={{width:36,height:36,borderRadius:18}}/> :
                 <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
                   <Text style={{color:C.green,fontSize:10,fontWeight:'700'}}>{fromToken2.symbol?.slice(0,3)}</Text>
-                </View>
+                </View>}
                 <Text style={{color:C.text,fontSize:16,fontWeight:'700'}}>{fromToken2.symbol} ▾</Text>
-              </View>
+              </TouchableOpacity>
               <TextInput value={swapAmt} onChangeText={setSwapAmt} placeholder="0.00" placeholderTextColor={C.muted}
                 keyboardType="numeric" style={{color:C.text,fontSize:24,fontWeight:'700',textAlign:'right',minWidth:100}} />
             </View>
@@ -1340,12 +1413,13 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
           <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:C.border}}>
             <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>YOU RECEIVE</Text>
             <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-              <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+              <TouchableOpacity onPress={()=>{setShowPicker('to');setPickerSearch('');searchPicker('');}} style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                {toToken2.logoURI ? <Image source={{uri:toToken2.logoURI}} style={{width:36,height:36,borderRadius:18}}/> :
                 <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
                   <Text style={{color:C.blue,fontSize:10,fontWeight:'700'}}>{toToken2.symbol?.slice(0,3)}</Text>
-                </View>
+                </View>}
                 <Text style={{color:C.text,fontSize:16,fontWeight:'700'}}>{toToken2.symbol} ▾</Text>
-              </View>
+              </TouchableOpacity>
               <Text style={{color:C.text,fontSize:24,fontWeight:'700'}}>{quoteOut||'—'}</Text>
             </View>
           </View>
