@@ -1033,19 +1033,29 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
                   const sig = nacl.sign.detached(msgBytes, secretKey);
                   webRef.current?.postMessage(JSON.stringify({ id, result: btoa(String.fromCharCode(...sig)) }));
                 } else if (method === 'signTransaction' || method === 'signAndSend') {
-                  const txBytes = Uint8Array.from(atob(params.tx), c => c.charCodeAt(0));
-                  const sig = nacl.sign.detached(txBytes.slice(1 + txBytes[0] * 64), secretKey);
-                  for (let i = 0; i < 64; i++) txBytes[1 + i] = sig[i];
+                  const { VersionedTransaction, Keypair, Transaction } = require('@solana/web3.js');
+                  const keypair = Keypair.fromSecretKey(secretKey);
+                  const txBytes = Buffer.from(params.tx, 'base64');
+                  let signed;
+                  try {
+                    const tx = VersionedTransaction.deserialize(txBytes);
+                    tx.sign([keypair]);
+                    signed = Buffer.from(tx.serialize()).toString('base64');
+                  } catch {
+                    const tx = Transaction.from(txBytes);
+                    tx.partialSign(keypair);
+                    signed = tx.serialize({ requireAllSignatures: false }).toString('base64');
+                  }
                   if (method === 'signAndSend') {
                     const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [btoa(String.fromCharCode(...txBytes)), { encoding: 'base64' }] }),
+                      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [signed, { encoding: 'base64', preflightCommitment: 'confirmed' }] }),
                     });
                     const rpcData = await rpcRes.json();
                     if (rpcData.error) throw new Error(rpcData.error.message);
                     webRef.current?.postMessage(JSON.stringify({ id, result: rpcData.result }));
                   } else {
-                    webRef.current?.postMessage(JSON.stringify({ id, result: btoa(String.fromCharCode(...txBytes)) }));
+                    webRef.current?.postMessage(JSON.stringify({ id, result: signed }));
                   }
                 }
               } catch(e) {
