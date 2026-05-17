@@ -658,7 +658,71 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
   );
 }
 
-function DappBrowser({ walletAddress }) {
+const SOLANA_WALLET_INJECTION = `
+(function() {
+  if (window.solana && window.solana.isChatFi) return;
+  const callbacks = {};
+  let callId = 0;
+  function sendToNative(method, params) {
+    return new Promise((resolve, reject) => {
+      const id = ++callId;
+      callbacks[id] = { resolve, reject };
+      window.ReactNativeWebView.postMessage(JSON.stringify({ id, method, params }));
+      setTimeout(() => { if (callbacks[id]) { delete callbacks[id]; reject(new Error('Timeout')); } }, 30000);
+    });
+  }
+  window.addEventListener('message', function(e) {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.id && callbacks[data.id]) {
+        if (data.error) callbacks[data.id].reject(new Error(data.error));
+        else callbacks[data.id].resolve(data.result);
+        delete callbacks[data.id];
+      }
+    } catch(e) {}
+  });
+  const publicKey = {
+    toString: () => '\${PUBLIC_KEY}',
+    toBase58: () => '\${PUBLIC_KEY}',
+    toBytes: () => new Uint8Array(32),
+  };
+  window.solana = {
+    isPhantom: true, isChatFi: true,
+    publicKey, isConnected: true,
+    connect: async () => ({ publicKey }),
+    disconnect: async () => { window.solana.isConnected = false; },
+    signTransaction: async (tx) => {
+      const serialized = tx.serialize({ requireAllSignatures: false });
+      const base64 = btoa(String.fromCharCode(...serialized));
+      const result = await sendToNative('signTransaction', { tx: base64 });
+      return tx;
+    },
+    signAllTransactions: async (txs) => {
+      for (const tx of txs) await window.solana.signTransaction(tx);
+      return txs;
+    },
+    signMessage: async (message) => {
+      const base64 = btoa(String.fromCharCode(...message));
+      const result = await sendToNative('signMessage', { message: base64 });
+      const sigBytes = Uint8Array.from(atob(result), c => c.charCodeAt(0));
+      return { signature: sigBytes, publicKey };
+    },
+    signAndSendTransaction: async (tx) => {
+      const serialized = tx.serialize({ requireAllSignatures: false });
+      const base64 = btoa(String.fromCharCode(...serialized));
+      const result = await sendToNative('signAndSend', { tx: base64 });
+      return { signature: result };
+    },
+    on: (e, cb) => {}, off: (e, cb) => {},
+    emit: (e, d) => {}, removeAllListeners: () => {},
+  };
+  window.phantom = { solana: window.solana };
+  window.dispatchEvent(new CustomEvent('solana#initialized'));
+  document.dispatchEvent(new CustomEvent('DOMContentLoaded'));
+})();
+`;
+
+function DappBrowser({ walletAddress, secretKey, wallet }) {
   const [url, setUrl] = React.useState('');
   const [activeUrl, setActiveUrl] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -770,30 +834,35 @@ function DappBrowser({ walletAddress }) {
               setUrl(s.url);
               setPageTitle(s.title);
             }}
-            injectedJavaScript={`
-              (function() {
-                const walletAddress = "${walletAddress || ''}";
-                if (!walletAddress) return;
-                const solanaWallet = {
-                  isPhantom: true,
-                  isChatFi: true,
-                  publicKey: { toString: () => walletAddress, toBase58: () => walletAddress },
-                  isConnected: true,
-                  connect: async () => ({ publicKey: { toString: () => walletAddress, toBase58: () => walletAddress } }),
-                  disconnect: async () => {},
-                  signTransaction: async (tx) => tx,
-                  signAllTransactions: async (txs) => txs,
-                  signMessage: async (msg) => ({ signature: new Uint8Array(64) }),
-                  on: (event, cb) => {},
-                  off: (event, cb) => {},
-                };
-                window.solana = solanaWallet;
-                window.phantom = { solana: solanaWallet };
-                window.dispatchEvent(new Event('load'));
-              })();
-              true;
-            `}
-            onMessage={() => {}}
+            injectedJavaScriptBeforeContentLoaded={SOLANA_WALLET_INJECTION.replace(/\${PUBLIC_KEY}/g, walletAddress || '')}
+            onMessage={async (event) => {
+              try {
+                const { id, method, params } = JSON.parse(event.nativeEvent.data);
+                if (!secretKey) { webRef.current?.postMessage(JSON.stringify({ id, error: 'No wallet' })); return; }
+                if (method === 'signMessage') {
+                  const msgBytes = Uint8Array.from(atob(params.message), c => c.charCodeAt(0));
+                  const sig = nacl.sign.detached(msgBytes, secretKey);
+                  webRef.current?.postMessage(JSON.stringify({ id, result: btoa(String.fromCharCode(...sig)) }));
+                } else if (method === 'signTransaction' || method === 'signAndSend') {
+                  const txBytes = Uint8Array.from(atob(params.tx), c => c.charCodeAt(0));
+                  const sig = nacl.sign.detached(txBytes.slice(1 + txBytes[0] * 64), secretKey);
+                  for (let i = 0; i < 64; i++) txBytes[1 + i] = sig[i];
+                  if (method === 'signAndSend') {
+                    const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [btoa(String.fromCharCode(...txBytes)), { encoding: 'base64' }] }),
+                    });
+                    const rpcData = await rpcRes.json();
+                    if (rpcData.error) throw new Error(rpcData.error.message);
+                    webRef.current?.postMessage(JSON.stringify({ id, result: rpcData.result }));
+                  } else {
+                    webRef.current?.postMessage(JSON.stringify({ id, result: btoa(String.fromCharCode(...txBytes)) }));
+                  }
+                }
+              } catch(e) {
+                try { const { id } = JSON.parse(event.nativeEvent.data); webRef.current?.postMessage(JSON.stringify({ id, error: e.message })); } catch(_) {}
+              }
+            }}
             javaScriptEnabled={true}
             style={{ flex: 1 }}
           />
@@ -3452,7 +3521,7 @@ https://solscan.io/tx/${sig}` }]);
 
             {/* DAPP BROWSER */}
         {tab === 'dapp' && (
-          <DappBrowser walletAddress={pubkey} />
+          <DappBrowser walletAddress={pubkey} secretKey={wallet ? deriveWallet(wallet).secretKey : null} wallet={wallet} />
         )}
         {/* SETTINGS */}
       {tab === 'settings' && (
