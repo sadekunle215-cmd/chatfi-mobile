@@ -873,8 +873,11 @@ const StudioLaunchCard = ({ card, wallet, deriveWallet, setMsgs, C, s }: any) =>
       const submitRes = await fetch('https://chatfi.pro/api/studio-submit', {
         method:'POST', body: formData
       });
-      const submitData = await submitRes.json();
+      const submitText = await submitRes.text();
+      let submitData:any = {};
+      try { submitData = JSON.parse(submitText); } catch { /* Jupiter may return empty body on success */ }
       if (submitData.error) throw new Error(JSON.stringify(submitData.error));
+      if (!submitRes.ok && !submitData.mint) throw new Error(submitText.slice(0,200));
 
       setStudioMint(mint);
       setStudioStatus('done');
@@ -1514,41 +1517,57 @@ export default function App() {
         if (n >= 1_000) return `${prefix}${(n/1_000).toFixed(2)}K`;
         return `${prefix}${n.toFixed(4)}`;
       };
-      const pc = data.priceChange24h;
-      const isUp = pc && parseFloat(pc) >= 0;
+      const fmtNum = (n:number|null) => fmt(n,'');
+      const pc1h = data.priceChange24h; const pc5m = data.priceChange5m; const pc6h = data.priceChange6h;
+      const pct = (v:any) => { if(v==null) return null; const n=parseFloat(v); return {val:Math.abs(n).toFixed(2),up:n>=0}; };
       return (
         <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
           <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-          <View style={{flexDirection:'row',alignItems:'center',marginBottom:12}}>
-            {data.logo ? <Image source={{uri:data.logo}} style={{width:40,height:40,borderRadius:20,marginRight:10}}/> : <View style={{width:40,height:40,borderRadius:20,backgroundColor:C.border,marginRight:10}}/>}
+          {/* Header */}
+          <View style={{flexDirection:'row',alignItems:'center',marginBottom:10}}>
+            {data.logo ? <Image source={{uri:data.logo}} style={{width:44,height:44,borderRadius:22,marginRight:10}}/> : <View style={{width:44,height:44,borderRadius:22,backgroundColor:C.border,marginRight:10}}/>}
             <View style={{flex:1}}>
-              <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+              <View style={{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                 <Text style={{color:C.text,fontWeight:'700',fontSize:18}}>{data.symbol}</Text>
-                {data.isVerified && <Text style={{color:C.green,fontSize:11}}>✓ Verified</Text>}
+                {data.isVerified && <Text style={{color:C.green,fontSize:10,borderWidth:1,borderColor:C.green,borderRadius:4,paddingHorizontal:4}}>✓ Verified</Text>}
               </View>
               <Text style={{color:C.muted,fontSize:12}}>{data.name}</Text>
+              <View style={{flexDirection:'row',gap:8,marginTop:2}}>
+                {data.twitter && <TouchableOpacity onPress={()=>Linking.openURL(data.twitter)}><Text style={{color:C.blue,fontSize:11}}>Twitter</Text></TouchableOpacity>}
+                {data.website && <TouchableOpacity onPress={()=>Linking.openURL(data.website)}><Text style={{color:C.blue,fontSize:11}}>Website</Text></TouchableOpacity>}
+              </View>
             </View>
           </View>
-          <Text style={{color:C.green,fontSize:30,fontWeight:'700',marginBottom:4}}>
-            {data.price ? `$${data.price < 0.01 ? data.price.toFixed(8) : data.price.toFixed(4)}` : 'N/A'}
+          {/* Price */}
+          <Text style={{color:C.green,fontSize:32,fontWeight:'700',marginBottom:2}}>
+            {data.price ? `$${data.price < 0.001 ? data.price.toFixed(8) : data.price < 1 ? data.price.toFixed(4) : data.price.toFixed(2)}` : 'N/A'}
           </Text>
-          {pc != null && (
-            <Text style={{color:isUp?C.green:C.red,fontSize:13,marginBottom:12}}>
-              {isUp?'▲':'▼'} {Math.abs(parseFloat(pc)).toFixed(2)}% (24h)
-            </Text>
-          )}
-          <View style={{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:12}}>
+          {/* Price changes row */}
+          <View style={{flexDirection:'row',gap:10,marginBottom:12}}>
+            {[{label:'5m',v:pct(pc5m)},{label:'1h',v:pct(pc1h)},{label:'6h',v:pct(pc6h)}].map((x,i)=>x.v?(
+              <Text key={i} style={{color:x.v.up?C.green:C.red,fontSize:12}}>{x.label}: {x.v.up?'▲':'▼'}{x.v.val}%</Text>
+            ):null)}
+          </View>
+          {/* Stats grid */}
+          <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginBottom:12}}>
             {[
               {label:'Market Cap', val:fmt(data.mcap)},
               {label:'FDV', val:fmt(data.fdv)},
               {label:'Liquidity', val:fmt(data.liquidity)},
+              {label:'Vol 1h', val:fmt(data.volume1h)},
+              {label:'Holders', val:fmtNum(data.holders)},
+              {label:'Circ Supply', val:fmtNum(data.circSupply)},
             ].map((item,i)=>(
-              <View key={i} style={{flex:1,minWidth:'28%',backgroundColor:C.bg,borderRadius:10,padding:8}}>
+              <View key={i} style={{width:'30%',backgroundColor:C.bg,borderRadius:8,padding:8}}>
                 <Text style={{color:C.muted,fontSize:10}}>{item.label}</Text>
-                <Text style={{color:C.text,fontWeight:'600',fontSize:13}}>{item.val}</Text>
+                <Text style={{color:C.text,fontWeight:'600',fontSize:12}}>{item.val}</Text>
               </View>
             ))}
           </View>
+          {/* Mint */}
+          <TouchableOpacity onPress={()=>Linking.openURL(`https://solscan.io/token/${data.mint}`)} style={{marginBottom:12}}>
+            <Text style={{color:C.muted,fontSize:10}}>Mint: <Text style={{color:C.blue}}>{data.mint?.slice(0,16)}...</Text></Text>
+          </TouchableOpacity>
           <View style={{flexDirection:'row',gap:8}}>
             <TouchableOpacity
               style={{flex:1,backgroundColor:C.green,borderRadius:10,padding:10,alignItems:'center'}}
@@ -2258,6 +2277,33 @@ ${txt}`, from: 'bot' }]);
           break;
         }
 
+        case 'FETCH_EARN_POSITIONS': {
+          setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your earn positions...', from: 'bot' }]);
+          try {
+            const posRes = await fetch('https://chatfi.pro/api/jupiter', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({url:`https://api.jup.ag/lend/v1/earn/positions?users=${pk}`,method:'GET'})
+            });
+            const positions = await posRes.json();
+            const active = Array.isArray(positions) ? positions.filter((p:any) => parseFloat(p.underlyingBalance||'0') > 0) : [];
+            setMsgs(p => p.filter(m => m.text !== '⏳ Fetching your earn positions...'));
+            if (!active.length) {
+              setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: '📭 No active earn positions.\n\nSay "deposit 10 USDC into earn" to start earning yield.' }]);
+            } else {
+              const lines = active.map((pos:any) => {
+                const sym = pos.token?.asset?.symbol || pos.token?.uiSymbol || '?';
+                const dec = pos.token?.asset?.decimals ?? 6;
+                const bal = (parseFloat(pos.underlyingBalance||'0') / Math.pow(10, dec)).toFixed(4);
+                const apy = (parseInt(pos.token?.totalRate||'0')/100).toFixed(2);
+                const price = parseFloat(pos.token?.asset?.price||'0');
+                const usd = price ? `($${(parseFloat(bal)*price).toFixed(2)})` : '';
+                return `• ${bal} ${sym} ${usd} — ${apy}% APY`;
+              }).join('\n');
+              setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `🏦 Your Earn Positions:\n\n${lines}` }]);
+            }
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed: ${e.message}`, from: 'bot' }]); }
+          break;
+        }
         case 'FETCH_SEND_HISTORY': {
           setMsgs(p => [...p, { id: Date.now(), text: '⏳ Fetching your send history...', from: 'bot' }]);
           try {
@@ -2534,9 +2580,17 @@ https://solscan.io/tx/${sig}` }]);
               logo: info.icon || resolved.logoURI || '',
               price: info.usdPrice || null,
               priceChange24h: info.stats1h?.priceChange || null,
+              priceChange5m: info.stats5m?.priceChange || null,
+              priceChange6h: info.stats6h?.priceChange || null,
               mcap: info.mcap || null,
               fdv: info.fdv || null,
               liquidity: info.liquidity || null,
+              volume1h: info.stats1h?.buyVolume != null ? (info.stats1h.buyVolume + info.stats1h.sellVolume) : null,
+              holders: info.holderCount || null,
+              circSupply: info.circSupply || null,
+              totalSupply: info.totalSupply || null,
+              twitter: info.twitter || null,
+              website: info.website || null,
               isVerified: !!info.twitter || !!info.website,
               mint,
             }}}]);
