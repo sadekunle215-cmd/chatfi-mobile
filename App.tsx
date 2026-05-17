@@ -1985,6 +1985,31 @@ export default function App() {
       );
     }
 
+    if (type === 'trending') {
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <Text style={{color:C.text,fontWeight:'700',fontSize:16}}>{data.label}</Text>
+            <Text style={{color:C.muted,fontSize:12}}>{data.interval}</Text>
+          </View>
+          {(data.tokens||[]).slice(0,15).map((t:any,i:number)=>(
+            <TouchableOpacity key={i} onPress={()=>{setFromToken('SOL');setToToken(t.symbol||t.ticker||'SOL');setTab('swap');}}
+              style={{flexDirection:'row',alignItems:'center',paddingVertical:8,borderBottomWidth:i<14?1:0,borderBottomColor:C.border}}>
+              <Text style={{color:C.muted,fontSize:12,width:24}}>#{i+1}</Text>
+              <TokLogo uri={t.logoURI||t.icon||''} fallback={''} symbol={t.symbol||t.ticker||'?'} style={{width:28,height:28,borderRadius:14,backgroundColor:C.border}} mint={t.address||t.id||''} />
+              <View style={{flex:1,marginLeft:8}}>
+                <Text style={{color:C.text,fontWeight:'600',fontSize:13}}>{t.symbol||t.ticker||'?'}</Text>
+                <Text style={{color:C.muted,fontSize:11}} numberOfLines={1}>{t.name||''}</Text>
+              </View>
+              {t.price&&<Text style={{color:C.text,fontSize:12}}>${parseFloat(t.price).toFixed(4)}</Text>}
+              <Text style={{color:C.green,fontSize:11,marginLeft:8}}>Swap →</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      );
+    }
+
     return null;
   };
 
@@ -2783,6 +2808,26 @@ https://solscan.io/tx/${sig}` }]);
               }
             }
           }]);
+          break;
+        }
+
+        case 'FETCH_TOKEN_CATEGORY': {
+          const cat = data.category || 'toptrending';
+          const interval = data.interval || '24h';
+          const limit = data.limit || 20;
+          const catLabel = cat === 'toptrending' ? 'Top Trending' : cat === 'toptraded' ? 'Top Traded' : 'Top Organic Score';
+          try {
+            const res = await fetch(`https://api.jup.ag/tokens/v2/${cat}/${interval}?limit=${limit}`);
+            const tokens = await res.json();
+            const list = Array.isArray(tokens) ? tokens : tokens?.tokens || [];
+            const cardId = Date.now() + 1;
+            setMsgs(p => [...p, {
+              id: cardId, from: 'bot', text: '',
+              card: { type: 'trending', data: { tokens: list.slice(0, limit), label: catLabel, interval } }
+            }]);
+          } catch(e:any) {
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `Failed to fetch trending tokens: ${e.message}` }]);
+          }
           break;
         }
 

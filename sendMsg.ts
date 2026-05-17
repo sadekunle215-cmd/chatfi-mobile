@@ -340,6 +340,7 @@ ACTIONS:
 - "SHOW_LOCK" → lock tokens. actionData: {token,amount,days}
 - "FETCH_LOCKS" → show locks. actionData: {}
 - "SHOW_STUDIO" → create token. actionData: {name,symbol,supply,decimals,description}
+- "FETCH_TOKEN_CATEGORY" → trending/top tokens. actionData: {category:"toptrending"|"toptraded"|"toporganicscore", interval:"5m"|"1h"|"6h"|"24h", limit:20}
 - "FETCH_PREDICTIONS" → prediction markets. actionData: {}
 - "COPY_TRADE" → copy wallet. actionData: {wallet,limit:5}
 - null → general chat, no action.
@@ -360,6 +361,7 @@ RULES:
 - lock/vesting → SHOW_LOCK
 - my locks → FETCH_LOCKS
 - create token → SHOW_STUDIO
+- trending/hot/top tokens/what's pumping → FETCH_TOKEN_CATEGORY toptrending 24h
 - predictions → FETCH_PREDICTIONS
 - copy wallet → COPY_TRADE
 
