@@ -1082,7 +1082,11 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
                   let signed;
                   try {
                     const tx = VersionedTransaction.deserialize(txBytes);
-                    tx.sign([keypair]);
+                    const msgBytes2 = tx.message.serialize();
+                    const sig2 = nacl.sign.detached(msgBytes2, secretKey);
+                    const pubStr = keypair.publicKey.toBase58();
+                    const sigIdx = tx.message.staticAccountKeys.findIndex(k => k.toBase58() === pubStr);
+                    if (sigIdx !== -1) { tx.signatures[sigIdx] = sig2; } else { tx.sign([keypair]); }
                     signed = Buffer.from(tx.serialize()).toString('base64');
                   } catch {
                     const tx = Transaction.from(txBytes);
@@ -1092,7 +1096,7 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
                   if (method === 'signAndSend') {
                     const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [signed, { encoding: 'base64', preflightCommitment: 'confirmed' }] }),
+                      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [signed, { encoding: 'base64', skipPreflight: true, preflightCommitment: 'confirmed', maxRetries: 3 }] }),
                     });
                     const rpcData = await rpcRes.json();
                     if (rpcData.error) throw new Error(rpcData.error.message);
