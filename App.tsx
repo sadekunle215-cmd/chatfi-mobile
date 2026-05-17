@@ -1441,7 +1441,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
 
           <TouchableOpacity onPress={doSwap} disabled={swapLoading}
             style={{backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center'}}>
-            {swapLoading ? <ActivityIndicator color="#0d1117"/> : <Text style={{color:'#0d1117',fontWeight:'700',fontSize:15}}>Swap via Jupiter</Text>}
+            {swapLoading ? <ActivityIndicator color="#0d1117"/> : <Text style={{color:'#0d1117',fontWeight:'700',fontSize:15}}>Swap</Text>}
           </TouchableOpacity>
         </View>
       )}
