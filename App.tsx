@@ -1586,6 +1586,142 @@ export default function App() {
       );
     }
 
+    if (type === 'portfolio_full') {
+      const tokens = data.tokens || [];
+      const earns = data.earnPositions || [];
+      const locks = data.lockAccounts || [];
+      const trigs = data.trigOrders || [];
+      const totalUSD = tokens.reduce((s:number,t:any)=>s+((t.amount||0)*(t.price||0)),0);
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <Text style={{color:C.text,fontWeight:'700',fontSize:16}}>📊 Your Portfolio</Text>
+            <Text style={{color:C.green,fontWeight:'700',fontSize:16}}>${totalUSD.toFixed(2)}</Text>
+          </View>
+          {/* Token balances */}
+          <Text style={{color:C.muted,fontSize:11,fontWeight:'700',marginBottom:6,letterSpacing:1}}>TOKENS</Text>
+          {tokens.map((t:any,i:number)=>(
+            <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:5,borderBottomWidth:i<tokens.length-1?1:0,borderBottomColor:C.border}}>
+              <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
+              <View style={{alignItems:'flex-end'}}>
+                <Text style={{color:C.text,fontSize:13}}>{typeof t.amount==='number'?t.amount.toFixed(4):t.amount}</Text>
+                <Text style={{color:C.muted,fontSize:11}}>${((t.amount||0)*(t.price||0)).toFixed(2)}</Text>
+              </View>
+            </View>
+          ))}
+          {/* Earn positions */}
+          {earns.length > 0 && <>
+            <Text style={{color:C.muted,fontSize:11,fontWeight:'700',marginTop:12,marginBottom:6,letterSpacing:1}}>EARN POSITIONS</Text>
+            {earns.map((pos:any,i:number)=>{
+              const sym = pos.token?.asset?.symbol || pos.token?.uiSymbol || '?';
+              const dec = pos.token?.asset?.decimals ?? 6;
+              const bal = (parseFloat(pos.underlyingBalance||'0')/Math.pow(10,dec)).toFixed(4);
+              const apy = (parseInt(pos.token?.totalRate||'0')/100).toFixed(2);
+              const price = parseFloat(pos.token?.asset?.price||'0');
+              const usd = price ? (parseFloat(bal)*price).toFixed(2) : '?';
+              return (
+                <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:5,borderBottomWidth:i<earns.length-1?1:0,borderBottomColor:C.border}}>
+                  <View>
+                    <Text style={{color:C.text,fontWeight:'600'}}>{sym} Earn</Text>
+                    <Text style={{color:C.green,fontSize:11}}>{apy}% APY</Text>
+                  </View>
+                  <View style={{alignItems:'flex-end'}}>
+                    <Text style={{color:C.text,fontSize:13}}>{bal} {sym}</Text>
+                    <Text style={{color:C.muted,fontSize:11}}>${usd}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </>}
+          {/* Locked tokens */}
+          {locks.length > 0 && <>
+            <Text style={{color:C.muted,fontSize:11,fontWeight:'700',marginTop:12,marginBottom:6,letterSpacing:1}}>LOCKED TOKENS</Text>
+            {locks.map((lock:any,i:number)=>{
+              const unlockDate = new Date(lock.cliffEnd*1000).toLocaleDateString();
+              return (
+                <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:5,borderBottomWidth:i<locks.length-1?1:0,borderBottomColor:C.border}}>
+                  <View>
+                    <Text style={{color:C.text,fontWeight:'600'}}>{lock.mint?.slice(0,6)}... Lock</Text>
+                    <Text style={{color:lock.claimable?C.green:C.muted,fontSize:11}}>{lock.claimable?'✅ Claimable':'🔒 Unlocks '+unlockDate}</Text>
+                  </View>
+                  <Text style={{color:C.text,fontSize:13}}>{(lock.totalRaw/1e6).toFixed(2)}</Text>
+                </View>
+              );
+            })}
+          </>}
+          {/* Limit orders */}
+          {trigs.length > 0 && <>
+            <Text style={{color:C.muted,fontSize:11,fontWeight:'700',marginTop:12,marginBottom:6,letterSpacing:1}}>LIMIT ORDERS</Text>
+            {trigs.map((o:any,i:number)=>{
+              const inSym = o.inputMint?.slice(0,6)||'?';
+              const outSym = o.outputMint?.slice(0,6)||'?';
+              return (
+                <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:5}}>
+                  <Text style={{color:C.text,fontSize:12}}>{inSym}→{outSym}</Text>
+                  <Text style={{color:C.green,fontSize:12}}>{o.makingAmount||o.inputAmount||'?'}</Text>
+                </View>
+              );
+            })}
+          </>}
+          <TouchableOpacity onPress={()=>setTab('portfolio')} style={{marginTop:12,padding:10,borderRadius:10,borderWidth:1,borderColor:C.green,alignItems:'center'}}>
+            <Text style={{color:C.green,fontWeight:'600'}}>View Full Portfolio →</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (type === 'copy_trade') {
+      const { wallet: waddr, trades, holdings } = data;
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:2}}>🐋 Whale Analysis</Text>
+          <TouchableOpacity onPress={()=>Linking.openURL(`https://solscan.io/account/${waddr}`)}>
+            <Text style={{color:C.green,fontSize:12,marginBottom:12}}>{waddr?.slice(0,16)}...{waddr?.slice(-8)} ↗</Text>
+          </TouchableOpacity>
+          {/* Holdings */}
+          {holdings?.length > 0 && <>
+            <Text style={{color:C.muted,fontSize:11,fontWeight:'700',marginBottom:6,letterSpacing:1}}>CURRENT HOLDINGS</Text>
+            {holdings.slice(0,6).map((h:any,i:number)=>(
+              <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:4,borderBottomWidth:i<Math.min(holdings.length,6)-1?1:0,borderBottomColor:C.border}}>
+                <Text style={{color:C.text,fontWeight:'600'}}>{h.sym}</Text>
+                <TouchableOpacity onPress={()=>dispatchAction('SHOW_SWAP',{from:'USDC',to:h.sym,amount:'10'})}>
+                  <Text style={{color:C.green,fontSize:12}}>{h.amount?.toFixed(4)} · Mirror →</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </>}
+          {/* Recent transactions */}
+          <Text style={{color:C.muted,fontSize:11,fontWeight:'700',marginTop:12,marginBottom:6,letterSpacing:1}}>RECENT TRANSACTIONS</Text>
+          {(trades||[]).slice(0,10).map((t:any,i:number)=>(
+            <View key={i} style={{paddingVertical:5,borderBottomWidth:i<Math.min(trades.length,10)-1?1:0,borderBottomColor:C.border}}>
+              <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+                <Text style={{color:t.err?'#ef4444':C.text,fontSize:12,flex:1}} numberOfLines={1}>
+                  {t.err?'❌':'✅'} {t.sig?.slice(0,20)}...
+                </Text>
+                <Text style={{color:C.muted,fontSize:11,marginLeft:8}}>{t.date}</Text>
+              </View>
+              <View style={{flexDirection:'row',gap:8,marginTop:3}}>
+                <TouchableOpacity onPress={()=>Linking.openURL(`https://solscan.io/tx/${t.sig}`)}>
+                  <Text style={{color:C.green,fontSize:11}}>View ↗</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={()=>{if(Clipboard?.setString){Clipboard.setString(t.sig);showToast('Copied!','success');}}}>
+                  <Text style={{color:C.muted,fontSize:11}}>Copy sig</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+          <TouchableOpacity
+            style={{marginTop:12,backgroundColor:C.green,borderRadius:10,padding:10,alignItems:'center'}}
+            onPress={()=>Linking.openURL(`https://solscan.io/account/${waddr}`)}
+          >
+            <Text style={{color:'#0d1117',fontWeight:'700'}}>View Full Activity on Solscan</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     if (type === 'portfolio') {
       return (
         <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
@@ -1908,15 +2044,44 @@ export default function App() {
         }
         case 'FETCH_PORTFOLIO': {
           fetchPortfolio();
-          const cardId = Date.now() + 1;
-          const tokens = [
-            ...(solBalance ? [{ symbol: 'SOL', amount: solBalance, price: solPrice }] : []),
-            ...tokenBalances.slice(0, 4)
-          ];
-          setMsgs(p => [...p, {
-            id: cardId, from: 'bot', text: '',
-            card: { type: 'portfolio', data: { tokens } }
-          }]);
+          setMsgs(p => [...p, { id: Date.now(), from:'bot', text:'📊 Fetching your full portfolio...' }]);
+          try {
+            // Fetch token balances, earn positions, locks in parallel
+            const [earnRes, lockRes, trigRes] = await Promise.allSettled([
+              fetch('https://chatfi.pro/api/jupiter', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({url:`https://api.jup.ag/lend/v1/earn/positions?users=${pk}`,method:'GET'})
+              }).then(r=>r.json()),
+              fetch(`https://chatfi.pro/api/lock?wallet=${pk}`).then(r=>r.json()),
+              fetch('https://chatfi.pro/api/jupiter', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({url:`https://api.jup.ag/trigger/v1/orders?wallet=${pk}&status=active`,method:'GET'})
+              }).then(r=>r.json()),
+            ]);
+            const earnPositions = earnRes.status==='fulfilled' ? (Array.isArray(earnRes.value)?earnRes.value:[]) : [];
+            const lockAccounts  = lockRes.status==='fulfilled'  ? (lockRes.value?.accounts||[]) : [];
+            const trigOrders    = trigRes.status==='fulfilled'  ? (trigRes.value?.orders||trigRes.value?.data||[]) : [];
+            const activeEarns   = earnPositions.filter((p:any)=>parseFloat(p.underlyingBalance||'0')>0);
+            const activeLocks   = lockAccounts.filter((a:any)=>a.claimable||a.totalRaw>0);
+            const activeTrig    = Array.isArray(trigOrders) ? trigOrders.slice(0,5) : [];
+            const cardId = Date.now() + 1;
+            const tokens = [
+              ...(solBalance ? [{ symbol: 'SOL', amount: solBalance, price: solPrice }] : []),
+              ...tokenBalances.slice(0, 6)
+            ];
+            setMsgs(p => p.filter(m => m.text !== '📊 Fetching your full portfolio...'));
+            setMsgs(p => [...p, {
+              id: cardId, from: 'bot', text: '',
+              card: { type: 'portfolio_full', data: { tokens, earnPositions: activeEarns, lockAccounts: activeLocks, trigOrders: activeTrig } }
+            }]);
+          } catch(e:any) {
+            const cardId = Date.now() + 1;
+            const tokens = [
+              ...(solBalance ? [{ symbol: 'SOL', amount: solBalance, price: solPrice }] : []),
+              ...tokenBalances.slice(0, 4)
+            ];
+            setMsgs(p => [...p, { id: cardId, from: 'bot', text: '', card: { type: 'portfolio', data: { tokens } } }]);
+          }
           break;
         }
         case 'SHOW_SWAP': {
@@ -2504,14 +2669,39 @@ https://solscan.io/tx/${sig}` }]);
             setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: 'Please provide a wallet address to copy trades from.' }]);
             break;
           }
+          setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `🔍 Analysing whale wallet ${copyWallet.slice(0,8)}...` }]);
           try {
-            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `Fetching recent trades from ${copyWallet.slice(0,8)}...` }]);
-            const sr = await rpcFetch('getSignaturesForAddress', [copyWallet, { limit: limit || 5 }]);
-            const sigs = Array.isArray(sr.result) ? sr.result : [];
-            const trades = sigs.slice(0, 5).map((s:any) => s.signature.slice(0,16) + '... ' + (s.blockTime ? new Date(s.blockTime*1000).toLocaleDateString() : '')).join('\n');
-            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: 'Recent trades from ' + copyWallet.slice(0,8) + '...:\n' + trades + '\n\nView on Solscan to mirror these trades.' }]);
+            // Fetch signatures + token balances in parallel
+            const fetchLimit = Math.min(parseInt(limit)||20, 50);
+            const [sigsRes, balRes] = await Promise.allSettled([
+              rpcFetch('getSignaturesForAddress', [copyWallet, { limit: fetchLimit }]),
+              fetch(`https://lite-api.jup.ag/ultra/v1/balances/${copyWallet}`).then(r=>r.json()),
+            ]);
+            const sigs = sigsRes.status==='fulfilled' ? (sigsRes.value?.result||[]) : [];
+            const balData = balRes.status==='fulfilled' ? balRes.value : {};
+            // Build token holdings
+            const tokenBals = Object.entries(balData?.tokenBalances||{}) as [string,any][];
+            const holdings: any[] = [];
+            for (const [mint, bal] of tokenBals) {
+              if (!bal?.uiAmount || bal.uiAmount <= 0) continue;
+              const resolved = await resolveToken(mint).catch(()=>null);
+              const sym = resolved ? (Object.keys(TOKENS).find(k=>TOKENS[k]===mint)||mint.slice(0,6)) : mint.slice(0,6);
+              holdings.push({ sym, amount: bal.uiAmount, mint });
+            }
+            // Format trades with full sig for copying
+            const trades = sigs.slice(0, Math.min(fetchLimit, 20)).map((s:any) => ({
+              sig: s.signature,
+              date: s.blockTime ? new Date(s.blockTime*1000).toLocaleDateString() : '?',
+              err: !!s.err,
+            }));
+            const cardId = Date.now() + 1;
+            setMsgs(p => p.filter(m => m.text !== `🔍 Analysing whale wallet ${copyWallet.slice(0,8)}...`));
+            setMsgs(p => [...p, {
+              id: cardId, from: 'bot', text: '',
+              card: { type: 'copy_trade', data: { wallet: copyWallet, trades, holdings } }
+            }]);
           } catch(e:any) {
-            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `Failed to fetch trades: ${e.message}` }]);
+            setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: `❌ Failed to fetch wallet: ${e.message}` }]);
           }
           break;
         }
