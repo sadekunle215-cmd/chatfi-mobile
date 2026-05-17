@@ -751,78 +751,104 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
   const removeBookmark = (u) => setBookmarks(bookmarks.filter(b => b.url !== u));
   const isBookmarked = bookmarks.find(b => b.url === activeUrl);
 
+  const hostname = activeUrl ? (() => { try { return new URL(activeUrl).hostname; } catch { return activeUrl; } })() : '';
+  const isHttps = activeUrl?.startsWith('https');
+  const [editingUrl, setEditingUrl] = React.useState(false);
+
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: StatusBar.currentHeight }}>
-      {/* URL Bar */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 8, gap: 6, backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border }}>
-        <TouchableOpacity onPress={() => webRef.current?.goBack()} disabled={!canGoBack}>
-          <Text style={{ color: canGoBack ? C.text : C.muted, fontSize: 18, paddingHorizontal: 4 }}>‹</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => webRef.current?.goForward()} disabled={!canGoForward}>
-          <Text style={{ color: canGoForward ? C.text : C.muted, fontSize: 18, paddingHorizontal: 4 }}>›</Text>
-        </TouchableOpacity>
-        <TextInput
-          style={{ flex: 1, backgroundColor: C.bg, color: C.text, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, fontSize: 13 }}
-          value={url}
-          onChangeText={setUrl}
-          onSubmitEditing={() => navigate(url)}
-          placeholder="Search or enter DApp URL..."
-          placeholderTextColor={C.muted}
-          autoCapitalize="none"
-          keyboardType="url"
-        />
-        <TouchableOpacity onPress={() => webRef.current?.reload()}>
-          <Text style={{ color: C.text, fontSize: 16, paddingHorizontal: 4 }}>↺</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={addBookmark}>
-          <Text style={{ fontSize: 16, paddingHorizontal: 4, color: isBookmarked ? C.green : C.muted }}>★</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setShowBookmarks(!showBookmarks)}>
-          <Text style={{ color: C.muted, fontSize: 13, paddingHorizontal: 4 }}>☰</Text>
-        </TouchableOpacity>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+
+      {/* Top Browser Bar */}
+      <View style={{ backgroundColor: C.card, paddingTop: StatusBar.currentHeight || 0, borderBottomWidth: 1, borderBottomColor: C.border }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, gap: 8 }}>
+          <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9, gap: 6 }}
+            onPress={() => { setEditingUrl(true); }}>
+            {activeUrl
+              ? <Image source={{ uri: 'https://www.google.com/s2/favicons?domain='+hostname+'&sz=32' }} style={{ width: 16, height: 16, borderRadius: 3 }} />
+              : <Ionicons name="search-outline" size={15} color={C.muted} />}
+            {isHttps && <Ionicons name="lock-closed" size={12} color={C.green} />}
+            <Text style={{ flex: 1, color: activeUrl ? C.text : C.muted, fontSize: 14 }} numberOfLines={1}>
+              {activeUrl ? hostname : 'Search or enter DApp URL...'}
+            </Text>
+            {loading && <ActivityIndicator size="small" color={C.green} />}
+          </TouchableOpacity>
+          <View style={{ backgroundColor: '#0d2a0d', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: C.green }} />
+            <Text style={{ color: C.green, fontSize: 11, fontWeight: '700' }}>Connected</Text>
+          </View>
+        </View>
+        {editingUrl && (
+          <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
+            <TextInput
+              style={{ backgroundColor: C.bg, color: C.text, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, borderWidth: 1.5, borderColor: C.green }}
+              value={url} onChangeText={setUrl}
+              onSubmitEditing={() => { navigate(url); setEditingUrl(false); }}
+              onBlur={() => setEditingUrl(false)}
+              placeholder="Search or enter URL..." placeholderTextColor={C.muted}
+              autoCapitalize="none" keyboardType="url" autoFocus
+            />
+          </View>
+        )}
+        {loading && <View style={{ height: 2, backgroundColor: C.green }} />}
       </View>
 
-      {/* Bookmarks dropdown */}
+      {/* Bookmarks Panel */}
       {showBookmarks && (
-        <View style={{ backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border, maxHeight: 180 }}>
-          <Text style={{ color: C.muted, fontSize: 11, paddingHorizontal: 16, paddingTop: 8, fontWeight: '600' }}>BOOKMARKS</Text>
+        <View style={{ backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border, maxHeight: 240 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
+            <Text style={{ color: C.text, fontWeight: '700', fontSize: 15 }}>Bookmarks</Text>
+            <TouchableOpacity onPress={() => setShowBookmarks(false)}><Ionicons name="close" size={20} color={C.muted} /></TouchableOpacity>
+          </View>
           <ScrollView>
-            {bookmarks.length === 0 && <Text style={{ color: C.muted, padding: 16, fontSize: 13 }}>No bookmarks yet</Text>}
-            {bookmarks.map((b, i) => (
-              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
-                <Image source={{ uri: 'https://www.google.com/s2/favicons?domain=' + new URL(b.url).hostname + '&sz=32' }} style={{ width: 18, height: 18, borderRadius: 4, marginRight: 10 }} />
-                <TouchableOpacity style={{ flex: 1 }} onPress={() => { navigate(b.url); setShowBookmarks(false); }}>
-                  <Text style={{ color: C.text, fontSize: 13 }} numberOfLines={1}>{b.title}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => removeBookmark(b.url)}>
-                  <Text style={{ color: C.red, fontSize: 16, paddingLeft: 12 }}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+            {bookmarks.length === 0
+              ? <Text style={{ color: C.muted, padding: 16, fontSize: 13, textAlign: 'center' }}>No bookmarks yet. Tap ★ to add one.</Text>
+              : bookmarks.map((b, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: C.border }}>
+                  <Image source={{ uri: 'https://www.google.com/s2/favicons?domain='+(() => { try { return new URL(b.url).hostname } catch { return '' } })()+'&sz=32' }}
+                    style={{ width: 24, height: 24, borderRadius: 6, marginRight: 12 }} />
+                  <TouchableOpacity style={{ flex: 1 }} onPress={() => { navigate(b.url); setShowBookmarks(false); }}>
+                    <Text style={{ color: C.text, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>{b.title}</Text>
+                    <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }} numberOfLines={1}>{b.url}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => removeBookmark(b.url)} style={{ padding: 6 }}>
+                    <Ionicons name="trash-outline" size={16} color={C.muted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
           </ScrollView>
         </View>
       )}
 
-      {/* Main content */}
+      {/* Home Screen */}
       {!activeUrl ? (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-          <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, paddingRight: 2, marginBottom: 12 }}>POPULAR DAPPS</Text>
-          {POPULAR_DAPPS.map((d, i) => (
-            <TouchableOpacity key={i} onPress={() => navigate(d.url)}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border }}>
-              <Image source={{ uri: 'https://www.google.com/s2/favicons?domain=' + d.domain + '&sz=64' }}
-                style={{ width: 36, height: 36, borderRadius: 8, marginRight: 14, backgroundColor: C.card }} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: C.text, fontSize: 15, fontWeight: '600' }}>{d.name}</Text>
-                <Text style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>{d.desc}</Text>
-              </View>
-              <Text style={{ color: C.muted, fontSize: 18 }}>›</Text>
-            </TouchableOpacity>
-          ))}
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
+          <View style={{ backgroundColor: C.card, borderRadius: 16, padding: 16, marginBottom: 24, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#0d2a0d', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="wallet-outline" size={20} color={C.green} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: C.text, fontWeight: '700', fontSize: 14 }}>Wallet Connected</Text>
+              <Text style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>{walletAddress ? walletAddress.slice(0,8)+'...'+walletAddress.slice(-6) : 'No wallet'}</Text>
+            </View>
+            <View style={{ backgroundColor: '#0d2a0d', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}>
+              <Text style={{ color: C.green, fontSize: 12, fontWeight: '700' }}>● Live</Text>
+            </View>
+          </View>
+          <Text style={{ color: C.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 16 }}>POPULAR DAPPS</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {POPULAR_DAPPS.map((d, i) => (
+              <TouchableOpacity key={i} onPress={() => navigate(d.url)}
+                style={{ width: '47%', backgroundColor: C.card, borderRadius: 16, padding: 14, gap: 8 }}>
+                <Image source={{ uri: 'https://www.google.com/s2/favicons?domain='+d.domain+'&sz=64' }}
+                  style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: C.bg }} />
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{d.name}</Text>
+                <Text style={{ color: C.muted, fontSize: 11 }} numberOfLines={2}>{d.desc}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </ScrollView>
       ) : (
         <View style={{ flex: 1 }}>
-          {loading && <ActivityIndicator style={{ position: 'absolute', top: 20, alignSelf: 'center', zIndex: 10 }} color={C.green} />}
           <WebView
             ref={webRef}
             source={{ uri: activeUrl }}
@@ -864,10 +890,33 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
               }
             }}
             javaScriptEnabled={true}
+            domStorageEnabled={true}
             style={{ flex: 1 }}
           />
         </View>
       )}
+
+      {/* Bottom Nav Bar */}
+      <View style={{ flexDirection: 'row', backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border, paddingVertical: 10, paddingHorizontal: 20, justifyContent: 'space-between', alignItems: 'center' }}>
+        <TouchableOpacity onPress={() => webRef.current?.goBack()} disabled={!canGoBack} style={{ alignItems: 'center', padding: 8 }}>
+          <Ionicons name="chevron-back" size={22} color={canGoBack ? C.text : C.muted} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => webRef.current?.goForward()} disabled={!canGoForward} style={{ alignItems: 'center', padding: 8 }}>
+          <Ionicons name="chevron-forward" size={22} color={canGoForward ? C.text : C.muted} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => { setActiveUrl(''); setUrl(''); }} style={{ alignItems: 'center', padding: 8 }}>
+          <Ionicons name="home-outline" size={22} color={C.text} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={addBookmark} style={{ alignItems: 'center', padding: 8 }}>
+          <Ionicons name={isBookmarked ? "star" : "star-outline"} size={22} color={isBookmarked ? C.green : C.text} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setShowBookmarks(!showBookmarks)} style={{ alignItems: 'center', padding: 8 }}>
+          <Ionicons name="list-outline" size={22} color={showBookmarks ? C.green : C.text} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => webRef.current?.reload()} style={{ alignItems: 'center', padding: 8 }}>
+          <Ionicons name="refresh-outline" size={22} color={C.text} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
