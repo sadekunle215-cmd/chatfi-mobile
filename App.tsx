@@ -2520,25 +2520,24 @@ https://solscan.io/tx/${sig}` }]);
             const resolved = await resolveToken(sym);
             if (!resolved) throw new Error('Token not found');
             const mint = resolved.mint;
-            const [infoRes, priceRes] = await Promise.all([
-              fetch(`https://lite-api.jup.ag/tokens/v2/token/${mint}`),
-              fetch(`https://lite-api.jup.ag/price/v3?ids=${mint}`)
-            ]);
-            const info = await infoRes.json();
-            const priceData = await priceRes.json();
-            const price = priceData?.data?.[mint]?.usdPrice || priceData?.data?.[mint]?.price;
-            const priceChange = priceData?.data?.[mint]?.priceChange24h;
+            const proxyRes = await fetch('https://chatfi.pro/api/jupiter', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({url:`https://lite-api.jup.ag/tokens/v2/search?query=${mint}&limit=1`,method:'GET'})
+            });
+            const proxyData = await proxyRes.json();
+            const info = Array.isArray(proxyData) ? proxyData[0] : proxyData;
+            if (!info) throw new Error('Token not found');
             setMsgs(p => p.filter(m => m.text !== `🔍 Fetching ${sym}...`));
             setMsgs(p => [...p, { id: Date.now(), from: 'bot', text: '', card: { type: 'token_info', data: {
               symbol: info.symbol || sym,
               name: info.name || sym,
-              logo: info.logoURI || resolved.logoURI || '',
-              price: price ? parseFloat(price) : null,
-              priceChange24h: priceChange || null,
+              logo: info.icon || resolved.logoURI || '',
+              price: info.usdPrice || null,
+              priceChange24h: info.stats1h?.priceChange || null,
               mcap: info.mcap || null,
               fdv: info.fdv || null,
               liquidity: info.liquidity || null,
-              isVerified: info.isVerified || false,
+              isVerified: !!info.twitter || !!info.website,
               mint,
             }}}]);
           } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Could not fetch token info: ${e.message}`, from: 'bot' }]); }
