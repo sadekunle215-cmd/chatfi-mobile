@@ -1186,7 +1186,20 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
   const [tokenSearching, setTokenSearching] = React.useState(false);
 
   const searchTokens = async (q: string) => {
-    if (!q || q.length < 1) { setTokenResults([]); return; }
+    if (!q || q.length < 1) {
+      // Show popular tokens when search is empty
+      setTokenResults([
+        {symbol:'SOL',name:'Solana',address:'So11111111111111111111111111111111111111112',logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png',decimals:9},
+        {symbol:'USDC',name:'USD Coin',address:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',decimals:6},
+        {symbol:'USDT',name:'Tether',address:'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',decimals:6},
+        {symbol:'JUP',name:'Jupiter',address:'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',logoURI:'https://static.jup.ag/jup/icon.png',decimals:6},
+        {symbol:'BONK',name:'Bonk',address:'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',logoURI:'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I',decimals:5},
+        {symbol:'WIF',name:'dogwifhat',address:'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',logoURI:'https://bafkreibk3covs5ltyqxa272uodhculbgn2b37k4wgg6sdxydwwphxkznm.ipfs.nftstorage.link',decimals:6},
+        {symbol:'JitoSOL',name:'Jito Staked SOL',address:'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',logoURI:'https://storage.googleapis.com/token-metadata/JitoSOL-256.png',decimals:9},
+        {symbol:'PYTH',name:'Pyth Network',address:'HZ1JovNiVvGrGs6Lqg6JmBzWBMFURQDMEbbTAe7hfGqN',logoURI:'https://pyth.network/token.svg',decimals:6},
+      ]);
+      return;
+    }
     setTokenSearching(true);
     try {
       const r = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(q)}&limit=20`);
@@ -1354,7 +1367,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
             <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>YOU PAY</Text>
             <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
               <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                <TouchableOpacity onPress={()=>{setShowTokenPicker('from');setTokenSearch('');setTokenResults([]);}} style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                <TouchableOpacity onPress={()=>{setShowTokenPicker('from');setTokenSearch('');searchToken('');}} style={{flexDirection:'row',alignItems:'center',gap:8}}>
                   {fromToken2.logoURI ? <Image source={{uri:fromToken2.logoURI}} style={{width:36,height:36,borderRadius:18}}/> :
                   <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
                     <Text style={{color:C.green,fontSize:10,fontWeight:'700'}}>{fromToken2.symbol?.slice(0,3)}</Text>
@@ -1392,7 +1405,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
             <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>YOU RECEIVE</Text>
             <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
               <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                <TouchableOpacity onPress={()=>{setShowTokenPicker('to');setTokenSearch('');setTokenResults([]);}} style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                <TouchableOpacity onPress={()=>{setShowTokenPicker('to');setTokenSearch('');searchToken('');}} style={{flexDirection:'row',alignItems:'center',gap:8}}>
                   {toToken2.logoURI ? <Image source={{uri:toToken2.logoURI}} style={{width:36,height:36,borderRadius:18}}/> :
                   <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
                     <Text style={{color:C.blue,fontSize:10,fontWeight:'700'}}>{toToken2.symbol?.slice(0,3)}</Text>
@@ -1419,7 +1432,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
           <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:4,borderWidth:1,borderColor:C.border}}>
             <Text style={{color:C.muted,fontSize:12,fontWeight:'600',marginBottom:10}}>Sell</Text>
             <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-              <TouchableOpacity onPress={()=>{setShowTokenPicker('from');setTokenSearch('');setTokenResults([]);}}
+              <TouchableOpacity onPress={()=>{setShowTokenPicker('from');setTokenSearch('');searchToken('');}}
                 style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:C.card2,paddingHorizontal:12,paddingVertical:8,borderRadius:20,borderWidth:1,borderColor:C.border}}>
                 {fromToken2.logoURI ? <Image source={{uri:fromToken2.logoURI}} style={{width:24,height:24,borderRadius:12}}/> :
                 <View style={{width:24,height:24,borderRadius:12,backgroundColor:C.border,alignItems:'center',justifyContent:'center'}}>
@@ -1446,7 +1459,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
           <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:4,borderWidth:1,borderColor:C.border}}>
             <Text style={{color:C.muted,fontSize:12,fontWeight:'600',marginBottom:10}}>Buy</Text>
             <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-              <TouchableOpacity onPress={()=>{setShowTokenPicker('to');setTokenSearch('');setTokenResults([]);}}
+              <TouchableOpacity onPress={()=>{setShowTokenPicker('to');setTokenSearch('');searchToken('');}}
                 style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:C.card2,paddingHorizontal:12,paddingVertical:8,borderRadius:20,borderWidth:1,borderColor:C.border}}>
                 {toToken2.logoURI ? <Image source={{uri:toToken2.logoURI}} style={{width:24,height:24,borderRadius:12}}/> :
                 <View style={{width:24,height:24,borderRadius:12,backgroundColor:C.border,alignItems:'center',justifyContent:'center'}}>
