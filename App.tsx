@@ -1731,15 +1731,14 @@ export default function App() {
               break;
             }
             const mint = resolved.mint;
-            // Step 2: get full token info from Token V2
-            const [tokenRes, priceRes] = await Promise.all([
-              fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(mint)}`),
-              fetch(`https://lite-api.jup.ag/price/v2?ids=${mint}`)
+            // Step 2: get full token info from v1 detail API + price v3
+            const [detailRes, priceRes] = await Promise.all([
+              fetch(`https://api.jup.ag/tokens/v1/token/${mint}`),
+              fetch(`https://api.jup.ag/price/v3?ids=${mint}`)
             ]);
-            const tokenList = await tokenRes.json();
+            const tokenInfo = await detailRes.json();
             const priceData = await priceRes.json();
-            const tokenInfo = Array.isArray(tokenList) ? tokenList[0] : null;
-            const price = priceData.data?.[mint]?.price;
+            const price = priceData.data?.[mint]?.usdPrice ?? priceData.data?.[mint]?.price ?? tokenInfo?.usdPrice ?? null;
             const cardId = Date.now() + 1;
             setMsgs(p => [...p, {
               id: cardId, from: 'bot', text: '',
@@ -1748,13 +1747,13 @@ export default function App() {
                 data: {
                   symbol: tokenInfo?.symbol || sym,
                   name: tokenInfo?.name || sym,
-                  logo: tokenInfo?.icon || resolved.logoURI || '',
+                  logo: tokenInfo?.icon || tokenInfo?.logoURI || resolved.logoURI || '',
                   price: price ? parseFloat(price) : null,
-                  mcap: tokenInfo?.mcap || null,
+                  mcap: tokenInfo?.mcap || tokenInfo?.market_cap || null,
                   fdv: tokenInfo?.fdv || null,
                   liquidity: tokenInfo?.liquidity || null,
-                  volume24h: tokenInfo?.stats24h?.volumeChange || null,
-                  priceChange24h: tokenInfo?.stats24h?.priceChange || null,
+                  volume24h: tokenInfo?.stats24h ? (tokenInfo.stats24h.buyVolume||0)+(tokenInfo.stats24h.sellVolume||0) : null,
+                  priceChange24h: tokenInfo?.stats24h?.priceChange ?? null,
                   isVerified: tokenInfo?.isVerified || false,
                   mint,
                 }
