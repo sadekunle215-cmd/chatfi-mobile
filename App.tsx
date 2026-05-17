@@ -851,6 +851,8 @@ const SOLANA_WALLET_INJECTION = `
 })();
 `
 function DappBrowser({ walletAddress, secretKey, wallet }) {
+  const [tabs, setTabs] = React.useState([{ id: 1, url: 'https://chatfi.pro', title: 'ChatFi' }]);
+  const [activeTabId, setActiveTabId] = React.useState(1);
   const [url, setUrl] = React.useState('https://chatfi.pro');
   const [activeUrl, setActiveUrl] = React.useState('https://chatfi.pro');
   const [loading, setLoading] = React.useState(false);
@@ -860,6 +862,46 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
   const [showBookmarks, setShowBookmarks] = React.useState(false);
   const [pageTitle, setPageTitle] = React.useState('');
   const webRef = React.useRef(null);
+  const tabCounter = React.useRef(2);
+
+  const addTab = () => {
+    const id = tabCounter.current++;
+    const newTab = { id, url: 'https://chatfi.pro', title: 'New Tab' };
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(id);
+    setActiveUrl('https://chatfi.pro');
+    setUrl('https://chatfi.pro');
+    setPageTitle('New Tab');
+  };
+
+  const closeTab = (id) => {
+    setTabs(prev => {
+      const remaining = prev.filter(t => t.id !== id);
+      if (remaining.length === 0) {
+        const newId = tabCounter.current++;
+        const newTab = { id: newId, url: 'https://chatfi.pro', title: 'ChatFi' };
+        setActiveTabId(newId);
+        setActiveUrl('https://chatfi.pro');
+        setUrl('https://chatfi.pro');
+        return [newTab];
+      }
+      if (id === activeTabId) {
+        const last = remaining[remaining.length - 1];
+        setActiveTabId(last.id);
+        setActiveUrl(last.url);
+        setUrl(last.url);
+        setPageTitle(last.title);
+      }
+      return remaining;
+    });
+  };
+
+  const switchTab = (tab) => {
+    setActiveTabId(tab.id);
+    setActiveUrl(tab.url);
+    setUrl(tab.url);
+    setPageTitle(tab.title);
+  };
 
   const navigate = (u) => {
     let target = u.trim();
@@ -867,6 +909,7 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
     setActiveUrl(target);
     setUrl(target);
     setShowBookmarks(false);
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, url: target } : t));
   };
 
   const addBookmark = () => {
@@ -941,7 +984,7 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
             {[
               { icon: isBookmarked ? 'star' : 'star-outline', label: isBookmarked ? 'Bookmarked' : 'Add Bookmark', color: isBookmarked ? C.green : C.text, action: () => { addBookmark(); setShowMenu(false); } },
               { icon: 'list-outline', label: 'Bookmarks', color: C.text, action: () => { setShowBookmarks(s => !s); setShowMenu(false); } },
-              { icon: 'home-outline', label: 'Home', color: C.text, action: () => { setActiveUrl('https://chatfi.pro'); setUrl('https://chatfi.pro'); setShowMenu(false); } },
+              { icon: 'home-outline', label: 'Home', color: C.text, action: () => { setActiveUrl(''); setTimeout(()=>{setActiveUrl('https://chatfi.pro');setUrl('https://chatfi.pro');},50); setShowMenu(false); } },
             ].map((item, i) => (
               <TouchableOpacity key={i} onPress={item.action}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 14, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: C.border }}>
@@ -4119,9 +4162,9 @@ https://solscan.io/tx/${sig}` }]);
       )}
 
             {/* DAPP BROWSER */}
-        {tab === 'dapp' && (
+        <View style={{flex:1, display: tab === 'dapp' ? 'flex' : 'none'}}>
           <DappBrowser walletAddress={pubkey} secretKey={wallet ? deriveWallet(wallet).secretKey : null} wallet={wallet} />
-        )}
+        </View>
         {/* SETTINGS */}
       {tab === 'settings' && (
         <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}}>
