@@ -43,7 +43,7 @@ const JUP_QUOTE  = 'https://lite-api.jup.ag/swap/v1/quote';
 const JUP_ORDER  = 'https://lite-api.jup.ag/ultra/v1/order';
 const JUP_EXEC   = 'https://lite-api.jup.ag/ultra/v1/execute';
 const JUP_PRICE  = 'https://lite-api.jup.ag/price/v3';
-const JUP_TRIGGER = 'https://trigger.jup.ag/v1';
+const JUP_TRIGGER = 'https://api.jup.ag/trigger/v1';
 const JUP_RECURRING = 'https://dca.jup.ag/v2';
 
 // ── Action types returned by AI ──────────────────────────────────────────────
@@ -167,11 +167,22 @@ export const executeSwap = async (
 export const signAndSendTx = async (
   base64Tx: string, secretKey: Uint8Array
 ): Promise<string> => {
-  const { VersionedTransaction, Keypair } = require('@solana/web3.js');
+  const { VersionedTransaction, Transaction, Keypair } = require('@solana/web3.js');
   const keypair = Keypair.fromSecretKey(secretKey);
-  const transaction = VersionedTransaction.deserialize(Buffer.from(base64Tx, 'base64'));
-  transaction.sign([keypair]);
-  const signed = Buffer.from(transaction.serialize()).toString('base64');
+  const txBytes = Buffer.from(base64Tx, 'base64');
+  let signed: string;
+  // Detect versioned (first byte has high bit set) vs legacy transaction
+  const isVersioned = (txBytes[0] & 0x80) !== 0;
+  if (isVersioned) {
+    const tx = VersionedTransaction.deserialize(txBytes);
+    tx.sign([keypair]);
+    signed = Buffer.from(tx.serialize()).toString('base64');
+  } else {
+    // Legacy transaction — use Transaction.from() + sign()
+    const tx = Transaction.from(txBytes);
+    tx.partialSign(keypair);
+    signed = tx.serialize({ requireAllSignatures: false }).toString('base64');
+  }
   const res  = await fetch(RPC, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

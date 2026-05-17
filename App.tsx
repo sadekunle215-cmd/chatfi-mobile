@@ -1629,7 +1629,7 @@ export default function App() {
       const vaults = (data.tokens||[]).map((t:any)=>{
         const sym=t.asset?.symbol||t.uiSymbol||t.symbol||'?';
         const logo=t.asset?.logoUrl||t.asset?.logoURI||'';
-        const mint=t.asset?.address||t.mint||'';
+        const mint=t.asset?.address||t.assetAddress||t.mint||'';
         const dec=t.asset?.decimals??t.decimals??6;
         const pr=(v:any)=>{const n=parseFloat(v||0);return(!n||n<=0)?0:n>100?n/100:n;};
         const total=pr(t.totalRate),supply=pr(t.supplyRate),rewards=pr(t.rewardsRate);
