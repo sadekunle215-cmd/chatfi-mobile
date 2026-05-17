@@ -4,7 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Line as SvgLine, Rect as SvgRect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking } from 'react-native';
+import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking, FlatList } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction, rpcFetch } from './wallet';
@@ -1093,6 +1093,30 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
   const [swapAmt, setSwapAmt] = React.useState('');
   const [swapLoading, setSwapLoading] = React.useState(false);
   const [quoteOut, setQuoteOut] = React.useState<string|null>(null);
+  const [showTokenPicker, setShowTokenPicker] = React.useState<'from'|'to'|null>(null);
+  const [tokenSearch, setTokenSearch] = React.useState('');
+  const [tokenResults, setTokenResults] = React.useState<any[]>([]);
+  const [tokenSearching, setTokenSearching] = React.useState(false);
+
+  const searchTokens = async (q: string) => {
+    if (!q || q.length < 1) { setTokenResults([]); return; }
+    setTokenSearching(true);
+    try {
+      const r = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(q)}&limit=20`);
+      const d = await r.json();
+      setTokenResults(Array.isArray(d) ? d : []);
+    } catch(e) { setTokenResults([]); }
+    setTokenSearching(false);
+  };
+
+  const selectToken = (token: any) => {
+    const t = { symbol: token.symbol, mint: token.id, decimals: token.decimals||6, logoURI: token.icon, isVerified: token.isVerified, usdPrice: token.usdPrice };
+    if (showTokenPicker === 'from') setFromToken2(t);
+    else setToToken2(t);
+    setShowTokenPicker(null);
+    setTokenSearch('');
+    setTokenResults([]);
+  };
   const [triggerAmt, setTriggerAmt] = React.useState('');
   const [triggerPrice, setTriggerPrice] = React.useState('');
   const [triggerLoading, setTriggerLoading] = React.useState(false);
@@ -1186,6 +1210,47 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
 
   return (
     <ScrollView style={{flex:1}} contentContainerStyle={{padding:16,paddingBottom:100}}>
+      {/* Token Picker Modal */}
+      <Modal visible={!!showTokenPicker} animationType="slide" transparent onRequestClose={()=>setShowTokenPicker(null)}>
+        <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'}}>
+          <View style={{backgroundColor:'#161b22',borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:'80%',padding:16}}>
+            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+              <Text style={{color:C.text,fontSize:18,fontWeight:'700'}}>Select Token</Text>
+              <TouchableOpacity onPress={()=>setShowTokenPicker(null)}><Text style={{color:C.muted,fontSize:22}}>✕</Text></TouchableOpacity>
+            </View>
+            <TextInput
+              value={tokenSearch}
+              onChangeText={(t)=>{setTokenSearch(t);searchTokens(t);}}
+              placeholder="Search by name or paste address..."
+              placeholderTextColor={C.muted}
+              autoFocus
+              style={{backgroundColor:C.card2,borderRadius:12,padding:12,color:C.text,marginBottom:12,borderWidth:1,borderColor:C.border}}
+            />
+            {tokenSearching && <ActivityIndicator color={C.green} style={{marginTop:8}}/>}
+            <FlatList
+              data={tokenResults}
+              keyExtractor={(item)=>item.id}
+              renderItem={({item})=>(
+                <TouchableOpacity onPress={()=>selectToken(item)} style={{flexDirection:'row',alignItems:'center',padding:12,borderBottomWidth:1,borderBottomColor:C.border,gap:12}}>
+                  {item.icon ? <Image source={{uri:item.icon}} style={{width:40,height:40,borderRadius:20}}/> :
+                  <View style={{width:40,height:40,borderRadius:20,backgroundColor:C.card2,alignItems:'center',justifyContent:'center'}}>
+                    <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{item.symbol?.slice(0,3)}</Text>
+                  </View>}
+                  <View style={{flex:1}}>
+                    <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                      <Text style={{color:C.text,fontWeight:'700',fontSize:15}}>{item.symbol}</Text>
+                      {item.isVerified && <Text style={{color:C.green,fontSize:11}}>✓</Text>}
+                      {item.tags?.includes('strict') && <View style={{backgroundColor:'rgba(199,242,132,0.15)',paddingHorizontal:4,borderRadius:4}}><Text style={{color:C.green,fontSize:9}}>STRICT</Text></View>}
+                    </View>
+                    <Text style={{color:C.muted,fontSize:12}}>{item.name}</Text>
+                  </View>
+                  <Text style={{color:C.muted,fontSize:12}}>{item.usdPrice ? '$'+parseFloat(item.usdPrice).toFixed(4) : ''}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
       {/* Sub tabs */}
       <View style={{flexDirection:'row',backgroundColor:C.card2,borderRadius:12,padding:4,marginBottom:16,borderWidth:1,borderColor:C.border}}>
         {(['swap','trigger','perps'] as const).map(t=>(
@@ -1202,10 +1267,15 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
             <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>YOU PAY</Text>
             <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
               <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
-                  <Text style={{color:C.green,fontSize:10,fontWeight:'700'}}>{fromToken2.symbol?.slice(0,3)}</Text>
-                </View>
-                <Text style={{color:C.text,fontSize:16,fontWeight:'700'}}>{fromToken2.symbol} ▾</Text>
+                <TouchableOpacity onPress={()=>{setShowTokenPicker('from');setTokenSearch('');setTokenResults([]);}} style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                  {fromToken2.logoURI ? <Image source={{uri:fromToken2.logoURI}} style={{width:36,height:36,borderRadius:18}}/> :
+                  <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
+                    <Text style={{color:C.green,fontSize:10,fontWeight:'700'}}>{fromToken2.symbol?.slice(0,3)}</Text>
+                  </View>}
+                  <Text style={{color:C.text,fontSize:16,fontWeight:'700'}}>{fromToken2.symbol}</Text>
+                  {fromToken2.isVerified && <Text style={{color:C.green,fontSize:10}}>✓</Text>}
+                  <Text style={{color:C.muted}}>▾</Text>
+                </TouchableOpacity>
               </View>
               <TextInput value={swapAmt} onChangeText={setSwapAmt} placeholder="0.00" placeholderTextColor={C.muted}
                 keyboardType="numeric" style={{color:C.text,fontSize:24,fontWeight:'700',textAlign:'right',minWidth:100}} />
@@ -1235,10 +1305,15 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
             <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>YOU RECEIVE</Text>
             <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
               <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
-                  <Text style={{color:C.blue,fontSize:10,fontWeight:'700'}}>{toToken2.symbol?.slice(0,3)}</Text>
-                </View>
-                <Text style={{color:C.text,fontSize:16,fontWeight:'700'}}>{toToken2.symbol} ▾</Text>
+                <TouchableOpacity onPress={()=>{setShowTokenPicker('to');setTokenSearch('');setTokenResults([]);}} style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                  {toToken2.logoURI ? <Image source={{uri:toToken2.logoURI}} style={{width:36,height:36,borderRadius:18}}/> :
+                  <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
+                    <Text style={{color:C.blue,fontSize:10,fontWeight:'700'}}>{toToken2.symbol?.slice(0,3)}</Text>
+                  </View>}
+                  <Text style={{color:C.text,fontSize:16,fontWeight:'700'}}>{toToken2.symbol}</Text>
+                  {toToken2.isVerified && <Text style={{color:C.green,fontSize:10}}>✓</Text>}
+                  <Text style={{color:C.muted}}>▾</Text>
+                </TouchableOpacity>
               </View>
               <Text style={{color:C.text,fontSize:24,fontWeight:'700'}}>{quoteOut||'—'}</Text>
             </View>
