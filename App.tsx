@@ -1291,6 +1291,92 @@ export default function App() {
     );
   };
 
+  const MigrateEarnCard = ({card,pubkey,wallet,deriveWallet,requireAuth,rpcFetch,showToast,fetchPortfolio,setMsgs,C,s}:any) => {
+    const {migrations=[],allVaults=[]}=card.data||{};
+    const [idx,setIdx]=React.useState(0);
+    const [loading,setLoading]=React.useState(false);
+    const [done,setDone]=React.useState(false);
+    const m=migrations[idx];
+    if(!m)return null;
+    const pr=(v:any)=>{const n=parseFloat(v||0);return(!n||n<=0)?0:n>100?n/100:n;};
+    const execute=async()=>{
+      const authed=await requireAuth(); if(!authed)return;
+      setLoading(true);
+      try{
+        const {secretKey:sk,publicKey:pk}=deriveWallet(wallet);
+        const {VersionedTransaction,Keypair}=require("@solana/web3.js");
+        // Step 1: Withdraw from current vault
+        showToast("⬆ Withdrawing "+m.humanAmt+" "+m.pos.sym+"...","info");
+        const wRes=await fetch("https://lite-api.jup.ag/lend/v1/earn/withdraw",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({asset:m.pos.mint,signer:pk,amount:m.pos.underlyingBalance})});
+        const wData=await wRes.json();
+        if(wData.error)throw new Error(typeof wData.error==="string"?wData.error:JSON.stringify(wData.error));
+        const wTx=VersionedTransaction.deserialize(Buffer.from(wData.transaction||wData.tx,"base64"));
+        wTx.sign([Keypair.fromSecretKey(sk)]);
+        const wSigned=Buffer.from(wTx.serialize()).toString("base64");
+        const wSend=await rpcFetch("sendTransaction",[wSigned,{encoding:"base64",skipPreflight:false,preflightCommitment:"confirmed"}]);
+        if(wSend.error)throw new Error(wSend.error.message);
+        showToast("✅ Withdrawn! Depositing to "+m.best.sym+"...","info");
+        await new Promise(r=>setTimeout(r,3000));
+        // Step 2: Deposit to best vault (same asset amount)
+        const dRes=await fetch("https://lite-api.jup.ag/lend/v1/earn/deposit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({asset:m.best.mint,signer:pk,amount:m.pos.underlyingBalance})});
+        const dData=await dRes.json();
+        if(dData.error)throw new Error(typeof dData.error==="string"?dData.error:JSON.stringify(dData.error));
+        const dTx=VersionedTransaction.deserialize(Buffer.from(dData.transaction||dData.tx,"base64"));
+        dTx.sign([Keypair.fromSecretKey(sk)]);
+        const dSigned=Buffer.from(dTx.serialize()).toString("base64");
+        const dSend=await rpcFetch("sendTransaction",[dSigned,{encoding:"base64",skipPreflight:false,preflightCommitment:"confirmed"}]);
+        if(dSend.error)throw new Error(dSend.error.message);
+        setDone(true);
+        showToast("✅ Migrated to "+m.best.sym+" ("+m.best.apyStr+"% APY)","success");
+        fetchPortfolio();
+      }catch(e:any){showToast("Migration failed: "+e.message,"error");}
+      finally{setLoading(false);}
+    };
+    return(
+      <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+        <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+        <Text style={{color:C.text,fontWeight:"700",fontSize:16,marginBottom:4}}>⚡ Yield Migration</Text>
+        <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>{migrations.length} position{migrations.length>1?"s":""} can earn more</Text>
+        {migrations.length>1&&(
+          <View style={{flexDirection:"row",marginBottom:12,gap:6}}>
+            {migrations.map((_:any,i:number)=>(
+              <TouchableOpacity key={i} onPress={()=>setIdx(i)} style={{paddingHorizontal:10,paddingVertical:4,borderRadius:12,backgroundColor:idx===i?C.green:C.bg,borderWidth:1,borderColor:idx===i?C.green:C.border}}>
+                <Text style={{color:idx===i?"#0d1117":C.text,fontSize:12}}>{migrations[i].pos.sym}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        <View style={{flexDirection:"row",alignItems:"center",backgroundColor:C.bg,borderRadius:10,padding:12,marginBottom:12}}>
+          <View style={{flex:1,alignItems:"center"}}>
+            <Text style={{color:C.muted,fontSize:11}}>CURRENT</Text>
+            <Text style={{color:C.text,fontWeight:"700",fontSize:16}}>{m.pos.sym}</Text>
+            <Text style={{color:"#ef4444",fontWeight:"600"}}>{m.pos.apyStr}% APY</Text>
+            <Text style={{color:C.muted,fontSize:11}}>{m.humanAmt} tokens</Text>
+          </View>
+          <Text style={{color:C.green,fontSize:24,marginHorizontal:8}}>→</Text>
+          <View style={{flex:1,alignItems:"center"}}>
+            <Text style={{color:C.muted,fontSize:11}}>BEST</Text>
+            <Text style={{color:C.text,fontWeight:"700",fontSize:16}}>{m.best.sym}</Text>
+            <Text style={{color:C.green,fontWeight:"700"}}>{m.best.apyStr}% APY</Text>
+            <Text style={{color:C.green,fontSize:11}}>+{m.gain}% gain</Text>
+          </View>
+        </View>
+        {done?(
+          <Text style={{color:C.green,fontWeight:"700",textAlign:"center"}}>✅ Migration complete!</Text>
+        ):loading?(
+          <View style={{alignItems:"center",paddingVertical:8}}>
+            <ActivityIndicator color={C.green}/>
+            <Text style={{color:C.muted,fontSize:12,marginTop:6}}>Executing 2 transactions...</Text>
+          </View>
+        ):(
+          <TouchableOpacity style={{backgroundColor:C.green,borderRadius:10,padding:12,alignItems:"center"}} onPress={execute}>
+            <Text style={{color:"#0d1117",fontWeight:"700"}}>Migrate {m.pos.sym} → {m.best.sym}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
   const renderCard = (card: any) => {
     const { type, data, onConfirm, onCancel, status } = card;
 
@@ -1613,6 +1699,10 @@ export default function App() {
           )}
         </View>
       );
+    }
+
+    if (type === 'migrate_earn') {
+      return <MigrateEarnCard card={card} pubkey={pubkey} wallet={wallet} deriveWallet={deriveWallet} requireAuth={requireAuth} rpcFetch={rpcFetch} showToast={showToast} fetchPortfolio={fetchPortfolio} setMsgs={setMsgs} C={C} s={s} />;
     }
 
     if (type === 'studio_launch') { return <StudioLaunchCard card={card} wallet={wallet} deriveWallet={deriveWallet} setMsgs={setMsgs} C={C} s={s} />; }
