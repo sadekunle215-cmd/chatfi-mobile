@@ -25,6 +25,32 @@
       "package": "com.chatfi.app",
       "permissions": [
         "CAMERA"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "chatfi"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "solana-wallet"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "web": {
@@ -39,7 +65,8 @@
     "eas": {
       "projectId": "1931cf8d-b1d1-4300-99b2-734050046e8a"
     },
-    "runtimeVersion": "1.0.0"
+    "runtimeVersion": "1.0.0",
+    "scheme": "chatfi"
   },
   "owner": "john6643"
 }

@@ -4,6 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Line as SvgLine, Rect as SvgRect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import * as ExpoLinking from 'expo-linking';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -850,7 +851,7 @@ const SOLANA_WALLET_INJECTION = `
   if (addr) setTimeout(() => wallet._emit('connect', publicKey), 100);
 })();
 `
-function DappBrowser({ walletAddress, secretKey, wallet }) {
+function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandled }) {
   const [tabs, setTabs] = React.useState([{ id: 1, url: 'https://chatfi.pro', title: 'ChatFi' }]);
   const [activeTabId, setActiveTabId] = React.useState(1);
   const [url, setUrl] = React.useState('https://chatfi.pro');
@@ -911,6 +912,10 @@ function DappBrowser({ walletAddress, secretKey, wallet }) {
     setShowBookmarks(false);
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, url: target } : t));
   };
+
+  React.useEffect(() => {
+    if (mwaInitUrl) { navigate(mwaInitUrl); onMwaHandled?.(); }
+  }, [mwaInitUrl]);
 
   const addBookmark = () => {
     if (!activeUrl) return;
@@ -1673,6 +1678,23 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
 }
 
 export default function App() {
+  const [mwaInitUrl, setMwaInitUrl] = React.useState<string|null>(null);
+  React.useEffect(() => {
+    const handle = ({ url }: { url: string }) => {
+      if (!url) return;
+      if (url.startsWith('solana-wallet://') || url.startsWith('chatfi://')) {
+        setTab('dapp');
+        try {
+          const parsed = new URL(url);
+          const dapp = parsed.searchParams.get('dapp_uri') || parsed.searchParams.get('ref');
+          if (dapp) setMwaInitUrl(dapp);
+        } catch(_) {}
+      }
+    };
+    ExpoLinking.getInitialURL().then(url => { if (url) handle({ url }); });
+    const sub = ExpoLinking.addEventListener('url', handle);
+    return () => sub.remove();
+  }, []);
   const [tab, setTab] = useState('portfolio');
   const [splashDone, setSplashDone] = useState(false);
   const [onboardStep, setOnboardStep] = useState<'passcode'|'fingerprint'|'wordcount'|'seedphrase'|'username'|null>(null);
@@ -4221,7 +4243,7 @@ https://solscan.io/tx/${sig}` }]);
 
             {/* DAPP BROWSER */}
         <View style={{flex:1, display: tab === 'dapp' ? 'flex' : 'none'}}>
-          <DappBrowser walletAddress={pubkey} secretKey={wallet ? deriveWallet(wallet).secretKey : null} wallet={wallet} />
+          <DappBrowser walletAddress={pubkey} secretKey={wallet ? deriveWallet(wallet).secretKey : null} wallet={wallet} mwaInitUrl={mwaInitUrl} onMwaHandled={() => setMwaInitUrl(null)} />
         </View>
         {/* SETTINGS */}
       {tab === 'settings' && (
