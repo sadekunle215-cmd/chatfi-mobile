@@ -2008,7 +2008,7 @@ export default function App() {
                 const amtRaw=Math.floor(parseFloat(sendAmt)*Math.pow(10,dec2)).toString();
                 const bs58=require('bs58');
                 const nacl2=require('tweetnacl');
-                const inviteCode=bs58.encode(nacl2.randomBytes(13)).substring(0,12);
+                let inviteCode=''; while(inviteCode.length<12){inviteCode=bs58.encode(nacl2.randomBytes(13)).substring(0,12);}
                 const sr=await fetch('https://chatfi.pro/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sender:pk2,amount:amtRaw,mint:mint2,inviteCode})});
                 const sd=await sr.json();
                 if(sd.error)throw new Error(sd.error);
@@ -2019,7 +2019,7 @@ export default function App() {
                 const senderSig=nacl2.sign.detached(msgB,sk2);
                 const senderIdx=tx.message.staticAccountKeys.findIndex((k:any)=>k.toString()===pk2);
                 if(senderIdx>=0)tx.signatures[senderIdx]=senderSig;
-                const rpcRes=await fetch('https://api.mainnet-beta.solana.com',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'sendTransaction',params:[Buffer.from(tx.serialize()).toString('base64'),{encoding:'base64',skipPreflight:true,maxRetries:0}]})}); 
+                const rpcRes=await rpcFetch('sendTransaction',[Buffer.from(tx.serialize()).toString('base64'),{encoding:'base64',skipPreflight:true}]); 
                 const rpcData=await rpcRes.json();
                 if(rpcData.error)throw new Error(rpcData.error.message);
                 const inviteLink='https://jup.ag/send?code='+inviteCode;
