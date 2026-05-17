@@ -73,7 +73,7 @@ async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amou
 
 const TABS = [
   { id: 'chat', label: 'Chat', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
-  { id: 'swap', label: 'Swap', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
+  { id: 'swap', label: 'Trade', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
   { id: 'portfolio', label: 'Portfolio', icon: 'time-outline', iconActive: 'time' },
   { id: 'dapp', label: 'Explore', icon: 'compass-outline', iconActive: 'compass-sharp' },
   { id: 'settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
@@ -1086,6 +1086,248 @@ const StudioLaunchCard = ({ card, wallet, deriveWallet, setMsgs, C, s }: any) =>
     </View>
   );
 };
+
+
+function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromToken2,toToken2,setToToken2,showToast,C,s,nacl,deriveWallet,executeSwapTx,fetchPortfolio}:any) {
+  const [swapSubTab, setSwapSubTab] = React.useState<'swap'|'trigger'|'perps'>('swap');
+  const [swapAmt, setSwapAmt] = React.useState('');
+  const [swapLoading, setSwapLoading] = React.useState(false);
+  const [quoteOut, setQuoteOut] = React.useState<string|null>(null);
+  const [triggerAmt, setTriggerAmt] = React.useState('');
+  const [triggerPrice, setTriggerPrice] = React.useState('');
+  const [triggerLoading, setTriggerLoading] = React.useState(false);
+  const [perpSide, setPerpSide] = React.useState<'long'|'short'>('long');
+  const [perpAmt, setPerpAmt] = React.useState('');
+  const [perpLeverage, setPerpLeverage] = React.useState('5');
+  const [perpLoading, setPerpLoading] = React.useState(false);
+  const [perpPositions, setPerpPositions] = React.useState<any[]>([]);
+
+  const RPC_URL = 'https://api.mainnet-beta.solana.com';
+
+  React.useEffect(() => {
+    if (swapAmt && parseFloat(swapAmt) > 0) fetchQuote();
+  }, [swapAmt, fromToken2, toToken2]);
+
+  React.useEffect(() => {
+    if (swapSubTab === 'perps' && pubkey) fetchPerpPositions();
+  }, [swapSubTab]);
+
+  const fetchQuote = async () => {
+    try {
+      const inMint = fromToken2.mint;
+      const outMint = toToken2.mint;
+      const inDec = fromToken2.decimals || 9;
+      const amtRaw = Math.round(parseFloat(swapAmt) * Math.pow(10, inDec));
+      const r = await fetch(`https://lite-api.jup.ag/ultra/v1/quote?inputMint=${inMint}&outputMint=${outMint}&amount=${amtRaw}&taker=${pubkey||''}`);
+      const d = await r.json();
+      const outAmt = d.outAmount ? (parseInt(d.outAmount) / Math.pow(10, toToken2.decimals||6)).toFixed(4) : null;
+      setQuoteOut(outAmt);
+    } catch(e) { setQuoteOut(null); }
+  };
+
+  const doSwap = async () => {
+    if (!wallet || !swapAmt) { showToast('Enter amount','error'); return; }
+    setSwapLoading(true);
+    try {
+      const {publicKey:pk, secretKey} = deriveWallet(wallet);
+      const txSig = await executeSwapTx(fromToken2.mint, toToken2.mint, parseFloat(swapAmt), fromToken2.decimals||9, pk, secretKey, RPC_URL);
+      showToast('Swap done! Tx: '+txSig.slice(0,12)+'...','success');
+      fetchPortfolio();
+      setSwapAmt(''); setQuoteOut(null);
+    } catch(e:any) { showToast('Swap failed: '+e.message,'error'); }
+    setSwapLoading(false);
+  };
+
+  const doTrigger = async () => {
+    if (!wallet||!triggerAmt||!triggerPrice) { showToast('Fill all fields','error'); return; }
+    setTriggerLoading(true);
+    try {
+      const {publicKey:pk, secretKey} = deriveWallet(wallet);
+      const inDec = fromToken2.decimals||9;
+      const amtRaw = Math.round(parseFloat(triggerAmt)*Math.pow(10,inDec));
+      const r = await fetch('https://lite-api.jup.ag/trigger/v1/createOrder',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({inputMint:fromToken2.mint,outputMint:toToken2.mint,maker:pk,
+          params:{makingAmount:String(amtRaw),takingAmount:String(Math.round(parseFloat(triggerPrice)*Math.pow(10,toToken2.decimals||6))),
+          expiredAt:null,feeBps:'10'},computeUnitPrice:'auto'})
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      showToast('Trigger order placed!','success');
+      setTriggerAmt(''); setTriggerPrice('');
+    } catch(e:any) { showToast('Trigger failed: '+e.message,'error'); }
+    setTriggerLoading(false);
+  };
+
+  const fetchPerpPositions = async () => {
+    if (!pubkey) return;
+    try {
+      const r = await fetch(`https://perps-api.jup.ag/v1/positions?walletAddress=${pubkey}`);
+      const d = await r.json();
+      setPerpPositions(Array.isArray(d?.dataList) ? d.dataList : []);
+    } catch(e) {}
+  };
+
+  const doPerp = async () => {
+    if (!wallet||!perpAmt) { showToast('Enter amount','error'); return; }
+    showToast('Perps trading coming soon — use Jupiter app for now','error');
+  };
+
+  const swapTabStyle = (t:string) => ({
+    flex:1, paddingVertical:8, alignItems:'center' as const, borderRadius:10,
+    backgroundColor: swapSubTab===t ? C.green : 'transparent',
+  });
+  const swapTabTxtStyle = (t:string) => ({
+    fontSize:13, fontWeight:'600' as const,
+    color: swapSubTab===t ? '#0d1117' : C.muted,
+  });
+
+  return (
+    <ScrollView style={{flex:1}} contentContainerStyle={{padding:16,paddingBottom:100}}>
+      {/* Sub tabs */}
+      <View style={{flexDirection:'row',backgroundColor:C.card2,borderRadius:12,padding:4,marginBottom:16,borderWidth:1,borderColor:C.border}}>
+        {(['swap','trigger','perps'] as const).map(t=>(
+          <TouchableOpacity key={t} style={swapTabStyle(t)} onPress={()=>setSwapSubTab(t)}>
+            <Text style={swapTabTxtStyle(t)}>{t.charAt(0).toUpperCase()+t.slice(1)}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {swapSubTab==='swap' && (
+        <View>
+          {/* From */}
+          <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:6,borderWidth:1,borderColor:C.border}}>
+            <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>YOU PAY</Text>
+            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+              <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
+                  <Text style={{color:C.green,fontSize:10,fontWeight:'700'}}>{fromToken2.symbol?.slice(0,3)}</Text>
+                </View>
+                <Text style={{color:C.text,fontSize:16,fontWeight:'700'}}>{fromToken2.symbol} ▾</Text>
+              </View>
+              <TextInput value={swapAmt} onChangeText={setSwapAmt} placeholder="0.00" placeholderTextColor={C.muted}
+                keyboardType="numeric" style={{color:C.text,fontSize:24,fontWeight:'700',textAlign:'right',minWidth:100}} />
+            </View>
+            <View style={{flexDirection:'row',gap:6,marginTop:12}}>
+              {['25','50','75','100'].map(p=>(
+                <TouchableOpacity key={p} onPress={()=>{
+                  const bal = fromToken2.symbol==='SOL' ? solBalance : tokenBalances.find((t:any)=>t.symbol===fromToken2.symbol)?.amount||0;
+                  setSwapAmt(((bal||0)*parseInt(p)/100).toFixed(4));
+                }} style={{flex:1,paddingVertical:5,borderRadius:8,backgroundColor:C.card2,alignItems:'center',borderWidth:1,borderColor:C.border}}>
+                  <Text style={{color:C.muted,fontSize:11}}>{p}%</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Arrow */}
+          <View style={{alignItems:'center',marginVertical:4}}>
+            <TouchableOpacity onPress={()=>{const tmp=fromToken2;setFromToken2(toToken2);setToToken2(tmp);}}
+              style={{width:34,height:34,borderRadius:17,backgroundColor:C.card,borderWidth:1,borderColor:C.green,alignItems:'center',justifyContent:'center'}}>
+              <Text style={{color:C.green,fontSize:16}}>⇅</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* To */}
+          <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:C.border}}>
+            <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>YOU RECEIVE</Text>
+            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+              <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
+                  <Text style={{color:C.blue,fontSize:10,fontWeight:'700'}}>{toToken2.symbol?.slice(0,3)}</Text>
+                </View>
+                <Text style={{color:C.text,fontSize:16,fontWeight:'700'}}>{toToken2.symbol} ▾</Text>
+              </View>
+              <Text style={{color:C.text,fontSize:24,fontWeight:'700'}}>{quoteOut||'—'}</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity onPress={doSwap} disabled={swapLoading}
+            style={{backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center'}}>
+            {swapLoading ? <ActivityIndicator color="#0d1117"/> : <Text style={{color:'#0d1117',fontWeight:'700',fontSize:15}}>Swap via Jupiter</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {swapSubTab==='trigger' && (
+        <View>
+          <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:C.border}}>
+            <Text style={{color:C.muted,fontSize:11,marginBottom:12,letterSpacing:1}}>TRIGGER ORDER (LIMIT)</Text>
+            <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>Sell {fromToken2.symbol} when price reaches</Text>
+            <TextInput value={triggerPrice} onChangeText={setTriggerPrice} placeholder="Target price in USD"
+              placeholderTextColor={C.muted} keyboardType="numeric"
+              style={{backgroundColor:C.card2,borderRadius:10,padding:12,color:C.text,marginBottom:12,borderWidth:1,borderColor:C.border}} />
+            <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>Amount of {fromToken2.symbol}</Text>
+            <TextInput value={triggerAmt} onChangeText={setTriggerAmt} placeholder="0.00"
+              placeholderTextColor={C.muted} keyboardType="numeric"
+              style={{backgroundColor:C.card2,borderRadius:10,padding:12,color:C.text,marginBottom:4,borderWidth:1,borderColor:C.border}} />
+            <Text style={{color:C.muted,fontSize:10,marginTop:4}}>Receive: {toToken2.symbol}</Text>
+          </View>
+          <TouchableOpacity onPress={doTrigger} disabled={triggerLoading}
+            style={{backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center'}}>
+            {triggerLoading ? <ActivityIndicator color="#0d1117"/> : <Text style={{color:'#0d1117',fontWeight:'700',fontSize:15}}>Place Trigger Order</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {swapSubTab==='perps' && (
+        <View>
+          {/* Long/Short toggle */}
+          <View style={{flexDirection:'row',backgroundColor:C.card2,borderRadius:12,padding:4,marginBottom:16,borderWidth:1,borderColor:C.border}}>
+            <TouchableOpacity onPress={()=>setPerpSide('long')} style={{flex:1,paddingVertical:8,borderRadius:10,alignItems:'center',backgroundColor:perpSide==='long'?'rgba(199,242,132,0.2)':'transparent'}}>
+              <Text style={{color:perpSide==='long'?C.green:C.muted,fontWeight:'700'}}>↑ Long</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={()=>setPerpSide('short')} style={{flex:1,paddingVertical:8,borderRadius:10,alignItems:'center',backgroundColor:perpSide==='short'?'rgba(255,85,85,0.15)':'transparent'}}>
+              <Text style={{color:perpSide==='short'?C.red:C.muted,fontWeight:'700'}}>↓ Short</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:C.border}}>
+            <Text style={{color:C.muted,fontSize:11,marginBottom:12,letterSpacing:1}}>POSITION SIZE (USDC)</Text>
+            <TextInput value={perpAmt} onChangeText={setPerpAmt} placeholder="0.00"
+              placeholderTextColor={C.muted} keyboardType="numeric"
+              style={{backgroundColor:C.card2,borderRadius:10,padding:12,color:C.text,marginBottom:12,borderWidth:1,borderColor:C.border}} />
+            <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>LEVERAGE</Text>
+            <View style={{flexDirection:'row',gap:6}}>
+              {['2','5','10','25'].map(l=>(
+                <TouchableOpacity key={l} onPress={()=>setPerpLeverage(l)}
+                  style={{flex:1,paddingVertical:8,borderRadius:8,alignItems:'center',
+                    backgroundColor:perpLeverage===l?C.green:'transparent',borderWidth:1,borderColor:perpLeverage===l?C.green:C.border}}>
+                  <Text style={{color:perpLeverage===l?'#0d1117':C.muted,fontWeight:'600',fontSize:12}}>{l}x</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <TouchableOpacity onPress={doPerp}
+            style={{backgroundColor:perpSide==='long'?C.green:C.red,borderRadius:14,padding:16,alignItems:'center',marginBottom:16}}>
+            <Text style={{color:'#0d1117',fontWeight:'700',fontSize:15}}>{perpSide==='long'?'Open Long':'Open Short'} {perpLeverage}x</Text>
+          </TouchableOpacity>
+
+          {/* Open positions */}
+          {perpPositions.length > 0 && (
+            <View>
+              <Text style={{color:C.text,fontWeight:'700',marginBottom:8}}>Open Positions</Text>
+              {perpPositions.map((p:any,i:number)=>(
+                <View key={i} style={{backgroundColor:C.card,borderRadius:14,padding:14,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+                  <View style={{flexDirection:'row',justifyContent:'space-between'}}>
+                    <Text style={{color:C.text,fontWeight:'700'}}>{p.marketSymbol||p.symbol||'SOL'}</Text>
+                    <Text style={{color:p.side==='long'?C.green:C.red,fontWeight:'600'}}>{p.side?.toUpperCase()} {p.leverage}x</Text>
+                  </View>
+                  <View style={{flexDirection:'row',justifyContent:'space-between',marginTop:6}}>
+                    <Text style={{color:C.muted,fontSize:12}}>Size: ${parseFloat(p.size||0).toFixed(2)}</Text>
+                    <Text style={{color:parseFloat(p.pnl||0)>=0?C.green:C.red,fontSize:12}}>PnL: ${parseFloat(p.pnl||0).toFixed(2)}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+          {perpPositions.length===0 && <Text style={{color:C.muted,textAlign:'center',marginTop:8}}>No open positions</Text>}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
 
 export default function App() {
   const [tab, setTab] = useState('portfolio');
@@ -3532,9 +3774,12 @@ https://solscan.io/tx/${sig}` }]);
 
         {/* SWAP */}
       {tab === 'swap' && (
-        <View style={{flex:1,alignItems:'center',justifyContent:'center'}}>
-          <Text style={{color:C.muted}}>Swap coming soon</Text>
-        </View>
+        <SwapScreen
+          wallet={wallet} pubkey={pubkey} tokenBalances={tokenBalances} solBalance={solBalance}
+          fromToken2={fromToken2} setFromToken2={setFromToken2} toToken2={toToken2} setToToken2={setToToken2}
+          showToast={showToast} C={C} s={s} nacl={nacl} deriveWallet={deriveWallet}
+          executeSwapTx={executeSwapTx} fetchPortfolio={fetchPortfolio}
+        />
       )}
       {tab === 'portfolio' && (
         <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
