@@ -1616,7 +1616,7 @@ export default function App() {
             {earns.map((pos:any,i:number)=>{
               const sym = pos.token?.asset?.symbol || pos.token?.uiSymbol || '?';
               const dec = pos.token?.asset?.decimals ?? 6;
-              const bal = (parseFloat(pos.underlyingBalance||'0')/Math.pow(10,dec)).toFixed(4);
+              const bal = (parseFloat(pos.underlyingAssets||pos.underlyingBalance||'0')/Math.pow(10,dec)).toFixed(4);
               const apy = (parseInt(pos.token?.totalRate||'0')/100).toFixed(2);
               const price = parseFloat(pos.token?.asset?.price||'0');
               const usd = price ? (parseFloat(bal)*price).toFixed(2) : '?';
@@ -2094,7 +2094,7 @@ export default function App() {
             const earnPositions = earnRes.status==='fulfilled' ? (Array.isArray(earnRes.value)?earnRes.value:[]) : [];
             const lockAccounts  = lockRes.status==='fulfilled'  ? (lockRes.value?.accounts||[]) : [];
             const trigOrders    = trigRes.status==='fulfilled'  ? (trigRes.value?.orders||trigRes.value?.data||[]) : [];
-            const activeEarns   = earnPositions.filter((p:any)=>parseFloat(p.underlyingBalance||'0')>0);
+            const activeEarns   = earnPositions.filter((p:any)=>parseFloat(p.shares||'0')>0);
             const activeLocks   = lockAccounts.filter((a:any)=>a.claimable||a.totalRaw>0);
             const activeTrig    = Array.isArray(trigOrders) ? trigOrders.slice(0,5) : [];
             const cardId = Date.now() + 1;
