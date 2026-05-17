@@ -2289,16 +2289,32 @@ export default function App() {
         case 'SHOW_EARN':
         case 'FETCH_EARN': {
           try {
-            const mktRes = await fetch('https://lite-api.jup.ag/lend/v1/earn/tokens');
+            const [mktRes, posRes] = await Promise.all([
+              fetch('https://lite-api.jup.ag/lend/v1/earn/tokens'),
+              pk ? fetch('https://chatfi.pro/api/jupiter', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({url:`https://api.jup.ag/lend/v1/earn/positions?users=${pk}`, method:'GET'})
+              }) : Promise.resolve(null)
+            ]);
             const mktData = await mktRes.json();
+            const posData = posRes ? await posRes.json() : [];
             const tokens = Array.isArray(mktData) ? mktData : [];
+            const allPositions = Array.isArray(posData) ? posData : posData?.positions || [];
+            const userPositions = allPositions
+              .filter((p:any) => parseFloat(p.shares||'0') > 0)
+              .map((p:any) => ({
+                sym: p.token?.asset?.symbol || p.token?.uiSymbol || '?',
+                bal: (parseFloat(p.underlyingAssets||p.underlyingBalance||'0') / Math.pow(10, p.token?.asset?.decimals ?? 6)).toFixed(4),
+                apy: (parseInt(p.token?.totalRate||'0')/100).toFixed(2),
+                price: parseFloat(p.token?.asset?.price||'0'),
+              }));
             if (!tokens.length) {
               setMsgs(p => [...p, { id: Date.now(), text: 'No earn markets available right now.', from: 'bot' }]);
               break;
             }
             const cardId = Date.now() + 1;
-            setMsgs(p => [...p, { id: cardId, from: 'bot', text: '', card: { type: 'earn_markets', data: { tokens } } }]);
-          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `❌ Failed to fetch earn markets: ${e.message}`, from: 'bot' }]); }
+            setMsgs(p => [...p, { id: cardId, from: 'bot', text: '', card: { type: 'earn_markets', data: { tokens, userPositions } } }]);
+          } catch(e:any) { setMsgs(p => [...p, { id: Date.now(), text: `Failed to fetch earn markets: ${e.message}`, from: 'bot' }]); }
           break;
         }
         case 'EARN_DEPOSIT':
