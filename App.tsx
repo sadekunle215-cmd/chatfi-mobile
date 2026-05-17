@@ -1581,6 +1581,40 @@ export default function App() {
     if (type === 'earn_deposit' || type === 'earn_withdraw') {
       return <EarnActionCard card={card} isDeposit={type==='earn_deposit'} pubkey={pubkey} wallet={wallet} deriveWallet={deriveWallet} requireAuth={requireAuth} rpcFetch={rpcFetch} showToast={showToast} fetchPortfolio={fetchPortfolio} C={C} s={s} />;
     }
+    if (type === 'invite_send') {
+      const link = card.inviteLink;
+      return (
+        <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:8,borderWidth:1,borderColor:C.border}}>
+          <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:4}}>📨 Send via Invite Link</Text>
+          <Text style={{color:C.muted,fontSize:12,marginBottom:12}}>Recipient claims {data.amount} {data.token} via Jupiter — no wallet needed upfront</Text>
+          {status==='loading'&&<ActivityIndicator color={C.green} style={{marginVertical:12}}/>}
+          {status==='success'&&link&&(
+            <View>
+              <Text style={{color:C.green,fontWeight:'700',marginBottom:6}}>✅ Tokens locked!</Text>
+              <View style={{backgroundColor:C.bg,borderRadius:8,padding:10,marginBottom:8}}>
+                <Text style={{color:C.text,fontSize:12,marginBottom:6}} selectable>{link}</Text>
+                <TouchableOpacity onPress={()=>{require('@react-native-clipboard/clipboard').default.setString(link);showToast('Link copied!','success');}} style={{backgroundColor:C.green,borderRadius:6,padding:8,alignItems:'center'}}>
+                  <Text style={{color:'#0d1117',fontWeight:'700'}}>Copy Invite Link</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+          {status==='error'&&<Text style={{color:'#ef4444',marginBottom:8}}>{card.error}</Text>}
+          {!status&&(
+            <View style={{flexDirection:'row',gap:8}}>
+              <TouchableOpacity onPress={onCancel} style={{flex:1,padding:12,borderRadius:10,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
+                <Text style={{color:C.muted}}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onConfirm} style={{flex:2,padding:12,borderRadius:10,backgroundColor:C.green,alignItems:'center'}}>
+                <Text style={{color:'#0d1117',fontWeight:'700'}}>Generate Invite Link</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      );
+    }
+
     if (type === 'studio_launch') { return <StudioLaunchCard card={card} wallet={wallet} deriveWallet={deriveWallet} setMsgs={setMsgs} C={C} s={s} />; }
 
     if (type === 'lock') {
@@ -1864,7 +1898,47 @@ export default function App() {
           break;
         }
         case 'SHOW_SEND': {
-          setShowSendModal(true);
+          const sendToken = (data.token||'SOL').toUpperCase();
+          const sendAmt = data.amount||'';
+          if (!sendAmt || parseFloat(sendAmt)<=0) {
+            setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:`How much ${sendToken} would you like to send via invite link?`}]);
+            break;
+          }
+          const cid = Date.now()+1;
+          setMsgs(p=>[...p,{id:cid,from:'bot',text:'',card:{
+            type:'invite_send', data:{token:sendToken,amount:sendAmt},
+            onCancel:()=>updateCard(cid,{status:'cancelled'}),
+            onConfirm: async()=>{
+              updateCard(cid,{status:'loading'});
+              try {
+                const {publicKey:pk2,secretKey:sk2}=deriveWallet(wallet!);
+                const mint2=TOKENS[sendToken]||(await resolveToken(sendToken))?.mint;
+                if(!mint2)throw new Error('Unknown token: '+sendToken);
+                const dec2=DECIMALS[sendToken]||(await resolveToken(sendToken))?.decimals||6;
+                const amtRaw=Math.floor(parseFloat(sendAmt)*Math.pow(10,dec2)).toString();
+                const bs58=require('bs58');
+                const nacl2=require('tweetnacl');
+                const inviteCode=bs58.encode(nacl2.randomBytes(13)).substring(0,12);
+                const sr=await fetch('https://chatfi.pro/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sender:pk2,amount:amtRaw,mint:mint2,inviteCode})});
+                const sd=await sr.json();
+                if(sd.error)throw new Error(sd.error);
+                if(!sd.partiallySignedTx)throw new Error('No transaction from server');
+                const {VersionedTransaction}=require('@solana/web3.js');
+                const tx=VersionedTransaction.deserialize(Buffer.from(sd.partiallySignedTx,'base64'));
+                const msgB=tx.message.serialize();
+                const senderSig=nacl2.sign.detached(msgB,sk2);
+                const senderIdx=tx.message.staticAccountKeys.findIndex((k:any)=>k.toString()===pk2);
+                if(senderIdx>=0)tx.signatures[senderIdx]=senderSig;
+                const rpcRes=await fetch('https://api.mainnet-beta.solana.com',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'sendTransaction',params:[Buffer.from(tx.serialize()).toString('base64'),{encoding:'base64',skipPreflight:true,maxRetries:0}]})}); 
+                const rpcData=await rpcRes.json();
+                if(rpcData.error)throw new Error(rpcData.error.message);
+                const inviteLink='https://jup.ag/send?code='+inviteCode;
+                updateCard(cid,{status:'success',inviteLink});
+                setMsgs(p=>[...p,{id:Date.now(),from:'bot',text:'✅ '+sendAmt+' '+sendToken+' locked!\n\nClaim link:\n'+inviteLink+'\n\nShare this — recipient claims via Jupiter. Tokens return to you if unclaimed.\n\nTx: '+rpcData.result?.slice(0,20)+'...'}]);
+                fetchPortfolio();
+              }catch(e:any){updateCard(cid,{status:'error',error:e.message});}
+            }
+          }}]);
           break;
         }
         case 'SHOW_LOCK': {
