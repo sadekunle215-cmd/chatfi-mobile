@@ -1167,8 +1167,6 @@ function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandle
                       Alert.alert('Transaction Failed', e.message);
                     }
                     }}
-                    }
-                  }}
                   style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}>
                   <Text style={{ color:'#000', fontWeight:'700', fontSize:16 }}>Approve</Text>
                 </TouchableOpacity>
