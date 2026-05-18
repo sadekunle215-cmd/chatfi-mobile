@@ -4200,15 +4200,9 @@ https://solscan.io/tx/${sig}` }]);
       <KeyboardAvoidingView style={s.content} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
 
         {/* CHAT */}
-        {tab === 'chat' && (
+        <View style={{flex:1, display: tab === 'chat' ? 'flex' : 'none'}}>
           <View style={s.flex}>
-                <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,flexDirection:'row',flexWrap:'wrap',opacity:0.12}}>
-                  {Array.from({length:600}).map((_,i)=>(
-                    <View key={i} style={{width:'5%',height:24,alignItems:'center',justifyContent:'center'}}>
-                      <View style={{width:2,height:2,borderRadius:1,backgroundColor:'#C7F284'}}/>
-                    </View>
-                  ))}
-                </View>
+
                 <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }}>
               {msgs.map(m => (
                 <View key={m.id} style={m.from === 'user' ? [s.bubble, s.userBubble] : {marginBottom:8}}>
@@ -4236,10 +4230,10 @@ https://solscan.io/tx/${sig}` }]);
               </TouchableOpacity>
             </View>
           </View>
-        )}
+        </View>
 
         {/* SWAP */}
-      {tab === 'swap' && (
+      <View style={{flex:1, display: tab === 'swap' ? 'flex' : 'none'}}>
         <SwapScreen
           wallet={wallet}
           pubkey={pubkey}
@@ -4345,7 +4339,7 @@ https://solscan.io/tx/${sig}` }]);
             </View>
           )}
         </ScrollView>
-      )}
+      </View>
 
             {/* DAPP BROWSER */}
         <View style={{flex:1, display: tab === 'dapp' ? 'flex' : 'none'}}>
