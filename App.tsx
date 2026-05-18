@@ -1846,6 +1846,7 @@ export default function App() {
   // Toast system
   const [toast, setToast] = useState<{msg:string,type:'success'|'error'|'info'}|null>(null);
   const toastTimer = useRef<any>(null);
+  const lastFetch = useRef<number>(0);
   const showToast = (msg:string, type:'success'|'error'|'info'='info') => {
     if(toastTimer.current) clearTimeout(toastTimer.current);
     setToast({msg,type});
@@ -1921,7 +1922,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (pubkey && tab === 'portfolio') { fetchPortfolio(); fetchTxHistory(); }
+    if (pubkey && tab === 'portfolio') { if (!lastFetch.current || Date.now() - lastFetch.current > 30000) { fetchPortfolio(); fetchTxHistory(); } }
   }, [pubkey, tab]);
 
   const addAccount = async () => {
@@ -1960,6 +1961,7 @@ export default function App() {
     await AsyncStorage.setItem('wallet_mnemonic', acc.mnemonic);
   };
   const fetchPortfolio = async () => {
+    lastFetch.current = Date.now();
     if (!pubkey) return;
     setPortfolioLoading(true);
     try {
