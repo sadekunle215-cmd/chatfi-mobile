@@ -4280,19 +4280,19 @@ https://solscan.io/tx/${sig}` }]);
               {/* Action Buttons */}
               <View style={{flexDirection:'row',justifyContent:'space-around',paddingVertical:16}}>
                 <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowSendModal(true)}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↑</Text></View>
+                  <View style={s.pfActionIcon}><Ionicons name="arrow-up-outline" size={22} color={C.text} /></View>
                   <Text style={s.pfActionLbl}>Send</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.pfActionBtn} onPress={()=>setTab('swap')}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⇄</Text></View>
-                  <Text style={s.pfActionLbl}>Swap</Text>
+                  <View style={s.pfActionIcon}><Ionicons name="bar-chart-outline" size={22} color={C.text} /></View>
+                  <Text style={s.pfActionLbl}>Trade</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.pfActionBtn} onPress={()=>setShowReceiveModal(true)}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>↓</Text></View>
+                  <View style={s.pfActionIcon}><Ionicons name="arrow-down-outline" size={22} color={C.text} /></View>
                   <Text style={s.pfActionLbl}>Receive</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.pfActionBtn} onPress={async()=>{if(!cameraPermission?.granted){await requestCameraPermission();}setShowScanModal(true);}}>
-                  <View style={s.pfActionIcon}><Text style={s.pfActionIconTxt}>⊡</Text></View>
+                  <View style={s.pfActionIcon}><Ionicons name="scan-outline" size={22} color={C.text} /></View>
                   <Text style={s.pfActionLbl}>Scan</Text>
                 </TouchableOpacity>
               </View>
