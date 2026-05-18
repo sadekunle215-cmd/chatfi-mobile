@@ -4102,13 +4102,26 @@ https://solscan.io/tx/${sig}` }]);
 
         {/* SWAP */}
       {tab === 'swap' && (
-        <View style={{ flex:1, alignItems:'center', justifyContent:'center', backgroundColor:C.bg }}>
-          <Text style={{ fontSize:48, marginBottom:16 }}>🚧</Text>
-          <Text style={{ color:C.text, fontSize:22, fontWeight:'700', marginBottom:8 }}>Coming Soon</Text>
-          <Text style={{ color:C.muted, fontSize:14, textAlign:'center', paddingHorizontal:40 }}>
-            The Trade feature is under construction.{' '}Check back soon!
-          </Text>
-        </View>
+        <SwapScreen
+          wallet={wallet}
+          pubkey={pubkey}
+          tokenBalances={tokenBalances}
+          solBalance={solBalance}
+          fromToken2={fromToken2}
+          setFromToken2={setFromToken2}
+          toToken2={toToken2}
+          setToToken2={setToToken2}
+          showToast={showToast}
+          C={C}
+          s={s}
+          nacl={nacl}
+          deriveWallet={deriveWallet}
+          executeSwapTx={async (quote:any, fromTok:any, toTok:any, amt:number) => {
+            const { publicKey: pk2, secretKey: sk2 } = deriveWallet(wallet!);
+            return executeSwapTx(fromTok.mint, toTok.mint, amt, fromTok.decimals||6, pk2, sk2, 'https://api.mainnet-beta.solana.com');
+          }}
+          fetchPortfolio={fetchPortfolio}
+        />
       )}
       {tab === 'portfolio' && (
         <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
