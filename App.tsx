@@ -4339,7 +4339,7 @@ https://solscan.io/tx/${sig}` }]);
             </View>
           )}
         </ScrollView>
-      </View>
+      )}
 
             {/* DAPP BROWSER */}
         <View style={{flex:1, display: tab === 'dapp' ? 'flex' : 'none'}}>
