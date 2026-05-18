@@ -1297,48 +1297,47 @@ const StudioLaunchCard = ({ card, wallet, deriveWallet, setMsgs, C, s }: any) =>
 
 
 function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromToken2,toToken2,setToToken2,showToast,C,s,nacl,deriveWallet,executeSwapTx,fetchPortfolio}:any) {
-  const [swapSubTab, setSwapSubTab] = React.useState<'swap'|'trigger'>('swap');
-  const [swapAmt, setSwapAmt] = React.useState('');
-  const [swapLoading, setSwapLoading] = React.useState(false);
+  const [mode, setMode] = React.useState('Market');
+  const [amount, setAmount] = React.useState('');
+  const [showNumpad, setShowNumpad] = React.useState(false);
   const [showPicker, setShowPicker] = React.useState<'from'|'to'|null>(null);
   const [pickerSearch, setPickerSearch] = React.useState('');
   const [pickerResults, setPickerResults] = React.useState<any[]>([]);
   const [pickerLoading, setPickerLoading] = React.useState(false);
-
-  const searchPicker = async (q: string) => {
-    if (!q || q.length < 1) {
-      setPickerResults([
-        {symbol:'SOL',name:'Solana',address:'So11111111111111111111111111111111111111112',logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png',decimals:9},
-        {symbol:'USDC',name:'USD Coin',address:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',decimals:6},
-        {symbol:'USDT',name:'Tether',address:'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',decimals:6},
-        {symbol:'JUP',name:'Jupiter',address:'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',logoURI:'https://static.jup.ag/jup/icon.png',decimals:6},
-        {symbol:'BONK',name:'Bonk',address:'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',logoURI:'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I',decimals:5},
-        {symbol:'WIF',name:'dogwifhat',address:'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',logoURI:'https://bafkreibk3covs5ltyqxa272uodhculbgn2b37k4wgg6sdxydwwphxkznm.ipfs.nftstorage.link',decimals:6},
-        {symbol:'JitoSOL',name:'Jito Staked SOL',address:'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',logoURI:'https://storage.googleapis.com/token-metadata/JitoSOL-256.png',decimals:9},
-        {symbol:'PYTH',name:'Pyth Network',address:'HZ1JovNiVvGrGs6Lqg6JmBzWBMFURQDMEbbTAe7hfGqN',logoURI:'https://pyth.network/token.svg',decimals:6},
-      ]);
-      return;
-    }
-    setPickerLoading(true);
-    try {
-      const res = await fetch('https://lite-api.jup.ag/tokens/v2/search?query='+encodeURIComponent(q)+'&limit=8');
-      const data = await res.json();
-      const tokens = (Array.isArray(data) ? data : (data.tokens||[])).map((t:any)=>({...t,address:t.id||t.address,logoURI:t.logoURI||t.icon||''}));
-      setPickerResults(tokens);
-    } catch(e) { setPickerResults([]); }
-    setPickerLoading(false);
-  };
-
-  const selectToken = (t: any) => {
-    const tok = { symbol: t.symbol, mint: t.address||t.mint, logoURI: t.logoURI||t.icon||'', decimals: t.decimals||6 };
-    if (showPicker === 'from') setFromToken2(tok);
-    else setToToken2(tok);
-    setShowPicker(null);
-    setPickerSearch('');
-    setPickerResults([]);
-  };
+  const [quoteOut, setQuoteOut] = React.useState<string|null>(null);
+  const [quoting, setQuoting] = React.useState(false);
+  const [swapLoading, setSwapLoading] = React.useState(false);
+  const [quote, setQuote] = React.useState<any>(null);
   const [tradeHistory, setTradeHistory] = React.useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!fromToken2 && tokenBalances?.length > 0) {
+      const sol = tokenBalances.find((t:any) => t.symbol === 'SOL');
+      if (sol) setFromToken2({ symbol:sol.symbol, mint:sol.mint, logoURI:sol.logoURI, decimals:sol.decimals||9, amount:sol.amount });
+    }
+    if (!toToken2) setToToken2({ symbol:'USDC', mint:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png', decimals:6 });
+  }, [tokenBalances]);
+
+  React.useEffect(() => {
+    if (!fromToken2?.mint || !toToken2?.mint || !amount || parseFloat(amount) <= 0) { setQuoteOut(null); setQuote(null); return; }
+    const t = setTimeout(fetchQuote, 600);
+    return () => clearTimeout(t);
+  }, [fromToken2?.mint, toToken2?.mint, amount]);
+
+  const fetchQuote = async () => {
+    setQuoting(true);
+    try {
+      const lam = Math.floor(parseFloat(amount) * Math.pow(10, fromToken2?.decimals||9));
+      const res = await fetch(`https://api.jup.ag/swap/v1/quote?inputMint=${fromToken2.mint}&outputMint=${toToken2.mint}&amount=${lam}&slippageBps=50`);
+      const data = await res.json();
+      if (data.outAmount) {
+        setQuoteOut((parseFloat(data.outAmount)/Math.pow(10,toToken2?.decimals||6)).toFixed(6));
+        setQuote(data);
+      }
+    } catch(e) { setQuoteOut(null); setQuote(null); }
+    setQuoting(false);
+  };
 
   const fetchTradeHistory = async () => {
     if (!pubkey) return;
@@ -1352,328 +1351,230 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
   };
 
   React.useEffect(() => { if (pubkey) fetchTradeHistory(); }, [pubkey]);
-  const [quoteOut, setQuoteOut] = React.useState<string|null>(null);
-  const [triggerAmt, setTriggerAmt] = React.useState('');
-  const [triggerPrice, setTriggerPrice] = React.useState('');
-  const [triggerLoading, setTriggerLoading] = React.useState(false);
-  const [perpSide, setPerpSide] = React.useState<'long'|'short'>('long');
-  const [perpAmt, setPerpAmt] = React.useState('');
-  const [perpLeverage, setPerpLeverage] = React.useState('5');
-  const [perpLoading, setPerpLoading] = React.useState(false);
-  const [perpPositions, setPerpPositions] = React.useState<any[]>([]);
 
-  const RPC_URL = 'https://api.mainnet-beta.solana.com';
-
-  React.useEffect(() => {
-    if (swapAmt && parseFloat(swapAmt) > 0) fetchQuote();
-  }, [swapAmt, fromToken2, toToken2]);
-
-  React.useEffect(() => {
-    if (swapSubTab === 'perps' && pubkey) fetchPerpPositions();
-  }, [swapSubTab]);
-
-  const fetchQuote = async () => {
+  const searchTokens = async (q:string) => {
+    setPickerSearch(q);
+    if (!q) {
+      setPickerResults([
+        {symbol:'SOL',name:'Solana',address:'So11111111111111111111111111111111111111112',logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png',decimals:9},
+        {symbol:'USDC',name:'USD Coin',address:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',logoURI:'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',decimals:6},
+        {symbol:'JUP',name:'Jupiter',address:'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',logoURI:'https://static.jup.ag/jup/icon.png',decimals:6},
+        {symbol:'BONK',name:'Bonk',address:'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',logoURI:'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I',decimals:5},
+        {symbol:'WIF',name:'dogwifhat',address:'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',logoURI:'',decimals:6},
+      ]); return;
+    }
+    setPickerLoading(true);
     try {
-      const inMint = fromToken2.mint;
-      const outMint = toToken2.mint;
-      const inDec = fromToken2.decimals || 9;
-      const amtRaw = Math.round(parseFloat(swapAmt) * Math.pow(10, inDec));
-      const r = await fetch(`https://api.jup.ag/swap/v2/order?inputMint=${inMint}&outputMint=${outMint}&amount=${amtRaw}&taker=${pubkey||''}&slippageBps=50`);
-      const d = await r.json();
-      const outAmt = d.outAmount ? (parseInt(d.outAmount) / Math.pow(10, toToken2.decimals||6)).toFixed(4) : null;
-      setQuoteOut(outAmt);
-    } catch(e) { setQuoteOut(null); }
+      const res = await fetch('https://lite-api.jup.ag/tokens/v2/search?query='+encodeURIComponent(q)+'&limit=8');
+      const data = await res.json();
+      setPickerResults((Array.isArray(data)?data:(data.tokens||[])).map((t:any)=>({...t,address:t.id||t.address,logoURI:t.logoURI||t.icon||''})));
+    } catch(e) { setPickerResults([]); }
+    setPickerLoading(false);
+  };
+
+  const selectToken = (t:any) => {
+    const tok = { symbol:t.symbol, mint:t.address||t.mint, logoURI:t.logoURI||'', decimals:t.decimals||6 };
+    if (showPicker==='from') setFromToken2(tok); else setToToken2(tok);
+    setShowPicker(null); setPickerSearch(''); setPickerResults([]);
+    setAmount(''); setQuote(null); setQuoteOut(null);
+  };
+
+  const flipTokens = () => {
+    const tmp = fromToken2; setFromToken2(toToken2); setToToken2(tmp);
+    setAmount(''); setQuote(null); setQuoteOut(null);
+  };
+
+  const handleNumpad = (k:string) => {
+    const bal = tokenBalances?.find((t:any)=>t.mint===fromToken2?.mint)?.amount || 0;
+    if (k==='MAX') setAmount(String(bal));
+    else if (k==='75%') setAmount((bal*0.75).toFixed(6));
+    else if (k==='50%') setAmount((bal*0.5).toFixed(6));
+    else if (k==='CLEAR') setAmount('');
+    else if (k==='⌫') setAmount((p:string)=>p.slice(0,-1));
+    else if (k==='.' && amount.includes('.')) return;
+    else setAmount((p:string)=>p+k);
   };
 
   const doSwap = async () => {
-    if (!wallet || !swapAmt) { showToast('Enter amount','error'); return; }
-    const authed = await requireAuth();
-    if (!authed) return;
-    const confirmed = await new Promise<boolean>(resolve => {
-      Alert.alert(
-        'Confirm Swap',
-        'Swap ' + swapAmt + ' ' + fromToken2.symbol + ' → ' + toToken2.symbol + '\n\nThis will execute on-chain via Jupiter.',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-          { text: 'Confirm', onPress: () => resolve(true) }
-        ]
-      );
-    });
-    if (!confirmed) return;
+    if (!quote||!wallet||swapLoading) return;
     setSwapLoading(true);
     try {
-      const {publicKey:pk, secretKey} = deriveWallet(wallet);
-      const txSig = await executeSwapTx(fromToken2.mint, toToken2.mint, parseFloat(swapAmt), fromToken2.decimals||9, pk, secretKey, RPC_URL);
-      showToast('Swap done! Tx: '+txSig.slice(0,12)+'...','success');
-      fetchPortfolio();
-      setSwapAmt(''); setQuoteOut(null);
-    } catch(e:any) { showToast('Swap failed: '+e.message,'error'); }
+      await executeSwapTx(quote, fromToken2, toToken2, parseFloat(amount));
+      setAmount(''); setQuote(null); setQuoteOut(null); setShowNumpad(false);
+      setTimeout(fetchPortfolio,3000); setTimeout(fetchTradeHistory,5000);
+    } catch(e:any) { showToast?.('Swap failed: '+e.message); }
     setSwapLoading(false);
   };
 
-  const doTrigger = async () => {
-    if (!wallet||!triggerAmt||!triggerPrice) { showToast('Fill all fields','error'); return; }
-    setTriggerLoading(true);
-    try {
-      const {publicKey:pk, secretKey} = deriveWallet(wallet);
-      const inDec = fromToken2.decimals||9;
-      const amtRaw = Math.round(parseFloat(triggerAmt)*Math.pow(10,inDec));
-      const r = await fetch('https://api.jup.ag/trigger/v1/createOrder',{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({inputMint:fromToken2.mint,outputMint:toToken2.mint,maker:pk,
-          params:{makingAmount:String(amtRaw),takingAmount:String(Math.round(parseFloat(triggerPrice)*Math.pow(10,toToken2.decimals||6))),
-          expiredAt:null,feeBps:'10'},computeUnitPrice:'auto'})
-      });
-      const d = await r.json();
-      if (d.error) throw new Error(d.error);
-      if (!d.transaction) throw new Error(d.error || "No transaction");
-      const txSig = await signAndSendTx(d.transaction, secretKey);
-      showToast("Trigger placed! Tx: "+txSig.slice(0,12)+"...","success");
-      setTriggerAmt(''); setTriggerPrice('');
-    } catch(e:any) { showToast('Trigger failed: '+e.message,'error'); }
-    setTriggerLoading(false);
-  };
+  const fromBal = tokenBalances?.find((t:any)=>t.mint===fromToken2?.mint)?.amount ?? 0;
+  const toBal = tokenBalances?.find((t:any)=>t.mint===toToken2?.mint)?.amount ?? 0;
+  const rate = quote&&amount&&quoteOut ? `1 ${fromToken2?.symbol} ≈ ${(parseFloat(quoteOut)/parseFloat(amount)).toFixed(6)} ${toToken2?.symbol}` : null;
 
-  const fetchPerpPositions = async () => {
-    if (!pubkey) return;
-    try {
-      const r = await fetch(`https://perps-api.jup.ag/v1/positions?walletAddress=${pubkey}`);
-      const d = await r.json();
-      setPerpPositions(Array.isArray(d?.dataList) ? d.dataList : []);
-    } catch(e) {}
-  };
-
-  const doPerp = async () => {
-    if (!wallet||!perpAmt) { showToast('Enter amount','error'); return; }
-    showToast('Perps: Use jup.ag/perps for now — API coming soon','info');
-  };
-
-  const swapTabStyle = (t:string) => ({
-    flex:1, paddingVertical:8, alignItems:'center' as const, borderRadius:10,
-    backgroundColor: swapSubTab===t ? C.green : 'transparent',
-  });
-  const swapTabTxtStyle = (t:string) => ({
-    fontSize:13, fontWeight:'600' as const,
-    color: swapSubTab===t ? '#0d1117' : C.muted,
-  });
+  const grouped = tradeHistory.reduce((g:any,tx:any)=>{
+    const d = new Date((tx.timestamp||0)*1000);
+    const lbl = d.toDateString()===new Date().toDateString()?'Today':d.toDateString()===new Date(Date.now()-86400000).toDateString()?'Yesterday':d.toLocaleDateString();
+    g[lbl]=[...(g[lbl]||[]),tx]; return g;
+  },{});
 
   return (
-    <ScrollView style={{flex:1}} contentContainerStyle={{padding:16,paddingBottom:100}}>
-      {/* Sub tabs */}
-      <View style={{flexDirection:'row',backgroundColor:C.card2,borderRadius:12,padding:4,marginBottom:16,borderWidth:1,borderColor:C.border}}>
-        {(['swap','trigger'] as const).map(t=>(
-          <TouchableOpacity key={t} style={swapTabStyle(t)} onPress={()=>setSwapSubTab(t)}>
-            <Text style={swapTabTxtStyle(t)}>{t.charAt(0).toUpperCase()+t.slice(1)}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Token Picker Modal */}
-      <Modal visible={!!showPicker} animationType="slide" transparent onRequestClose={()=>setShowPicker(null)}>
-        <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'}}>
-          <View style={{backgroundColor:C.modal,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,maxHeight:'80%'}}>
-            <Text style={{color:C.text,fontWeight:'700',fontSize:18,marginBottom:12}}>Select Token</Text>
-            <TextInput
-              value={pickerSearch} onChangeText={t=>{setPickerSearch(t);searchPicker(t);}}
-              placeholder="Search by name or paste address..." placeholderTextColor={C.muted}
-              style={{backgroundColor:C.card,borderRadius:10,padding:12,color:C.text,marginBottom:12,fontSize:14}}
-              autoFocus />
-            {pickerLoading && <ActivityIndicator color={C.green} style={{marginTop:8}}/>}
-            <FlatList
-              data={pickerResults}
-              keyExtractor={(t:any)=>t.address||t.mint||t.symbol}
-              renderItem={({item:t}:any)=>(
-                <TouchableOpacity onPress={()=>selectToken(t)}
-                  style={{flexDirection:'row',alignItems:'center',gap:12,paddingVertical:12,borderBottomWidth:1,borderBottomColor:C.border}}>
-                  {t.logoURI ? <Image source={{uri:t.logoURI}} style={{width:36,height:36,borderRadius:18}}/> :
-                  <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center'}}>
-                    <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{t.symbol?.slice(0,3)}</Text>
-                  </View>}
-                  <View>
-                    <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{t.symbol}</Text>
-                    <Text style={{color:C.muted,fontSize:12}}>{t.name}</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-            />
-            <TouchableOpacity onPress={()=>setShowPicker(null)} style={{marginTop:16,padding:14,alignItems:'center'}}>
-              <Text style={{color:C.muted,fontSize:15}}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {swapSubTab==='swap' && (
-        <View>
-          {/* From */}
-          <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:6,borderWidth:1,borderColor:C.border}}>
-            <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>YOU PAY</Text>
-            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-              <TouchableOpacity onPress={()=>{setShowPicker('from');setPickerSearch('');searchPicker('');}} style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                {fromToken2.logoURI ? <Image source={{uri:fromToken2.logoURI}} style={{width:36,height:36,borderRadius:18}}/> :
-                <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
-                  <Text style={{color:C.green,fontSize:10,fontWeight:'700'}}>{fromToken2.symbol?.slice(0,3)}</Text>
-                </View>}
-                <Text style={{color:C.text,fontSize:16,fontWeight:'700'}}>{fromToken2.symbol} ▾</Text>
+    <View style={{ flex:1, backgroundColor:C.bg }}>
+      <ScrollView contentContainerStyle={{ paddingBottom:200 }} showsVerticalScrollIndicator={false}>
+        <View style={{ padding:16 }}>
+          <View style={{ flexDirection:'row', backgroundColor:C.card, borderRadius:12, padding:4, marginBottom:16 }}>
+            {['Market','Limit','Recurring'].map(m=>(
+              <TouchableOpacity key={m} onPress={()=>setMode(m)} style={{ flex:1, paddingVertical:8, borderRadius:10, alignItems:'center', backgroundColor:mode===m?C.bg:'transparent' }}>
+                <Text style={{ color:mode===m?C.text:C.muted, fontWeight:mode===m?'700':'400', fontSize:14 }}>{m}</Text>
               </TouchableOpacity>
-              <TextInput value={swapAmt} onChangeText={setSwapAmt} placeholder="0.00" placeholderTextColor={C.muted}
-                keyboardType="numeric" style={{color:C.text,fontSize:24,fontWeight:'700',textAlign:'right',minWidth:100}} />
-            </View>
-            <View style={{flexDirection:'row',gap:6,marginTop:12}}>
-              {['25','50','75','100'].map(p=>(
-                <TouchableOpacity key={p} onPress={()=>{
-                  const bal = fromToken2.symbol==='SOL' ? solBalance : tokenBalances.find((t:any)=>t.symbol===fromToken2.symbol)?.amount||0;
-                  setSwapAmt(((bal||0)*parseInt(p)/100).toFixed(4));
-                }} style={{flex:1,paddingVertical:5,borderRadius:8,backgroundColor:C.card2,alignItems:'center',borderWidth:1,borderColor:C.border}}>
-                  <Text style={{color:C.muted,fontSize:11}}>{p}%</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            ))}
           </View>
 
-          {/* Arrow */}
-          <View style={{alignItems:'center',marginVertical:4}}>
-            <TouchableOpacity onPress={()=>{const tmp=fromToken2;setFromToken2(toToken2);setToToken2(tmp);}}
-              style={{width:34,height:34,borderRadius:17,backgroundColor:C.card,borderWidth:1,borderColor:C.green,alignItems:'center',justifyContent:'center'}}>
-              <Text style={{color:C.green,fontSize:16}}>⇅</Text>
+          <View style={{ backgroundColor:C.card, borderRadius:20, padding:16, marginBottom:2 }}>
+            <View style={{ flexDirection:'row', justifyContent:'space-between', marginBottom:10 }}>
+              <Text style={{ color:C.muted, fontWeight:'600', fontSize:13 }}>Sell</Text>
+              <Text style={{ color:C.muted, fontSize:13 }}>⊙ {Number(fromBal).toFixed(4)}</Text>
+            </View>
+            <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
+              <TouchableOpacity onPress={()=>{ setShowPicker('from'); searchTokens(''); }}
+                style={{ flexDirection:'row', alignItems:'center', backgroundColor:C.bg, borderRadius:24, paddingHorizontal:14, paddingVertical:10, gap:8 }}>
+                {fromToken2?.logoURI?<Image source={{uri:fromToken2.logoURI}} style={{width:26,height:26,borderRadius:13}}/>:null}
+                <Text style={{ color:C.text, fontWeight:'700', fontSize:16 }}>{fromToken2?.symbol||'Select'}</Text>
+                <Text style={{ color:C.muted }}>▾</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={()=>setShowNumpad(true)}>
+                <Text style={{ color:amount?C.text:C.muted, fontSize:30, fontWeight:'700' }}>{amount||'0'}</Text>
+              </TouchableOpacity>
+            </View>
+            {amount&&<Text style={{ color:C.muted, fontSize:12, textAlign:'right', marginTop:4 }}>${((parseFloat(amount)||0)*(tokenBalances?.find((t:any)=>t.mint===fromToken2?.mint)?.price||0)).toFixed(2)}</Text>}
+          </View>
+
+          <View style={{ alignItems:'center', zIndex:10, marginVertical:-10 }}>
+            <TouchableOpacity onPress={flipTokens} style={{ backgroundColor:C.green, width:38, height:38, borderRadius:19, alignItems:'center', justifyContent:'center', borderWidth:3, borderColor:C.bg, elevation:4 }}>
+              <Text style={{ color:'#000', fontSize:16, fontWeight:'900' }}>⇅</Text>
             </TouchableOpacity>
           </View>
 
-          {/* To */}
-          <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:C.border}}>
-            <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>YOU RECEIVE</Text>
-            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-              <TouchableOpacity onPress={()=>{setShowPicker('to');setPickerSearch('');searchPicker('');}} style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                {toToken2.logoURI ? <Image source={{uri:toToken2.logoURI}} style={{width:36,height:36,borderRadius:18}}/> :
-                <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
-                  <Text style={{color:C.blue,fontSize:10,fontWeight:'700'}}>{toToken2.symbol?.slice(0,3)}</Text>
-                </View>}
-                <Text style={{color:C.text,fontSize:16,fontWeight:'700'}}>{toToken2.symbol} ▾</Text>
-              </TouchableOpacity>
-              <Text style={{color:C.text,fontSize:24,fontWeight:'700'}}>{quoteOut||'—'}</Text>
+          <View style={{ backgroundColor:C.card, borderRadius:20, padding:16, marginTop:2, marginBottom:16 }}>
+            <View style={{ flexDirection:'row', justifyContent:'space-between', marginBottom:10 }}>
+              <Text style={{ color:C.muted, fontWeight:'600', fontSize:13 }}>Buy</Text>
+              <Text style={{ color:C.muted, fontSize:13 }}>⊙ {Number(toBal).toFixed(4)}</Text>
             </View>
+            <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
+              <TouchableOpacity onPress={()=>{ setShowPicker('to'); searchTokens(''); }}
+                style={{ flexDirection:'row', alignItems:'center', backgroundColor:C.bg, borderRadius:24, paddingHorizontal:14, paddingVertical:10, gap:8 }}>
+                {toToken2?.logoURI?<Image source={{uri:toToken2.logoURI}} style={{width:26,height:26,borderRadius:13}}/>:null}
+                <Text style={{ color:C.text, fontWeight:'700', fontSize:16 }}>{toToken2?.symbol||'Select'}</Text>
+                <Text style={{ color:C.muted }}>▾</Text>
+              </TouchableOpacity>
+              <Text style={{ color:quoteOut?C.text:C.muted, fontSize:30, fontWeight:'700' }}>{quoting?'...':quoteOut||'0'}</Text>
+            </View>
+            {rate&&<Text style={{ color:C.muted, fontSize:12, marginTop:8 }}>{rate}</Text>}
           </View>
 
-          <TouchableOpacity onPress={doSwap} disabled={swapLoading}
-            style={{backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center'}}>
-            {swapLoading ? <ActivityIndicator color="#0d1117"/> : <Text style={{color:'#0d1117',fontWeight:'700',fontSize:15}}>Swap</Text>}
+          <TouchableOpacity onPress={amount&&quote?doSwap:()=>setShowNumpad(true)}
+            style={{ backgroundColor:amount&&quote?C.green:C.card, borderRadius:18, padding:18, alignItems:'center', marginBottom:24 }}
+            disabled={swapLoading}>
+            {swapLoading?<ActivityIndicator color={amount&&quote?'#000':C.green}/>
+              :<Text style={{ color:amount&&quote?'#000':C.muted, fontWeight:'700', fontSize:17 }}>
+                {amount&&quote?`Swap ${fromToken2?.symbol} → ${toToken2?.symbol}`:'Enter Amount'}
+              </Text>}
           </TouchableOpacity>
 
-          {/* Trade History */}
-          <View style={{marginTop:24}}>
-            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-              <Text style={{color:C.text,fontWeight:'700',fontSize:16}}>Trade History</Text>
-              <TouchableOpacity onPress={fetchTradeHistory} style={{padding:4}}>
-                <Text style={{color:C.green,fontSize:12}}>↻ Refresh</Text>
-              </TouchableOpacity>
-            </View>
-            {historyLoading && <ActivityIndicator color={C.green} style={{marginTop:8}}/>}
-            {!historyLoading && tradeHistory.length===0 && (
-              <Text style={{color:C.muted,textAlign:'center',marginTop:8,fontSize:13}}>No recent swaps found</Text>
-            )}
-            {tradeHistory.map((tx:any,i:number)=>{
-              const time = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleDateString() : '';
-              const inTx = (tx.tokenTransfers||[]).find((t:any)=>t.fromUserAccount===pubkey);
-              const outTx = (tx.tokenTransfers||[]).find((t:any)=>t.toUserAccount===pubkey);
-              const inAmt = inTx ? parseFloat(inTx.tokenAmount||0).toFixed(4) : '';
-              const outAmt = outTx ? parseFloat(outTx.tokenAmount||0).toFixed(4) : '';
-              const label = (inAmt&&outAmt) ? inAmt+' → '+outAmt : (tx.description||tx.signature?.slice(0,16)+'...');
-              return (
-                <View key={i} style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:12,borderBottomWidth:1,borderBottomColor:C.border}}>
-                  <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
-                    <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.card,alignItems:'center',justifyContent:'center'}}>
-                      <Text style={{fontSize:16}}>⇄</Text>
+          <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <Text style={{ color:C.text, fontWeight:'700', fontSize:16 }}>History</Text>
+            <TouchableOpacity onPress={fetchTradeHistory} style={{ padding:4 }}>
+              <Text style={{ color:C.green, fontSize:13 }}>↻ Refresh</Text>
+            </TouchableOpacity>
+          </View>
+          {historyLoading&&<ActivityIndicator color={C.green} style={{marginTop:8}}/>}
+          {!historyLoading&&tradeHistory.length===0&&<Text style={{ color:C.muted, textAlign:'center', marginTop:16 }}>No swap history yet</Text>}
+          {Object.entries(grouped).map(([date,txs]:any)=>(
+            <View key={date}>
+              <Text style={{ color:C.muted, fontSize:13, fontWeight:'600', marginBottom:8, marginTop:4 }}>{date}</Text>
+              {txs.map((tx:any,i:number)=>{
+                const transfers=tx.tokenTransfers||[];
+                const sent=transfers.find((t:any)=>t.fromUserAccount===pubkey);
+                const recv=transfers.find((t:any)=>t.toUserAccount===pubkey);
+                return (
+                  <View key={i} style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:8, flexDirection:'row', alignItems:'center' }}>
+                    <View style={{ width:42, height:42, borderRadius:21, backgroundColor:C.bg, alignItems:'center', justifyContent:'center', marginRight:12 }}>
+                      <Text style={{ fontSize:20 }}>⇄</Text>
                     </View>
-                    <View>
-                      <Text style={{color:C.text,fontWeight:'600',fontSize:13}}>Swap</Text>
-                      <Text style={{color:C.muted,fontSize:11}}>{label}</Text>
+                    <View style={{ flex:1 }}>
+                      <Text style={{ color:C.text, fontWeight:'600', fontSize:14 }}>{sent?.mint?.slice(0,4)||'?'} → {recv?.mint?.slice(0,4)||'?'}</Text>
+                      <Text style={{ color:C.muted, fontSize:11 }}>{new Date((tx.timestamp||0)*1000).toLocaleTimeString()}</Text>
+                    </View>
+                    <View style={{ alignItems:'flex-end' }}>
+                      {recv&&<Text style={{ color:C.green, fontWeight:'600', fontSize:13 }}>+{recv.tokenAmount?.toFixed(4)}</Text>}
+                      {sent&&<Text style={{ color:C.red, fontSize:12 }}>-{sent.tokenAmount?.toFixed(4)}</Text>}
                     </View>
                   </View>
-                  <Text style={{color:C.muted,fontSize:11}}>{time}</Text>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          ))}
         </View>
-      )}
+      </ScrollView>
 
-      {swapSubTab==='trigger' && (
-        <View>
-          <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:C.border}}>
-            <Text style={{color:C.muted,fontSize:11,marginBottom:12,letterSpacing:1}}>TRIGGER ORDER (LIMIT)</Text>
-            <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>Sell {fromToken2.symbol} when price reaches</Text>
-            <TextInput value={triggerPrice} onChangeText={setTriggerPrice} placeholder="Target price in USD"
-              placeholderTextColor={C.muted} keyboardType="numeric"
-              style={{backgroundColor:C.card2,borderRadius:10,padding:12,color:C.text,marginBottom:12,borderWidth:1,borderColor:C.border}} />
-            <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>Amount of {fromToken2.symbol}</Text>
-            <TextInput value={triggerAmt} onChangeText={setTriggerAmt} placeholder="0.00"
-              placeholderTextColor={C.muted} keyboardType="numeric"
-              style={{backgroundColor:C.card2,borderRadius:10,padding:12,color:C.text,marginBottom:4,borderWidth:1,borderColor:C.border}} />
-            <Text style={{color:C.muted,fontSize:10,marginTop:4}}>Receive: {toToken2.symbol}</Text>
-          </View>
-          <TouchableOpacity onPress={doTrigger} disabled={triggerLoading}
-            style={{backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center'}}>
-            {triggerLoading ? <ActivityIndicator color="#0d1117"/> : <Text style={{color:'#0d1117',fontWeight:'700',fontSize:15}}>Place Trigger Order</Text>}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {swapSubTab==='perps' && (
-        <View>
-          {/* Long/Short toggle */}
-          <View style={{flexDirection:'row',backgroundColor:C.card2,borderRadius:12,padding:4,marginBottom:16,borderWidth:1,borderColor:C.border}}>
-            <TouchableOpacity onPress={()=>setPerpSide('long')} style={{flex:1,paddingVertical:8,borderRadius:10,alignItems:'center',backgroundColor:perpSide==='long'?'rgba(199,242,132,0.2)':'transparent'}}>
-              <Text style={{color:perpSide==='long'?C.green:C.muted,fontWeight:'700'}}>↑ Long</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={()=>setPerpSide('short')} style={{flex:1,paddingVertical:8,borderRadius:10,alignItems:'center',backgroundColor:perpSide==='short'?'rgba(255,85,85,0.15)':'transparent'}}>
-              <Text style={{color:perpSide==='short'?C.red:C.muted,fontWeight:'700'}}>↓ Short</Text>
+      {showNumpad&&(
+        <View style={{ position:'absolute', bottom:0, left:0, right:0, backgroundColor:C.card, borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingTop:16, paddingBottom:32, elevation:20 }}>
+          <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+            <Text style={{ color:C.muted, fontSize:13 }}>Amount</Text>
+            <Text style={{ color:C.text, fontSize:22, fontWeight:'700', flex:1, textAlign:'center' }}>{amount||'0'} {fromToken2?.symbol}</Text>
+            <TouchableOpacity onPress={()=>setShowNumpad(false)} style={{ padding:8 }}>
+              <Text style={{ color:C.muted, fontSize:22 }}>▾</Text>
             </TouchableOpacity>
           </View>
-
-          <View style={{backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:C.border}}>
-            <Text style={{color:C.muted,fontSize:11,marginBottom:12,letterSpacing:1}}>POSITION SIZE (USDC)</Text>
-            <TextInput value={perpAmt} onChangeText={setPerpAmt} placeholder="0.00"
-              placeholderTextColor={C.muted} keyboardType="numeric"
-              style={{backgroundColor:C.card2,borderRadius:10,padding:12,color:C.text,marginBottom:12,borderWidth:1,borderColor:C.border}} />
-            <Text style={{color:C.muted,fontSize:11,marginBottom:8,letterSpacing:1}}>LEVERAGE</Text>
-            <View style={{flexDirection:'row',gap:6}}>
-              {['2','5','10','25'].map(l=>(
-                <TouchableOpacity key={l} onPress={()=>setPerpLeverage(l)}
-                  style={{flex:1,paddingVertical:8,borderRadius:8,alignItems:'center',
-                    backgroundColor:perpLeverage===l?C.green:'transparent',borderWidth:1,borderColor:perpLeverage===l?C.green:C.border}}>
-                  <Text style={{color:perpLeverage===l?'#0d1117':C.muted,fontWeight:'600',fontSize:12}}>{l}x</Text>
+          {[['MAX','1','2','3'],['75%','4','5','6'],['50%','7','8','9'],['CLEAR','.','0','⌫']].map((row,ri)=>(
+            <View key={ri} style={{ flexDirection:'row', gap:10, marginBottom:10 }}>
+              {row.map(k=>(
+                <TouchableOpacity key={k} onPress={()=>handleNumpad(k)}
+                  style={{ flex:1, backgroundColor:['MAX','75%','50%','CLEAR'].includes(k)?'#1a2a1a':C.bg, borderRadius:14, paddingVertical:16, alignItems:'center' }}>
+                  <Text style={{ color:k==='CLEAR'?C.red:['MAX','75%','50%'].includes(k)?C.green:C.text, fontWeight:'700', fontSize:17 }}>{k}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
-
-          <TouchableOpacity onPress={doPerp}
-            style={{backgroundColor:perpSide==='long'?C.green:C.red,borderRadius:14,padding:16,alignItems:'center',marginBottom:16}}>
-            <Text style={{color:'#0d1117',fontWeight:'700',fontSize:15}}>{perpSide==='long'?'Open Long':'Open Short'} {perpLeverage}x</Text>
-          </TouchableOpacity>
-
-          {/* Open positions */}
-          {perpPositions.length > 0 && (
-            <View>
-              <Text style={{color:C.text,fontWeight:'700',marginBottom:8}}>Open Positions</Text>
-              {perpPositions.map((p:any,i:number)=>(
-                <View key={i} style={{backgroundColor:C.card,borderRadius:14,padding:14,marginBottom:8,borderWidth:1,borderColor:C.border}}>
-                  <View style={{flexDirection:'row',justifyContent:'space-between'}}>
-                    <Text style={{color:C.text,fontWeight:'700'}}>{p.marketSymbol||p.symbol||'SOL'}</Text>
-                    <Text style={{color:p.side==='long'?C.green:C.red,fontWeight:'600'}}>{p.side?.toUpperCase()} {p.leverage}x</Text>
-                  </View>
-                  <View style={{flexDirection:'row',justifyContent:'space-between',marginTop:6}}>
-                    <Text style={{color:C.muted,fontSize:12}}>Size: ${parseFloat(p.size||0).toFixed(2)}</Text>
-                    <Text style={{color:parseFloat(p.pnl||0)>=0?C.green:C.red,fontSize:12}}>PnL: ${parseFloat(p.pnl||0).toFixed(2)}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-          {perpPositions.length===0 && <Text style={{color:C.muted,textAlign:'center',marginTop:8}}>No open positions</Text>}
+          ))}
         </View>
       )}
-    </ScrollView>
+
+      {showPicker&&(
+        <Modal visible animationType="slide" transparent onRequestClose={()=>setShowPicker(null)}>
+          <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }}>
+            <View style={{ backgroundColor:C.card, borderTopLeftRadius:24, borderTopRightRadius:24, padding:20, maxHeight:'80%' }}>
+              <Text style={{ color:C.text, fontWeight:'700', fontSize:18, marginBottom:14 }}>Select Token</Text>
+              <TextInput value={pickerSearch} onChangeText={searchTokens}
+                placeholder="Search or paste address..." placeholderTextColor={C.muted}
+                style={{ backgroundColor:C.bg, color:C.text, borderRadius:12, padding:12, fontSize:14, marginBottom:12 }}
+                autoFocus autoCapitalize="none"/>
+              {pickerLoading&&<ActivityIndicator color={C.green}/>}
+              <ScrollView>
+                {!pickerSearch&&(tokenBalances||[]).map((t:any,i:number)=>(
+                  <TouchableOpacity key={'b'+i} onPress={()=>selectToken({...t,address:t.mint})}
+                    style={{ flexDirection:'row', alignItems:'center', padding:12, borderBottomWidth:1, borderBottomColor:C.border }}>
+                    <Image source={{uri:t.logoURI||`https://img.jup.ag/tokens/${t.mint}`}} style={{width:36,height:36,borderRadius:18,backgroundColor:C.bg,marginRight:12}}/>
+                    <View style={{flex:1}}>
+                      <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
+                      <Text style={{color:C.muted,fontSize:12}}>{t.name||t.symbol}</Text>
+                    </View>
+                    <Text style={{color:C.muted,fontSize:13}}>{t.amount?.toFixed(4)}</Text>
+                  </TouchableOpacity>
+                ))}
+                {(pickerSearch?pickerResults:pickerResults).map((t:any,i:number)=>(
+                  <TouchableOpacity key={'r'+i} onPress={()=>selectToken(t)}
+                    style={{ flexDirection:'row', alignItems:'center', padding:12, borderBottomWidth:1, borderBottomColor:C.border }}>
+                    <Image source={{uri:t.logoURI||`https://img.jup.ag/tokens/${t.address}`}} style={{width:36,height:36,borderRadius:18,backgroundColor:C.bg,marginRight:12}}/>
+                    <View style={{flex:1}}>
+                      <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
+                      <Text style={{color:C.muted,fontSize:12}}>{t.name}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
+    </View>
   );
 }
 
