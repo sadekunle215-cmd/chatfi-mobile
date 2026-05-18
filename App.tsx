@@ -75,9 +75,9 @@ async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amou
 const TABS = [
   { id: 'chat', label: 'Chat', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
   { id: 'swap', label: 'Trade', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
-  { id: 'portfolio', label: 'Assets', icon: 'time-outline', iconActive: 'time' },
+  { id: 'portfolio', label: 'Assets', icon: 'wallet-outline', iconActive: 'wallet' },
   { id: 'dapp', label: 'Explore', icon: 'compass-outline', iconActive: 'compass-sharp' },
-  { id: 'settings', label: 'Setting', icon: 'settings-outline', iconActive: 'settings' },
+  { id: 'settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
 ];
 
 const TOKEN_LIST = ['SOL','USDC','JUP','BONK','WIF','USDT'];
