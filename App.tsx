@@ -730,8 +730,14 @@ const SOLANA_WALLET_INJECTION = `
       wallet._emit('disconnect');
     },
     signTransaction: async (tx) => {
-      const bytes = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(bytes instanceof Uint8Array ? bytes : tx.serialize({ requireAllSignatures: false }))));
+      let b64;
+      try {
+        const bytes = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+        b64 = btoa(String.fromCharCode(...new Uint8Array(bytes)));
+      } catch {
+        try { b64 = btoa(String.fromCharCode(...new Uint8Array(tx.serialize()))); }
+        catch { b64 = btoa(String.fromCharCode(...new Uint8Array(tx.message?.serialize ? tx.message.serialize() : []))); }
+      }
       const result = await sendToNative('signTransaction', { tx: b64 });
       return tx;
     },
@@ -743,8 +749,14 @@ const SOLANA_WALLET_INJECTION = `
       return { signature: sig, publicKey };
     },
     signAndSendTransaction: async (tx, opts) => {
-      const bytes = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(bytes instanceof Uint8Array ? bytes : tx.serialize({ requireAllSignatures: false }))));
+      let b64;
+      try {
+        const bytes = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+        b64 = btoa(String.fromCharCode(...new Uint8Array(bytes)));
+      } catch {
+        try { b64 = btoa(String.fromCharCode(...new Uint8Array(tx.serialize()))); }
+        catch { b64 = Buffer.from(tx).toString('base64'); }
+      }
       const sig = await sendToNative('signAndSend', { tx: b64 });
       return { signature: sig };
     },
@@ -1139,15 +1151,20 @@ function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandle
                       const keypair = Keypair.fromSecretKey(secretKey);
                       const txBytes = Buffer.from(p.tx, 'base64');
                       let signed;
-                      const isVer = (txBytes[0] & 0x80) !== 0;
-                      if (isVer) {
+                      try {
+                        // Try versioned transaction first
                         const tx = VersionedTransaction.deserialize(txBytes);
                         tx.sign([keypair]);
                         signed = Buffer.from(tx.serialize()).toString('base64');
-                      } else {
-                        const tx = Transaction.from(txBytes);
-                        tx.partialSign(keypair);
-                        signed = tx.serialize({ requireAllSignatures: false }).toString('base64');
+                      } catch {
+                        try {
+                          // Fall back to legacy transaction
+                          const tx = Transaction.from(txBytes);
+                          tx.partialSign(keypair);
+                          signed = tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64');
+                        } catch(e2) {
+                          throw new Error('Failed to deserialize transaction: ' + e2.message);
+                        }
                       }
                       if (m === 'signAndSend') {
                         const r = await fetch('https://api.mainnet-beta.solana.com', {
