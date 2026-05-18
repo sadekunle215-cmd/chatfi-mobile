@@ -738,7 +738,16 @@ const SOLANA_WALLET_INJECTION = `
         try { b64 = btoa(String.fromCharCode(...new Uint8Array(tx.serialize()))); }
         catch { b64 = btoa(String.fromCharCode(...new Uint8Array(tx.message?.serialize ? tx.message.serialize() : []))); }
       }
-      const result = await sendToNative('signTransaction', { tx: b64 });
+      const signedB64 = await sendToNative('signTransaction', { tx: b64 });
+      // Return signed tx bytes so dapp can use them
+      try {
+        const signedBytes = Uint8Array.from(atob(signedB64), c => c.charCodeAt(0));
+        if (tx.signatures !== undefined) {
+          // Legacy transaction - populate signature
+          const sig = signedBytes.slice(1, 65);
+          if (tx.signatures[0]) tx.signatures[0].signature = Buffer.from(sig);
+        }
+      } catch(e) {}
       return tx;
     },
     signAllTransactions: async (txs) => Promise.all(txs.map(tx => wallet.signTransaction(tx))),
@@ -1169,12 +1178,13 @@ function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandle
                       if (m === 'signAndSend') {
                         const r = await fetch('https://api.mainnet-beta.solana.com', {
                           method:'POST', headers:{'Content-Type':'application/json'},
-                          body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'sendTransaction', params:[signed,{encoding:'base64',skipPreflight:true,preflightCommitment:'confirmed',maxRetries:3}] })
+                          body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'sendTransaction', params:[signed,{encoding:'base64',skipPreflight:false,preflightCommitment:'confirmed',maxRetries:3}] })
                         });
                         const rd = await r.json();
                         if (rd.error) throw new Error(rd.error.message);
                         webRef.current?.postMessage(JSON.stringify({ id, result: rd.result }));
                       } else {
+                        // Return signed transaction bytes for signTransaction
                         webRef.current?.postMessage(JSON.stringify({ id, result: signed }));
                       }
                       setPendingTx(null);
