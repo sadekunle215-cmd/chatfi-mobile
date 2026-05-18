@@ -932,6 +932,7 @@ function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandle
   const [editingUrl, setEditingUrl] = React.useState(false);
   const [showMenu, setShowMenu] = React.useState(false);
   const [showTabSwitcher, setShowTabSwitcher] = React.useState(false);
+  const [pendingTx, setPendingTx] = React.useState<any>(null);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -1087,34 +1088,8 @@ function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandle
                   const sig = nacl.sign.detached(msgBytes, secretKey);
                   webRef.current?.postMessage(JSON.stringify({ id, result: btoa(String.fromCharCode(...sig)) }));
                 } else if (method === 'signTransaction' || method === 'signAndSend') {
-                  const { VersionedTransaction, Keypair, Transaction } = require('@solana/web3.js');
-                  const keypair = Keypair.fromSecretKey(secretKey);
-                  const txBytes = Buffer.from(params.tx, 'base64');
-                  let signed;
-                  try {
-                    const tx = VersionedTransaction.deserialize(txBytes);
-                    const msgBytes2 = tx.message.serialize();
-                    const sig2 = nacl.sign.detached(msgBytes2, secretKey);
-                    const pubStr = keypair.publicKey.toBase58();
-                    const sigIdx = tx.message.staticAccountKeys.findIndex(k => k.toBase58() === pubStr);
-                    if (sigIdx !== -1) { tx.signatures[sigIdx] = sig2; } else { tx.sign([keypair]); }
-                    signed = Buffer.from(tx.serialize()).toString('base64');
-                  } catch {
-                    const tx = Transaction.from(txBytes);
-                    tx.partialSign(keypair);
-                    signed = tx.serialize({ requireAllSignatures: false }).toString('base64');
-                  }
-                  if (method === 'signAndSend') {
-                    const rpcRes = await fetch('https://api.mainnet-beta.solana.com', {
-                      method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [signed, { encoding: 'base64', skipPreflight: true, preflightCommitment: 'confirmed', maxRetries: 3 }] }),
-                    });
-                    const rpcData = await rpcRes.json();
-                    if (rpcData.error) throw new Error(rpcData.error.message);
-                    webRef.current?.postMessage(JSON.stringify({ id, result: rpcData.result }));
-                  } else {
-                    webRef.current?.postMessage(JSON.stringify({ id, result: signed }));
-                  }
+                  setPendingTx({ id, method, params });
+                  return;
                 }
               } catch(e) {
                 try { const { id } = JSON.parse(event.nativeEvent.data); webRef.current?.postMessage(JSON.stringify({ id, error: e.message })); } catch(_) {}
@@ -1127,6 +1102,75 @@ function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandle
         </View>
       )}
 
+
+      {/* TX Approval Modal */}
+      {pendingTx && (
+        <Modal visible animationType="slide" transparent onRequestClose={() => { webRef.current?.postMessage(JSON.stringify({ id: pendingTx.id, error: 'User rejected' })); setPendingTx(null); }}>
+          <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.75)', justifyContent:'flex-end' }}>
+            <View style={{ backgroundColor:C.card, borderTopLeftRadius:24, borderTopRightRadius:24, padding:24, paddingBottom:40 }}>
+              <View style={{ alignItems:'center', marginBottom:16 }}>
+                <View style={{ width:48, height:48, borderRadius:24, backgroundColor:'#1a2a1a', alignItems:'center', justifyContent:'center', marginBottom:12 }}>
+                  <Ionicons name="swap-horizontal" size={24} color={C.green} />
+                </View>
+                <Text style={{ color:C.text, fontWeight:'700', fontSize:20 }}>Approve Transaction</Text>
+                <Text style={{ color:C.muted, fontSize:13, marginTop:6, textAlign:'center' }}>{hostname} wants to sign a transaction</Text>
+              </View>
+              <View style={{ backgroundColor:C.bg, borderRadius:14, padding:14, marginBottom:20 }}>
+                <Text style={{ color:C.muted, fontSize:12, marginBottom:4 }}>WALLET</Text>
+                <Text style={{ color:C.text, fontSize:13, fontFamily:'monospace' }}>{walletAddress?.slice(0,16)}...{walletAddress?.slice(-8)}</Text>
+                <Text style={{ color:C.muted, fontSize:12, marginTop:8, marginBottom:4 }}>TYPE</Text>
+                <Text style={{ color:C.text, fontSize:13 }}>{pendingTx.method === 'signAndSend' ? 'Sign & Send' : 'Sign Only'}</Text>
+              </View>
+              <View style={{ flexDirection:'row', gap:12 }}>
+                <TouchableOpacity
+                  onPress={() => { webRef.current?.postMessage(JSON.stringify({ id: pendingTx.id, error: 'User rejected' })); setPendingTx(null); }}
+                  style={{ flex:1, backgroundColor:C.bg, borderRadius:14, padding:16, alignItems:'center', borderWidth:1, borderColor:C.red }}>
+                  <Text style={{ color:C.red, fontWeight:'700', fontSize:16 }}>Reject</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={async () => {
+                    const { id, method: m, params: p } = pendingTx;
+                    setPendingTx(null);
+                    try {
+                      const { VersionedTransaction, Keypair, Transaction } = require('@solana/web3.js');
+                      const keypair = Keypair.fromSecretKey(secretKey);
+                      const txBytes = Buffer.from(p.tx, 'base64');
+                      let signed;
+                      try {
+                        const tx = VersionedTransaction.deserialize(txBytes);
+                        const msgB = tx.message.serialize();
+                        const sig2 = nacl.sign.detached(msgB, secretKey);
+                        const idx2 = tx.message.staticAccountKeys.findIndex((k:any) => k.toBase58() === keypair.publicKey.toBase58());
+                        if (idx2 !== -1) { tx.signatures[idx2] = sig2; } else { tx.sign([keypair]); }
+                        signed = Buffer.from(tx.serialize()).toString('base64');
+                      } catch {
+                        const tx = Transaction.from(txBytes);
+                        tx.partialSign(keypair);
+                        signed = tx.serialize({ requireAllSignatures: false }).toString('base64');
+                      }
+                      if (m === 'signAndSend') {
+                        const r = await fetch('https://api.mainnet-beta.solana.com', {
+                          method:'POST', headers:{'Content-Type':'application/json'},
+                          body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'sendTransaction', params:[signed,{encoding:'base64',skipPreflight:true,preflightCommitment:'confirmed',maxRetries:3}] })
+                        });
+                        const rd = await r.json();
+                        if (rd.error) throw new Error(rd.error.message);
+                        webRef.current?.postMessage(JSON.stringify({ id, result: rd.result }));
+                      } else {
+                        webRef.current?.postMessage(JSON.stringify({ id, result: signed }));
+                      }
+                    } catch(e:any) {
+                      webRef.current?.postMessage(JSON.stringify({ id, error: e.message }));
+                    }
+                  }}
+                  style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}>
+                  <Text style={{ color:'#000', fontWeight:'700', fontSize:16 }}>Approve</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* Tab Switcher Modal */}
       <Modal visible={showTabSwitcher} animationType="fade" transparent={false} onRequestClose={() => setShowTabSwitcher(false)}>
