@@ -1116,10 +1116,14 @@ function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandle
                 <Text style={{ color:C.muted, fontSize:13, marginTop:6, textAlign:'center' }}>{hostname} wants to sign a transaction</Text>
               </View>
               <View style={{ backgroundColor:C.bg, borderRadius:14, padding:14, marginBottom:20 }}>
-                <Text style={{ color:C.muted, fontSize:12, marginBottom:4 }}>WALLET</Text>
+                <Text style={{ color:C.muted, fontSize:11, marginBottom:4 }}>WALLET</Text>
                 <Text style={{ color:C.text, fontSize:13, fontFamily:'monospace' }}>{walletAddress?.slice(0,16)}...{walletAddress?.slice(-8)}</Text>
-                <Text style={{ color:C.muted, fontSize:12, marginTop:8, marginBottom:4 }}>TYPE</Text>
-                <Text style={{ color:C.text, fontSize:13 }}>{pendingTx.method === 'signAndSend' ? 'Sign & Send' : 'Sign Only'}</Text>
+                <Text style={{ color:C.muted, fontSize:11, marginTop:8, marginBottom:4 }}>ACTION</Text>
+                <Text style={{ color:C.text, fontSize:13 }}>{pendingTx.method === 'signAndSend' ? '⚡ Sign & Send Transaction' : '✍️ Sign Only'}</Text>
+                <Text style={{ color:C.muted, fontSize:11, marginTop:8, marginBottom:4 }}>SITE</Text>
+                <Text style={{ color:C.green, fontSize:13 }}>{hostname}</Text>
+                <Text style={{ color:C.muted, fontSize:11, marginTop:8, marginBottom:4 }}>NETWORK FEE</Text>
+                <Text style={{ color:C.text, fontSize:13 }}>~0.000005 SOL</Text>
               </View>
               <View style={{ flexDirection:'row', gap:12 }}>
                 <TouchableOpacity
