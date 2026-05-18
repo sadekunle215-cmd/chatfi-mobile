@@ -1344,7 +1344,7 @@ const StudioLaunchCard = ({ card, wallet, deriveWallet, setMsgs, C, s }: any) =>
 };
 
 
-function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromToken2,toToken2,setToToken2,showToast,C,s,nacl,deriveWallet,executeSwapTx,fetchPortfolio}:any) {
+function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromToken2,toToken2,setToToken2,showToast,C,s,nacl,deriveWallet,executeSwapTx,fetchPortfolio,requireAuth,createTriggerOrder,createRecurringOrder}:any) {
   const [mode, setMode] = React.useState('Market');
   const [amount, setAmount] = React.useState('');
   const [showNumpad, setShowNumpad] = React.useState(false);
@@ -1466,6 +1466,8 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
 
   const doLimit = async () => {
     if (!wallet||!amount||!limitPrice) { showToast?.('Enter amount and limit price','error'); return; }
+    const fromBal2 = fromToken2?.symbol==='SOL' ? solBalance : tokenBalances?.find((t:any)=>t.mint===fromToken2?.mint)?.amount||0;
+    if (parseFloat(amount) > (fromBal2||0)) { showToast?.('❌ Insufficient '+fromToken2?.symbol+' balance','error'); return; }
     const authed = await requireAuth?.();
     if (authed === false) return;
     setLimitLoading(true);
@@ -1484,6 +1486,9 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
 
   const doRecurring = async () => {
     if (!wallet||!amount) { showToast?.('Enter amount','error'); return; }
+    const fromBal3 = fromToken2?.symbol==='SOL' ? solBalance : tokenBalances?.find((t:any)=>t.mint===fromToken2?.mint)?.amount||0;
+    const totalNeeded = parseFloat(amount) * parseInt(recurOrders||'7');
+    if (parseFloat(amount) > (fromBal3||0)) { showToast?.('❌ Insufficient '+fromToken2?.symbol+' balance for first order','error'); return; }
     const authed = await requireAuth?.();
     if (authed === false) return;
     setRecurLoading(true);
@@ -1499,8 +1504,8 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
     setRecurLoading(false);
   };
 
-  const fromBal = tokenBalances?.find((t:any)=>t.mint===fromToken2?.mint)?.amount ?? 0;
-  const toBal = tokenBalances?.find((t:any)=>t.mint===toToken2?.mint)?.amount ?? 0;
+  const fromBal = fromToken2?.symbol==='SOL' ? (solBalance||0) : (tokenBalances?.find((t:any)=>t.mint===fromToken2?.mint)?.amount ?? 0);
+  const toBal = toToken2?.symbol==='SOL' ? (solBalance||0) : (tokenBalances?.find((t:any)=>t.mint===toToken2?.mint)?.amount ?? 0);
   const rate = quote&&amount&&quoteOut ? `1 ${fromToken2?.symbol} ≈ ${(parseFloat(quoteOut)/parseFloat(amount)).toFixed(6)} ${toToken2?.symbol}` : null;
 
   const grouped = tradeHistory.reduce((g:any,tx:any)=>{
@@ -1524,7 +1529,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
           <View style={{ backgroundColor:C.card, borderRadius:20, padding:16, marginBottom:2 }}>
             <View style={{ flexDirection:'row', justifyContent:'space-between', marginBottom:10 }}>
               <Text style={{ color:C.muted, fontWeight:'600', fontSize:13 }}>Sell</Text>
-              <Text style={{ color:C.muted, fontSize:13 }}>⊙ {Number(fromBal).toFixed(4)}</Text>
+              <View style={{flexDirection:'row',alignItems:'center',gap:4}}><Ionicons name='wallet-outline' size={14} color={C.muted}/><Text style={{color:C.muted,fontSize:13}}>{Number(fromBal).toFixed(4)} {fromToken2?.symbol}</Text></View>
             </View>
             <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
               <TouchableOpacity onPress={()=>{ setShowPicker('from'); searchTokens(''); }}
@@ -1549,7 +1554,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
           <View style={{ backgroundColor:C.card, borderRadius:20, padding:16, marginTop:2, marginBottom:16 }}>
             <View style={{ flexDirection:'row', justifyContent:'space-between', marginBottom:10 }}>
               <Text style={{ color:C.muted, fontWeight:'600', fontSize:13 }}>Buy</Text>
-              <Text style={{ color:C.muted, fontSize:13 }}>⊙ {Number(toBal).toFixed(4)}</Text>
+              <View style={{flexDirection:'row',alignItems:'center',gap:4}}><Ionicons name='wallet-outline' size={14} color={C.muted}/><Text style={{color:C.muted,fontSize:13}}>{Number(toBal).toFixed(4)} {toToken2?.symbol}</Text></View>
             </View>
             <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
               <TouchableOpacity onPress={()=>{ setShowPicker('to'); searchTokens(''); }}
@@ -4225,6 +4230,9 @@ https://solscan.io/tx/${sig}` }]);
             return executeSwapTx(fromTok.mint, toTok.mint, amt, fromTok.decimals||6, pk2, sk2, 'https://api.mainnet-beta.solana.com');
           }}
           fetchPortfolio={fetchPortfolio}
+          requireAuth={requireAuth}
+          createTriggerOrder={createTriggerOrder}
+          createRecurringOrder={createRecurringOrder}
         />
       )}
       {tab === 'portfolio' && (
