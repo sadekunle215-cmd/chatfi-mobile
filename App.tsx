@@ -1355,6 +1355,14 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
   const [quoteOut, setQuoteOut] = React.useState<string|null>(null);
   const [quoting, setQuoting] = React.useState(false);
   const [swapLoading, setSwapLoading] = React.useState(false);
+  const [limitPrice, setLimitPrice] = React.useState('');
+  const [limitLoading, setLimitLoading] = React.useState(false);
+  const [recurEvery, setRecurEvery] = React.useState('1');
+  const [recurUnit, setRecurUnit] = React.useState('day');
+  const [recurOrders, setRecurOrders] = React.useState('7');
+  const [minPrice, setMinPrice] = React.useState('');
+  const [maxPrice, setMaxPrice] = React.useState('');
+  const [recurLoading, setRecurLoading] = React.useState(false);
   const [quote, setQuote] = React.useState<any>(null);
   const [tradeHistory, setTradeHistory] = React.useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = React.useState(false);
@@ -1391,7 +1399,8 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
     if (!pubkey) return;
     setHistoryLoading(true);
     try {
-      const res = await fetch(`https://api.helius.xyz/v0/addresses/${pubkey}/transactions?api-key=mainnet&type=SWAP&limit=10`);
+      // Use Jupiter's transaction history as fallback (no API key needed)
+      const res = await fetch(`https://lite-api.jup.ag/ultra/v1/transactions?wallet=${pubkey}&limit=10`);
       const data = await res.json();
       setTradeHistory(Array.isArray(data) ? data.slice(0,10) : []);
     } catch(e) { setTradeHistory([]); }
@@ -1447,11 +1456,47 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
     if (!quote||!wallet||swapLoading) return;
     setSwapLoading(true);
     try {
-      await executeSwapTx(quote, fromToken2, toToken2, parseFloat(amount));
+      const txSig = await executeSwapTx(quote, fromToken2, toToken2, parseFloat(amount));
       setAmount(''); setQuote(null); setQuoteOut(null); setShowNumpad(false);
+      showToast?.('✅ Swapped ' + amount + ' ' + (fromToken2?.symbol||'') + ' → ' + (toToken2?.symbol||''), 'success');
       setTimeout(fetchPortfolio,3000); setTimeout(fetchTradeHistory,5000);
-    } catch(e:any) { showToast?.('Swap failed: '+e.message); }
+    } catch(e:any) { showToast?.('❌ Swap failed: '+e.message, 'error'); }
     setSwapLoading(false);
+  };
+
+  const doLimit = async () => {
+    if (!wallet||!amount||!limitPrice) { showToast?.('Enter amount and limit price','error'); return; }
+    const authed = await requireAuth?.();
+    if (authed === false) return;
+    setLimitLoading(true);
+    try {
+      const {publicKey:pk,secretKey} = deriveWallet(wallet);
+      const inDec = fromToken2?.decimals||6;
+      const outDec = toToken2?.decimals||6;
+      const amtRaw = Math.round(parseFloat(amount)*Math.pow(10,inDec));
+      const priceRaw = Math.round(parseFloat(limitPrice)*Math.pow(10,outDec));
+      const txSig = await createTriggerOrder(fromToken2?.mint,toToken2?.mint,inDec,outDec,parseFloat(amount),parseFloat(limitPrice),'below',pk,secretKey);
+      showToast?.('✅ Limit order placed!','success');
+      setAmount(''); setLimitPrice('');
+    } catch(e:any) { showToast?.('❌ Limit failed: '+e.message,'error'); }
+    setLimitLoading(false);
+  };
+
+  const doRecurring = async () => {
+    if (!wallet||!amount) { showToast?.('Enter amount','error'); return; }
+    const authed = await requireAuth?.();
+    if (authed === false) return;
+    setRecurLoading(true);
+    try {
+      const {publicKey:pk,secretKey} = deriveWallet(wallet);
+      const unitSecs = recurUnit==='minute'?60:recurUnit==='hour'?3600:recurUnit==='week'?604800:86400;
+      const interval = parseInt(recurEvery||'1')*unitSecs;
+      const orders = parseInt(recurOrders||'7');
+      const txSig = await createRecurringOrder(fromToken2?.mint,toToken2?.mint,fromToken2?.decimals||6,parseFloat(amount),interval,orders,pk,secretKey);
+      showToast?.('✅ DCA order created!','success');
+      setAmount('');
+    } catch(e:any) { showToast?.('❌ DCA failed: '+e.message,'error'); }
+    setRecurLoading(false);
   };
 
   const fromBal = tokenBalances?.find((t:any)=>t.mint===fromToken2?.mint)?.amount ?? 0;
@@ -1518,12 +1563,73 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
             {rate&&<Text style={{ color:C.muted, fontSize:12, marginTop:8 }}>{rate}</Text>}
           </View>
 
-          <TouchableOpacity onPress={amount&&quote?doSwap:()=>setShowNumpad(true)}
-            style={{ backgroundColor:amount&&quote?C.green:C.card, borderRadius:18, padding:18, alignItems:'center', marginBottom:24 }}
-            disabled={swapLoading}>
-            {swapLoading?<ActivityIndicator color={amount&&quote?'#000':C.green}/>
-              :<Text style={{ color:amount&&quote?'#000':C.muted, fontWeight:'700', fontSize:17 }}>
-                {amount&&quote?`Swap ${fromToken2?.symbol} → ${toToken2?.symbol}`:'Enter Amount'}
+          {mode==='Limit'&&(
+            <View style={{marginBottom:16}}>
+              <View style={{flexDirection:'row',gap:8,marginBottom:8}}>
+                <View style={{flex:1}}>
+                  <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>Limit Price</Text>
+                  <TextInput value={limitPrice} onChangeText={setLimitPrice} placeholder="e.g. 150"
+                    placeholderTextColor={C.muted} keyboardType="numeric"
+                    style={{backgroundColor:C.card,borderRadius:12,padding:12,color:C.text,borderWidth:1,borderColor:C.border,fontSize:15}}/>
+                </View>
+                <View style={{flex:1}}>
+                  <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>Expiry</Text>
+                  <View style={{backgroundColor:C.card,borderRadius:12,padding:12,borderWidth:1,borderColor:C.border,height:46,justifyContent:'center'}}>
+                    <Text style={{color:C.text,fontSize:15}}>Never</Text>
+                  </View>
+                </View>
+              </View>
+              {!!(amount&&limitPrice)&&<Text style={{color:C.muted,fontSize:12}}>
+                You receive ≈ {(parseFloat(amount||'0')*parseFloat(limitPrice||'0')).toFixed(4)} {toToken2?.symbol}
+              </Text>}
+            </View>
+          )}
+          {mode==='Recurring'&&(
+            <View style={{marginBottom:16}}>
+              <View style={{flexDirection:'row',gap:8,marginBottom:8}}>
+                <View style={{flex:1}}>
+                  <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>Every</Text>
+                  <View style={{backgroundColor:C.card,borderRadius:12,borderWidth:1,borderColor:C.border,flexDirection:'row',alignItems:'center'}}>
+                    <TextInput value={recurEvery} onChangeText={setRecurEvery} keyboardType="numeric"
+                      placeholder="1" placeholderTextColor={C.muted}
+                      style={{color:C.text,padding:12,fontSize:15,width:50}}/>
+                    <TouchableOpacity onPress={()=>setRecurUnit((u:string)=>u==='minute'?'hour':u==='hour'?'day':u==='day'?'week':'minute')}
+                      style={{flex:1,padding:12,flexDirection:'row',justifyContent:'space-between'}}>
+                      <Text style={{color:C.text,fontSize:15}}>{recurUnit}</Text>
+                      <Text style={{color:C.muted}}>▾</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <View style={{flex:1}}>
+                  <Text style={{color:C.muted,fontSize:12,marginBottom:6}}>Over</Text>
+                  <View style={{backgroundColor:C.card,borderRadius:12,borderWidth:1,borderColor:C.border,flexDirection:'row',alignItems:'center'}}>
+                    <TextInput value={recurOrders} onChangeText={setRecurOrders} keyboardType="numeric"
+                      placeholder="7" placeholderTextColor={C.muted}
+                      style={{color:C.text,padding:12,fontSize:15,width:50}}/>
+                    <Text style={{color:C.muted,padding:12,fontSize:15}}>orders</Text>
+                  </View>
+                </View>
+              </View>
+              <View style={{flexDirection:'row',gap:8,marginBottom:4}}>
+                <TextInput value={minPrice} onChangeText={setMinPrice} placeholder="Min Price"
+                  placeholderTextColor={C.muted} keyboardType="numeric"
+                  style={{flex:1,backgroundColor:C.card,borderRadius:12,padding:12,color:C.text,borderWidth:1,borderColor:C.border}}/>
+                <TextInput value={maxPrice} onChangeText={setMaxPrice} placeholder="Max Price"
+                  placeholderTextColor={C.muted} keyboardType="numeric"
+                  style={{flex:1,backgroundColor:C.card,borderRadius:12,padding:12,color:C.text,borderWidth:1,borderColor:C.border}}/>
+              </View>
+              <Text style={{color:C.muted,fontSize:11,textAlign:'center',marginBottom:4}}>Price Range (Optional)</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            onPress={mode==='Market'?(amount&&quote?doSwap:()=>setShowNumpad(true)):mode==='Limit'?doLimit:doRecurring}
+            style={{backgroundColor:amount?C.green:C.card,borderRadius:18,padding:18,alignItems:'center',marginBottom:24}}
+            disabled={swapLoading||limitLoading||recurLoading}>
+            {(swapLoading||limitLoading||recurLoading)?<ActivityIndicator color="#000"/>
+              :<Text style={{color:amount?'#000':C.muted,fontWeight:'700',fontSize:17}}>
+                {mode==='Market'?(amount&&quote?`Swap ${fromToken2?.symbol} → ${toToken2?.symbol}`:'Enter Amount')
+                :mode==='Limit'?(amount&&limitPrice?'Place Limit Order':'Enter Amount & Price')
+                :(amount?'Start DCA':'Enter Amount')}
               </Text>}
           </TouchableOpacity>
 
