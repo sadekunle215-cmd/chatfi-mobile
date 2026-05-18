@@ -1627,8 +1627,8 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
                       style={{color:C.text,padding:12,fontSize:15,width:50}}/>
                     <TouchableOpacity onPress={()=>setRecurUnit((u:string)=>u==='minute'?'hour':u==='hour'?'day':u==='day'?'week':'minute')}
                       style={{flex:1,padding:12,flexDirection:'row',justifyContent:'space-between'}}>
-                      <Text style={{color:C.text,fontSize:15}}>{recurUnit}</Text>
-                      <Text style={{color:C.muted}}>▾</Text>
+                      <Text style={{color:C.text,fontSize:13,flexShrink:1}} numberOfLines={1}>{recurUnit}</Text>
+                      <Ionicons name="chevron-down" size={14} color={C.muted}/>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1668,7 +1668,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
           <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
             <Text style={{ color:C.text, fontWeight:'700', fontSize:16 }}>History</Text>
             <TouchableOpacity onPress={fetchTradeHistory} style={{ padding:4 }}>
-              <Text style={{ color:C.green, fontSize:13 }}>↻ Refresh</Text>
+              <Ionicons name="refresh-outline" size={18} color={C.green}/>
             </TouchableOpacity>
           </View>
           {historyLoading&&<ActivityIndicator color={C.green} style={{marginTop:8}}/>}
@@ -1707,7 +1707,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
             <Text style={{ color:C.muted, fontSize:13 }}>Amount</Text>
             <Text style={{ color:C.text, fontSize:22, fontWeight:'700', flex:1, textAlign:'center' }}>{amount||'0'} {fromToken2?.symbol}</Text>
             <TouchableOpacity onPress={()=>setShowNumpad(false)} style={{ padding:8 }}>
-              <Text style={{ color:C.muted, fontSize:22 }}>▾</Text>
+              <Ionicons name="chevron-down" size={22} color={C.muted}/>
             </TouchableOpacity>
           </View>
           {[['MAX','1','2','3'],['75%','4','5','6'],['50%','7','8','9'],['CLEAR','.','0','⌫']].map((row,ri)=>(
@@ -1783,6 +1783,8 @@ export default function App() {
     return () => sub.remove();
   }, []);
   const [tab, setTab] = useState('portfolio');
+  React.useEffect(()=>{AsyncStorage.getItem('active_tab').then(t=>{if(t)setTab(t);});},[]);
+  const setTabPersist = React.useCallback((t:string)=>{setTab(t);AsyncStorage.setItem('active_tab',t);},[]);
   const [splashDone, setSplashDone] = useState(false);
   const [onboardStep, setOnboardStep] = useState<'passcode'|'fingerprint'|'wordcount'|'seedphrase'|'username'|null>(null);
   const [passcode, setPasscode] = useState('');
@@ -3974,7 +3976,7 @@ https://solscan.io/tx/${sig}` }]);
             <Text style={{color:C.muted,fontSize:16}}>I will do it later</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={()=>setOnboardStep('passcode')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,width:'100%',alignItems:'center'}}>
-            <Text style={{color:C.text,fontSize:16}}>Back</Text>
+            <Text style={{color:C.text,fontSize:16,letterSpacing:0.5}}>Back</Text>
           </TouchableOpacity>
         </View>
       </GradBg>
@@ -3995,8 +3997,8 @@ https://solscan.io/tx/${sig}` }]);
             <TouchableOpacity onPress={async()=>{const w=generateWallet(wordCount);setNewSeedPhrase(w.mnemonic);setNewPubkey(w.publicKey);setOnboardStep('seedphrase');}} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.green,alignItems:'center'}}>
               <Text style={{color:'#060d06',fontWeight:'700',fontSize:16}}>Continue</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={()=>setOnboardStep('fingerprint')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
-              <Text style={{color:C.text,fontSize:16}}>Back</Text>
+            <TouchableOpacity onPress={()=>setOnboardStep('fingerprint')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,alignItems:'center',width:'100%'}}>
+              <Text style={{color:C.text,fontSize:16,letterSpacing:0.5}}>Back</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -4025,8 +4027,8 @@ https://solscan.io/tx/${sig}` }]);
               <TouchableOpacity onPress={()=>setOnboardStep('username')} style={{paddingVertical:16,borderRadius:30,backgroundColor:C.green,alignItems:'center'}}>
                 <Text style={{color:'#060d06',fontWeight:'700',fontSize:16}}>OK, I saved it somewhere</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={()=>setOnboardStep('wordcount')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
-                <Text style={{color:C.text,fontSize:16}}>Back</Text>
+              <TouchableOpacity onPress={()=>setOnboardStep('wordcount')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,alignItems:'center',width:'100%'}}>
+                <Text style={{color:C.text,fontSize:16,letterSpacing:0.5}}>Back</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -4042,7 +4044,7 @@ https://solscan.io/tx/${sig}` }]);
           <Text style={{color:C.text,fontSize:28,fontWeight:'bold',marginBottom:32}}>Choose a username</Text>
           <View style={{flexDirection:'row',alignItems:'center',backgroundColor:C.card,borderRadius:30,borderWidth:1,borderColor:C.green,paddingHorizontal:16,paddingVertical:4,width:'100%',marginBottom:8}}>
             <Text style={{color:C.muted,fontSize:16,marginRight:8}}>@</Text>
-            <TextInput key="username-input" value={onboardName} onChangeText={setOnboardName} placeholder="wallet01" placeholderTextColor={C.muted} style={{flex:1,color:C.text,fontSize:16,paddingVertical:12}} autoCapitalize="none" blurOnSubmit={false} autoFocus={true}/>
+            <TextInput key="username-input" value={onboardName} onChangeText={setOnboardName} placeholder="wallet01" placeholderTextColor={C.muted} style={{flex:1,color:C.text,fontSize:16,paddingVertical:12}} autoCapitalize="none" blurOnSubmit={false} returnKeyType="done"/>
           </View>
           <Text style={{color:C.muted,fontSize:12,marginBottom:40}}>{onboardName.length}/8 letters, numbers, or underscores</Text>
           <View style={{position:'absolute',bottom:90,left:24,right:24,gap:12}}>
@@ -4061,8 +4063,8 @@ https://solscan.io/tx/${sig}` }]);
             }} style={{paddingVertical:16,borderRadius:30,backgroundColor:onboardName.length>=3?C.green:C.card,alignItems:'center'}}>
               <Text style={{color:onboardName.length>=3?'#060d06':C.muted,fontWeight:'700',fontSize:16}}>Continue</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={()=>setOnboardStep('seedphrase')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,alignItems:'center'}}>
-              <Text style={{color:C.text,fontSize:16}}>Back</Text>
+            <TouchableOpacity onPress={()=>setOnboardStep('seedphrase')} style={{paddingVertical:16,borderRadius:30,borderWidth:1,borderColor:C.border,alignItems:'center',width:'100%'}}>
+              <Text style={{color:C.text,fontSize:16,letterSpacing:0.5}}>Back</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -4257,7 +4259,7 @@ https://solscan.io/tx/${sig}` }]);
           createTriggerOrder={createTriggerOrder}
           createRecurringOrder={createRecurringOrder}
         />
-      )}
+      </View>
       {tab === 'portfolio' && (
         <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
           {!wallet ? (
@@ -4424,7 +4426,7 @@ https://solscan.io/tx/${sig}` }]);
         {TABS.map((t) => { const { id, label, icon } = t;
           const active = tab === id;
           return (
-            <TouchableOpacity key={id} style={s.tabItem} onPress={() => setTab(id)}>
+            <TouchableOpacity key={id} style={s.tabItem} onPress={() => setTabPersist(id)}>
               <Ionicons name={active ? (t.iconActive || t.icon) : t.icon} size={22} color={active ? '#C7F284' : 'rgba(255,255,255,0.4)'} />
               <Text style={[s.tabLabel, active && s.tabLabelActive]}>{label}</Text>
             </TouchableOpacity>
@@ -4779,10 +4781,10 @@ const s = StyleSheet.create({
   addressBox: { backgroundColor: C.bg, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: C.border, marginBottom: 16 },
   addressTxt: { color: C.text, fontSize: 13, lineHeight: 20 },
   tabBar: { flexDirection: 'row', backgroundColor: '#080c0a', borderTopWidth: 0, borderTopColor: 'transparent', paddingTop: 10, paddingBottom: 24, paddingHorizontal: 4 },
-  tabItem: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 2 },
+  tabItem: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 0 },
   tabIcon: { fontSize: 22, color: 'rgba(255,255,255,0.4)' },
   tabIconActive: { color: '#39FF82', textShadowColor: '#39FF82', textShadowOffset: {width:0,height:0}, textShadowRadius: 8 },
-  tabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 },
+  tabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, marginTop: 2, letterSpacing: -0.3 },
   tabLabelActive: { color: '#C7F284', fontWeight: '600' },
   swapCard:{ backgroundColor:C.card, borderRadius:16, padding:16, marginBottom:4 },
   swapCardLabel:{ color:C.muted, fontSize:13, marginBottom:10 },
