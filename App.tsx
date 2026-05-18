@@ -4100,8 +4100,7 @@ https://solscan.io/tx/${sig}` }]);
           <Text style={{ fontSize:48, marginBottom:16 }}>🚧</Text>
           <Text style={{ color:C.text, fontSize:22, fontWeight:'700', marginBottom:8 }}>Coming Soon</Text>
           <Text style={{ color:C.muted, fontSize:14, textAlign:'center', paddingHorizontal:40 }}>
-            The Trade feature is under construction.{'
-'}Check back soon!
+            The Trade feature is under construction.{' '}Check back soon!
           </Text>
         </View>
       )}
