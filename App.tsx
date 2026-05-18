@@ -1128,22 +1128,19 @@ function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandle
                   <Text style={{ color:C.red, fontWeight:'700', fontSize:16 }}>Reject</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={async () => {
+                    onPress={async () => {
                     const { id, method: m, params: p } = pendingTx;
-                    setPendingTx(null);
                     try {
                       const { VersionedTransaction, Keypair, Transaction } = require('@solana/web3.js');
                       const keypair = Keypair.fromSecretKey(secretKey);
                       const txBytes = Buffer.from(p.tx, 'base64');
                       let signed;
-                      try {
+                      const isVer = (txBytes[0] & 0x80) !== 0;
+                      if (isVer) {
                         const tx = VersionedTransaction.deserialize(txBytes);
-                        const msgB = tx.message.serialize();
-                        const sig2 = nacl.sign.detached(msgB, secretKey);
-                        const idx2 = tx.message.staticAccountKeys.findIndex((k:any) => k.toBase58() === keypair.publicKey.toBase58());
-                        if (idx2 !== -1) { tx.signatures[idx2] = sig2; } else { tx.sign([keypair]); }
+                        tx.sign([keypair]);
                         signed = Buffer.from(tx.serialize()).toString('base64');
-                      } catch {
+                      } else {
                         const tx = Transaction.from(txBytes);
                         tx.partialSign(keypair);
                         signed = tx.serialize({ requireAllSignatures: false }).toString('base64');
@@ -1159,8 +1156,13 @@ function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandle
                       } else {
                         webRef.current?.postMessage(JSON.stringify({ id, result: signed }));
                       }
+                      setPendingTx(null);
                     } catch(e:any) {
                       webRef.current?.postMessage(JSON.stringify({ id, error: e.message }));
+                      setPendingTx(null);
+                      Alert.alert('Transaction Failed', e.message);
+                    }
+                    }}
                     }
                   }}
                   style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}>
