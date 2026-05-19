@@ -1383,6 +1383,10 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
   const [quoting, setQuoting] = React.useState(false);
   const [swapLoading, setSwapLoading] = React.useState(false);
   const [limitPrice, setLimitPrice] = React.useState('');
+  const [limitExpiry, setLimitExpiry] = React.useState('Never');
+  const [showExpiryDrop, setShowExpiryDrop] = React.useState(false);
+  const [showUnitDrop, setShowUnitDrop] = React.useState(false);
+  const [showOrdersDrop, setShowOrdersDrop] = React.useState(false);
   const [limitLoading, setLimitLoading] = React.useState(false);
   const [recurEvery, setRecurEvery] = React.useState('1');
   const [recurUnit, setRecurUnit] = React.useState('day');
