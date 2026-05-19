@@ -58,15 +58,15 @@
     },
     "extra": {
       "eas": {
-        "projectId": "1931cf8d-b1d1-4300-99b2-734050046e8a"
+        "projectId": "b10ba8f7-7b33-47a9-9614-c2fd043c1e9d"
       }
     },
-    "owner": "john6643",
+    "owner": "samuel917",
     "eas": {
-      "projectId": "1931cf8d-b1d1-4300-99b2-734050046e8a"
+      "projectId": "b10ba8f7-7b33-47a9-9614-c2fd043c1e9d"
     },
     "runtimeVersion": "1.0.0",
     "scheme": "chatfi"
   },
-  "owner": "john6643"
+  "owner": "samuel917"
 }
