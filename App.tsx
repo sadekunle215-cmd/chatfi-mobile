@@ -196,73 +196,103 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
   const [sending, setSending] = React.useState(false);
+  const [pairData, setPairData] = React.useState<any>(null);
+  const [pairLoading, setPairLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!token) return;
+    setPairLoading(true);
+    fetch('https://api.dexscreener.com/latest/dex/tokens/' + token.mint)
+      .then(r => r.json())
+      .then(d => { const pair = d?.pairs?.[0]; if (pair) setPairData(pair); })
+      .catch(() => {})
+      .finally(() => setPairLoading(false));
+  }, [token?.mint]);
+
   if (!token) return null;
+
+  const price = pairData?.priceUsd || (token.price ? String(token.price) : null);
+  const priceChange = pairData?.priceChange?.h24;
+  const mktCap = pairData?.marketCap;
+  const liquidity = pairData?.liquidity?.usd;
+  const holders = pairData?.info?.holders;
+  const orgScore = pairData?.info?.openGraph?.score;
+  const pairAddress = pairData?.pairAddress || token.mint;
+
+  const fmt = (n:number) => n >= 1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n >= 1e3 ? '$'+(n/1e3).toFixed(2)+'K' : '$'+n?.toFixed(2);
+
   return (
     <Modal visible={!!token} animationType="slide" transparent={false} onRequestClose={onClose}>
+      <StatusBar barStyle="light-content" backgroundColor={C.bg}/>
       <SafeAreaView style={{flex:1, backgroundColor:C.bg}}>
-        <StatusBar barStyle="light-content" backgroundColor={C.bg}/>
-        {/* Header */}
-        <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderBottomWidth:1,borderBottomColor:C.border}}>
-          <TouchableOpacity onPress={onClose} style={{marginRight:12}}>
-            <Ionicons name="arrow-back" size={24} color={C.text}/>
-          </TouchableOpacity>
-          <TokLogo uri={token.logoURI||'https://img.jup.ag/tokens/'+token.mint} fallback={''} symbol={token.symbol} style={{width:32,height:32,borderRadius:16,marginRight:8}} mint={token.mint}/>
-          <View style={{flex:1}}>
-            <Text style={{color:C.text,fontWeight:'bold',fontSize:16}}>{token.symbol}</Text>
-            <Text style={{color:C.muted,fontSize:12}}>{(token.amount||0).toFixed(4)} {token.symbol}</Text>
-          </View>
-          <View style={{alignItems:'flex-end'}}>
-            <Text style={{color:C.text,fontWeight:'bold',fontSize:16}}>${((token.amount||0)*(token.price||0)).toFixed(2)}</Text>
-            <Text style={{color:token.isVerified?C.green:'#ff9900',fontSize:12}}>{token.isVerified?'Verified':'Unverified'}</Text>
-          </View>
-        </View>
 
         {view === 'main' && (
-          <ScrollView contentContainerStyle={{paddingBottom:100}}>
-            {/* Price & Stats */}
-            <View style={{flexDirection:'row',padding:16,gap:10}}>
-              <View style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:14,alignItems:'center'}}>
-                <Text style={{color:C.muted,fontSize:11,marginBottom:4}}>Price</Text>
-                <Text style={{color:C.text,fontWeight:'bold',fontSize:15}}>{token.price?'$'+Number(token.price).toFixed(6):'—'}</Text>
-              </View>
-              <View style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:14,alignItems:'center'}}>
-                <Text style={{color:C.muted,fontSize:11,marginBottom:4}}>Holdings</Text>
-                <Text style={{color:C.green,fontWeight:'bold',fontSize:15}}>${((token.amount||0)*(token.price||0)).toFixed(2)}</Text>
-              </View>
-              <View style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:14,alignItems:'center'}}>
-                <Text style={{color:C.muted,fontSize:11,marginBottom:4}}>Status</Text>
-                <Text style={{color:token.isVerified?C.green:'#ff9900',fontWeight:'bold',fontSize:13}}>{token.isVerified?'Verified':'Unverified'}</Text>
-              </View>
-            </View>
-
-            {/* Contract Address */}
-            <View style={{marginHorizontal:16,backgroundColor:C.card,borderRadius:14,padding:14,marginBottom:16}}>
-              <Text style={{color:C.muted,fontSize:11,marginBottom:6}}>Contract Address</Text>
-              <TouchableOpacity onPress={()=>Alert.alert('Mint Address',token.mint)}>
-                <Text style={{color:C.text,fontSize:12,fontFamily:'monospace'}}>{token.mint?token.mint.slice(0,16)+'...'+token.mint.slice(-8):'—'}</Text>
-                <Text style={{color:C.green,fontSize:11,marginTop:4}}>Tap to view full address</Text>
+          <>
+            {/* Header */}
+            <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <TouchableOpacity onPress={onClose} style={{marginRight:12}}>
+                <Ionicons name="arrow-back" size={24} color={C.text}/>
               </TouchableOpacity>
+              <TokLogo uri={token.logoURI||'https://img.jup.ag/tokens/'+token.mint} fallback={''} symbol={token.symbol} style={{width:36,height:36,borderRadius:18,marginRight:10}} mint={token.mint}/>
+              <View style={{flex:1}}>
+                <Text style={{color:C.text,fontWeight:'bold',fontSize:17}}>{token.symbol}</Text>
+                <Text style={{color:C.muted,fontSize:12}}>{token.mint?token.mint.slice(0,6)+'...'+token.mint.slice(-4):''}</Text>
+              </View>
+              <View style={{alignItems:'flex-end'}}>
+                <Text style={{color:C.text,fontWeight:'bold',fontSize:16}}>{price?'$'+Number(price).toFixed(Number(price)<0.01?6:4):'$0.00'}</Text>
+                <Text style={{color:token.isVerified?C.green:'#ff9900',fontSize:12}}>{token.isVerified?'Verified':'Unverified'}</Text>
+              </View>
             </View>
 
-            {/* DexScreener Chart */}
-            <View style={{marginHorizontal:16,borderRadius:14,overflow:'hidden',marginBottom:16,height:400}}>
+            {/* Price + Change */}
+            <View style={{paddingHorizontal:16,paddingVertical:10,flexDirection:'row',alignItems:'flex-end',justifyContent:'space-between'}}>
+              <View>
+                <Text style={{color:C.text,fontWeight:'bold',fontSize:28}}>{price?'$'+Number(price).toFixed(Number(price)<0.01?6:4):'$0.00'}</Text>
+                {priceChange != null && (
+                  <Text style={{color:priceChange>=0?C.green:'#ff4444',fontSize:14,marginTop:2}}>
+                    {priceChange>=0?'+':''}{priceChange?.toFixed(2)}% (24h)
+                  </Text>
+                )}
+              </View>
+              <View style={{alignItems:'flex-end',gap:4}}>
+                <View style={{flexDirection:'row',justifyContent:'space-between',gap:24}}>
+                  <Text style={{color:C.muted,fontSize:12}}>Mkt Cap</Text>
+                  <Text style={{color:C.text,fontSize:12,fontWeight:'600'}}>{mktCap?fmt(mktCap):'—'}</Text>
+                </View>
+                <View style={{flexDirection:'row',justifyContent:'space-between',gap:24}}>
+                  <Text style={{color:C.muted,fontSize:12}}>Liquidity</Text>
+                  <Text style={{color:C.text,fontSize:12,fontWeight:'600'}}>{liquidity?fmt(liquidity):'—'}</Text>
+                </View>
+                <View style={{flexDirection:'row',justifyContent:'space-between',gap:24}}>
+                  <Text style={{color:C.muted,fontSize:12}}>Holders</Text>
+                  <Text style={{color:C.text,fontSize:12,fontWeight:'600'}}>{holders||'—'}</Text>
+                </View>
+                <View style={{flexDirection:'row',justifyContent:'space-between',gap:24}}>
+                  <Text style={{color:C.muted,fontSize:12}}>Org. Score</Text>
+                  <Text style={{color:orgScore?C.green:'#ff4444',fontSize:12,fontWeight:'600'}}>{orgScore??0}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Chart */}
+            <View style={{flex:1,marginHorizontal:0,overflow:'hidden'}}>
               <WebView
-                source={{uri:'https://dexscreener.com/solana/'+token.mint+'?embed=1&theme=dark&trades=0&info=0'}}
-                style={{flex:1,backgroundColor:C.card}}
+                source={{uri:'https://dexscreener.com/solana/'+pairAddress+'?embed=1&theme=dark&trades=0&info=0'}}
+                style={{flex:1,backgroundColor:C.bg}}
                 javaScriptEnabled={true}
                 domStorageEnabled={true}
                 startInLoadingState={true}
                 renderLoading={()=>(
-                  <View style={{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:C.card}}>
+                  <View style={{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:C.bg}}>
                     <ActivityIndicator color={C.green}/>
-                    <Text style={{color:C.muted,fontSize:12,marginTop:8}}>Loading chart settings...</Text>
+                    <Text style={{color:C.muted,fontSize:12,marginTop:8}}>Loading chart...</Text>
                   </View>
                 )}
               />
             </View>
 
-            {/* Action Buttons */}
-            <View style={{flexDirection:'row',gap:12,marginHorizontal:16,marginBottom:16}}>
+            {/* Bottom Buttons */}
+            <View style={{flexDirection:'row',gap:12,padding:16,borderTopWidth:1,borderTopColor:C.border}}>
               <TouchableOpacity onPress={()=>setView('receive')}
                 style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:16,alignItems:'center',flexDirection:'row',justifyContent:'center',gap:8}}>
                 <Ionicons name="arrow-down-outline" size={20} color={C.text}/>
@@ -274,7 +304,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                 <Text style={{color:'#0d1117',fontWeight:'bold'}}>Send</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
+          </>
         )}
 
         {view === 'receive' && (
@@ -325,6 +355,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
             </TouchableOpacity>
           </ScrollView>
         )}
+
       </SafeAreaView>
     </Modal>
   );
