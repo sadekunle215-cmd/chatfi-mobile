@@ -254,22 +254,20 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                   </Text>
                 )}
               </View>
-              <View style={{alignItems:'flex-end',gap:6}}>
-                <View style={{flexDirection:'row',gap:6}}>
-                  <Text style={{color:C.muted,fontSize:11}}>Mkt Cap</Text>
-                  <Text style={{color:C.text,fontSize:11,fontWeight:'600'}}>{mktCap?fmt(mktCap):'—'}</Text>
+              <View style={{flexDirection:'row',gap:16,alignItems:'center'}}>
+                <View style={{alignItems:'center',gap:2}}>
+                  <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>MKT CAP</Text>
+                  <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{mktCap?fmt(mktCap):'—'}</Text>
                 </View>
-                <View style={{flexDirection:'row',gap:6}}>
-                  <Text style={{color:C.muted,fontSize:11}}>Liquidity</Text>
-                  <Text style={{color:C.text,fontSize:11,fontWeight:'600'}}>{liquidity?fmt(liquidity):'—'}</Text>
+                <View style={{width:1,height:24,backgroundColor:C.border}}/>
+                <View style={{alignItems:'center',gap:2}}>
+                  <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>LIQUIDITY</Text>
+                  <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{liquidity?fmt(liquidity):'—'}</Text>
                 </View>
-                <View style={{flexDirection:'row',gap:6}}>
-                  <Text style={{color:C.muted,fontSize:11}}>Holders</Text>
-                  <Text style={{color:C.text,fontSize:11,fontWeight:'600'}}>{holders||'—'}</Text>
-                </View>
-                <View style={{flexDirection:'row',gap:6}}>
-                  <Text style={{color:C.muted,fontSize:11}}>Org. Score</Text>
-                  <Text style={{color:orgScore?C.green:'#ff4444',fontSize:11,fontWeight:'600'}}>{orgScore??0}</Text>
+                <View style={{width:1,height:24,backgroundColor:C.border}}/>
+                <View style={{alignItems:'center',gap:2}}>
+                  <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>HOLDERS</Text>
+                  <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{holders||'—'}</Text>
                 </View>
               </View>
             </View>
