@@ -1407,10 +1407,40 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
     if (!pubkey) return;
     setHistoryLoading(true);
     try {
-      // Use Jupiter's transaction history as fallback (no API key needed)
-      const res = await fetch(`https://lite-api.jup.ag/ultra/v1/transactions?wallet=${pubkey}&limit=10`);
-      const data = await res.json();
-      setTradeHistory(Array.isArray(data) ? data.slice(0,10) : []);
+      const sigsRes = await rpcFetch('getSignaturesForAddress', [pubkey, { limit: 20, commitment: 'confirmed' }]);
+      const sigs = sigsRes?.result || [];
+      const txs = [];
+      for (const sig of sigs.slice(0, 10)) {
+        try {
+          const txRes = await rpcFetch('getTransaction', [sig.signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }]);
+          const tx = txRes?.result;
+          if (!tx) continue;
+          const instructions = tx?.transaction?.message?.instructions || [];
+          const isJupiter = instructions.some((ix: any) =>
+            ix?.programId === 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4' ||
+            (ix?.parsed?.type && ['swap','route'].includes(ix.parsed.type))
+          );
+          const preBalances = tx?.meta?.preTokenBalances || [];
+          const postBalances = tx?.meta?.postTokenBalances || [];
+          let fromSym = '?', toSym = '?', fromAmt = 0, toAmt = 0;
+          for (const post of postBalances) {
+            if (post.owner === pubkey) {
+              const pre = preBalances.find((p: any) => p.accountIndex === post.accountIndex);
+              const diff = (post.uiTokenAmount?.uiAmount || 0) - (pre?.uiTokenAmount?.uiAmount || 0);
+              if (diff > 0) { toSym = post.mint?.slice(0,6) || '?'; toAmt = diff; }
+              if (diff < 0) { fromSym = post.mint?.slice(0,6) || '?'; fromAmt = Math.abs(diff); }
+            }
+          }
+          txs.push({
+            signature: sig.signature,
+            timestamp: tx.blockTime || 0,
+            isJupiter,
+            fromSym, toSym, fromAmt, toAmt,
+            err: tx?.meta?.err,
+          });
+        } catch(e) {}
+      }
+      setTradeHistory(txs);
     } catch(e) { setTradeHistory([]); }
     setHistoryLoading(false);
   };
@@ -1658,23 +1688,22 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
             <View key={date}>
               <Text style={{ color:C.muted, fontSize:13, fontWeight:'600', marginBottom:8, marginTop:4 }}>{date}</Text>
               {txs.map((tx:any,i:number)=>{
-                const transfers=tx.tokenTransfers||[];
-                const sent=transfers.find((t:any)=>t.fromUserAccount===pubkey);
-                const recv=transfers.find((t:any)=>t.toUserAccount===pubkey);
                 return (
-                  <View key={i} style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:8, flexDirection:'row', alignItems:'center' }}>
+                  <TouchableOpacity key={i} onPress={()=>Linking.openURL('https://solscan.io/tx/'+tx.signature)}
+                    style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:8, flexDirection:'row', alignItems:'center' }}>
                     <View style={{ width:42, height:42, borderRadius:21, backgroundColor:C.bg, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-                      <Text style={{ fontSize:20 }}>⇄</Text>
+                      <Text style={{ fontSize:20 }}>{tx.err ? '❌' : '⇄'}</Text>
                     </View>
                     <View style={{ flex:1 }}>
-                      <Text style={{ color:C.text, fontWeight:'600', fontSize:14 }}>{sent?.mint?.slice(0,4)||'?'} → {recv?.mint?.slice(0,4)||'?'}</Text>
+                      <Text style={{ color:C.text, fontWeight:'600', fontSize:14 }}>{tx.fromSym||'?'} → {tx.toSym||'?'}</Text>
                       <Text style={{ color:C.muted, fontSize:11 }}>{new Date((tx.timestamp||0)*1000).toLocaleTimeString()}</Text>
+                      <Text style={{ color:C.muted, fontSize:10 }} numberOfLines={1}>{tx.signature?.slice(0,16)}...</Text>
                     </View>
                     <View style={{ alignItems:'flex-end' }}>
-                      {recv&&<Text style={{ color:C.green, fontWeight:'600', fontSize:13 }}>+{recv.tokenAmount?.toFixed(4)}</Text>}
-                      {sent&&<Text style={{ color:C.red, fontSize:12 }}>-{sent.tokenAmount?.toFixed(4)}</Text>}
+                      {tx.toAmt>0&&<Text style={{ color:C.green, fontWeight:'600', fontSize:13 }}>+{Number(tx.toAmt).toFixed(4)}</Text>}
+                      {tx.fromAmt>0&&<Text style={{ color:'#ff4444', fontSize:12 }}>-{Number(tx.fromAmt).toFixed(4)}</Text>}
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>
