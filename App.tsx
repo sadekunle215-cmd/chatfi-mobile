@@ -3766,14 +3766,18 @@ https://solscan.io/tx/${sig}` }]);
     if (!pubkey) return;
     setTxLoading(true);
     try {
-      const sr = await rpcFetch("getSignaturesForAddress",[pubkey,{limit:20}]);
-      const sigs = Array.isArray(sr.result) ? sr.result : (sr.result?.value || []);
-      const results = await Promise.allSettled(sigs.map(async(sig:any)=>{
-        const r=await rpcFetch("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
-        const tx = r.result || r.result?.value || null;
-        return parseTx(tx,sig,pubkey);
-      }));
-      setTxHistory(results.filter((r:any)=>r.status==="fulfilled"&&r.value).map((r:any)=>r.value));
+      const sr = await rpcFetch("getSignaturesForAddress",[pubkey,{limit:5}]);
+      const sigs = (Array.isArray(sr.result) ? sr.result : (sr.result?.value || [])).slice(0,5);
+      const parsed = [];
+      for (const sig of sigs) {
+        try {
+          const r = await rpcFetch("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
+          const tx = r.result || null;
+          const p = parseTx(tx,sig,pubkey);
+          if (p) parsed.push(p);
+        } catch(e) {}
+      }
+      setTxHistory(parsed);
     } catch(e){console.error(e);} finally{setTxLoading(false);}
   };
 
@@ -4172,7 +4176,7 @@ https://solscan.io/tx/${sig}` }]);
       <KeyboardAvoidingView style={s.content} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
 
         {/* CHAT */}
-        <View style={{flex:1, display: tab === 'chat' ? 'flex' : 'none'}}>
+        {tab === 'chat' && (
           <View style={s.flex}>
 
                 <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }}>
@@ -4205,7 +4209,7 @@ https://solscan.io/tx/${sig}` }]);
         </View>
 
         {/* SWAP */}
-      <View style={{flex:1, display: tab === 'swap' ? 'flex' : 'none'}}>
+      {tab === 'swap' && (
         <SwapScreen
           wallet={wallet}
           pubkey={pubkey}
