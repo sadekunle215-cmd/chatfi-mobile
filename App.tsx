@@ -200,6 +200,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
   return (
     <Modal visible={!!token} animationType="slide" transparent={false} onRequestClose={onClose}>
       <SafeAreaView style={{flex:1, backgroundColor:C.bg}}>
+        <StatusBar barStyle="light-content" backgroundColor={C.bg}/>
         {/* Header */}
         <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderBottomWidth:1,borderBottomColor:C.border}}>
           <TouchableOpacity onPress={onClose} style={{marginRight:12}}>
