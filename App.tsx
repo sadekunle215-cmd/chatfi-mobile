@@ -4424,7 +4424,7 @@ https://solscan.io/tx/${sig}` }]);
           return (
             <TouchableOpacity key={id} style={s.tabItem} onPress={() => setTabPersist(id)}>
               <Ionicons name={active ? (t.iconActive || t.icon) : t.icon} size={22} color={active ? '#C7F284' : 'rgba(255,255,255,0.4)'} />
-              <Text style={[s.tabLabel, active && s.tabLabelActive]}>{label}</Text>
+              <Text style={[s.tabLabel, active && s.tabLabelActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -4780,7 +4780,7 @@ const s = StyleSheet.create({
   tabItem: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 0 },
   tabIcon: { fontSize: 22, color: 'rgba(255,255,255,0.4)' },
   tabIconActive: { color: '#39FF82', textShadowColor: '#39FF82', textShadowOffset: {width:0,height:0}, textShadowRadius: 8 },
-  tabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, marginTop: 2, letterSpacing: -0.3 },
+  tabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, marginTop: 2, letterSpacing: -0.5, textAlign: 'center', width: '100%' },
   tabLabelActive: { color: '#C7F284', fontWeight: '600' },
   swapCard:{ backgroundColor:C.card, borderRadius:16, padding:16, marginBottom:4 },
   swapCardLabel:{ color:C.muted, fontSize:13, marginBottom:10 },
