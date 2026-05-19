@@ -229,7 +229,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
         {view === 'main' && (
           <>
             {/* Header */}
-            <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:12,paddingTop:16,borderBottomWidth:1,borderBottomColor:C.border}}>
+            <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:12,paddingTop:(StatusBar.currentHeight||0)+16,borderBottomWidth:1,borderBottomColor:C.border}}>
               <TouchableOpacity onPress={onClose} style={{marginRight:12}}>
                 <Ionicons name="arrow-back" size={24} color={C.text}/>
               </TouchableOpacity>
