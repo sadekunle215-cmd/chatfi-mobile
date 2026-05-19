@@ -1422,13 +1422,13 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
           );
           const preBalances = tx?.meta?.preTokenBalances || [];
           const postBalances = tx?.meta?.postTokenBalances || [];
-          let fromSym = '?', toSym = '?', fromAmt = 0, toAmt = 0;
+          let fromSym = '?', toSym = '?', fromAmt = 0, toAmt = 0, fromMint = '', toMint = '';
           for (const post of postBalances) {
             if (post.owner === pubkey) {
               const pre = preBalances.find((p: any) => p.accountIndex === post.accountIndex);
               const diff = (post.uiTokenAmount?.uiAmount || 0) - (pre?.uiTokenAmount?.uiAmount || 0);
-              if (diff > 0) { toSym = post.mint?.slice(0,6) || '?'; toAmt = diff; }
-              if (diff < 0) { fromSym = post.mint?.slice(0,6) || '?'; fromAmt = Math.abs(diff); }
+              if (diff > 0) { toSym = post.mint?.slice(0,6) || '?'; toAmt = diff; toMint = post.mint; }
+              if (diff < 0) { fromSym = post.mint?.slice(0,6) || '?'; fromAmt = Math.abs(diff); fromMint = post.mint; }
             }
           }
           txs.push({
@@ -1436,6 +1436,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
             timestamp: tx.blockTime || 0,
             isJupiter,
             fromSym, toSym, fromAmt, toAmt,
+            fromMint, toMint,
             err: tx?.meta?.err,
           });
         } catch(e) {}
@@ -1691,8 +1692,10 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
                 return (
                   <TouchableOpacity key={i} onPress={()=>Linking.openURL('https://solscan.io/tx/'+tx.signature)}
                     style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:8, flexDirection:'row', alignItems:'center' }}>
-                    <View style={{ width:42, height:42, borderRadius:21, backgroundColor:C.bg, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-                      <Text style={{ fontSize:20 }}>{tx.err ? '❌' : '⇄'}</Text>
+                    <View style={{ flexDirection:'row', alignItems:'center', marginRight:12 }}>
+                      <TokLogo uri={'https://img.jup.ag/tokens/'+(tx.fromMint||'')} fallback={''} symbol={tx.fromSym||'?'} style={{width:28,height:28,borderRadius:14}} mint={tx.fromMint}/>
+                      <Text style={{color:C.muted,fontSize:12,marginHorizontal:4}}>→</Text>
+                      <TokLogo uri={'https://img.jup.ag/tokens/'+(tx.toMint||'')} fallback={''} symbol={tx.toSym||'?'} style={{width:28,height:28,borderRadius:14}} mint={tx.toMint}/>
                     </View>
                     <View style={{ flex:1 }}>
                       <Text style={{ color:C.text, fontWeight:'600', fontSize:14 }}>{tx.fromSym||'?'} → {tx.toSym||'?'}</Text>
