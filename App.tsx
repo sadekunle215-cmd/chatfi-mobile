@@ -191,7 +191,7 @@ function NativeChart({ mint }: { mint: string }) {
   );
 }
 
-function TokenDetailPage({ token, pubkey, onClose }) {
+function TokenDetailPage({ token, pubkey, onClose, C, s }) {
   const [info, setInfo] = React.useState<any>(null);
   const [pair, setPair] = React.useState<any>(null);
   const [view, setView] = React.useState('main');
@@ -203,10 +203,8 @@ function TokenDetailPage({ token, pubkey, onClose }) {
     if (!token) return;
     setView('main'); setInfo(null); setPair(null);
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }).start();
-    fetch('https://chatfi.pro/api/jupiter', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: 'https://api.jup.ag/price/v3?ids=' + token.mint, method: 'GET' })
-    }).then(r => r.json()).then(d => setInfo(d[token.mint])).catch(() => {});
+    fetch('https://lite-api.jup.ag/price/v3?ids=' + token.mint)
+      .then(r => r.json()).then(d => setInfo(d?.data?.[token.mint] || d?.[token.mint])).catch(() => {});
     fetch('https://api.dexscreener.com/latest/dex/tokens/' + token.mint)
       .then(r => r.json()).then(d => setPair(d.pairs?.[0] || null)).catch(() => {});
   }, [token?.mint]);
@@ -4117,20 +4115,9 @@ https://solscan.io/tx/${sig}` }]);
           </View>
         </View>
       </Modal>
-      <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
-  onSend={async (mint, recipient, amount, symbol, decimals) => {
-    const { secretKey, publicKey: pk } = deriveWallet(wallet);
-    const amountNum = Math.round(parseFloat(amount) * Math.pow(10, decimals));
-    if (symbol === 'SOL') {
-      await _sendSOL(pk, secretKey, recipient, amountNum);
-    } else {
-      await _sendSPL(pk, secretKey, recipient, amountNum, mint);
-    }
-    showToast('Sent ' + amount + ' ' + symbol + ' ✓', 'success');
-    setSelectedToken(null);
-    fetchPortfolio();
-  }}
-/>
+      {selectedToken && (
+        <TokenDetailPage token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)} C={C} s={s} />
+      )}
       <AccountModal
         visible={showAccountModal}
         onClose={() => setShowAccountModal(false)}
