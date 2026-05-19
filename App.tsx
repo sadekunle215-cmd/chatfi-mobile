@@ -191,206 +191,185 @@ function NativeChart({ mint }: { mint: string }) {
   );
 }
 
-function TokenModal({ token, pubkey, onClose, onSend }) {
+function TokenDetailPage({ token, pubkey, onClose }) {
+  const [info, setInfo] = React.useState<any>(null);
+  const [pair, setPair] = React.useState<any>(null);
   const [view, setView] = React.useState('main');
-  const [importSeedInput, setImportSeedInput] = React.useState('');
-  const [showImportModal, setShowImportModal] = useState(false);
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
-  const [sending, setSending] = React.useState(false);
+  const slideAnim = React.useRef(new Animated.Value(600)).current;
+
+  React.useEffect(() => {
+    if (!token) return;
+    setView('main'); setInfo(null); setPair(null);
+    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }).start();
+    fetch('https://chatfi.pro/api/jupiter', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://api.jup.ag/price/v3?ids=' + token.mint, method: 'GET' })
+    }).then(r => r.json()).then(d => setInfo(d[token.mint])).catch(() => {});
+    fetch('https://api.dexscreener.com/latest/dex/tokens/' + token.mint)
+      .then(r => r.json()).then(d => setPair(d.pairs?.[0] || null)).catch(() => {});
+  }, [token?.mint]);
+
+  const handleClose = () => {
+    Animated.timing(slideAnim, { toValue: 600, duration: 220, useNativeDriver: true }).start(() => onClose());
+  };
+
   if (!token) return null;
+  const price = info?.usdPrice ?? token?.price ?? 0;
+  const change24h = info?.priceChange24h ?? pair?.priceChange?.h24 ?? 0;
+  const usdVal = (token.amount ?? 0) * price;
+  const isUp = change24h >= 0;
+  const fmt = (p:number) => p===0?'0.00':p<0.0001?p.toFixed(8):p<0.01?p.toFixed(6):p<1?p.toFixed(4):p.toFixed(2);
+  const fmtK = (n:number) => n>=1e9?`$${(n/1e9).toFixed(2)}B`:n>=1e6?`$${(n/1e6).toFixed(2)}M`:n>=1e3?`$${(n/1e3).toFixed(1)}K`:`$${n.toFixed(0)}`;
 
   return (
-    <Modal visible={!!token} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1}} keyboardVerticalOffset={0}>
-      <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }} pointerEvents="box-none">
-        <View style={{ backgroundColor:C.modal, borderTopLeftRadius:24, borderTopRightRadius:24, paddingHorizontal:16, paddingVertical:24, maxHeight:'85%', paddingBottom:72 }}>
-
-          {/* Header */}
-          <View style={{ flexDirection:'row', alignItems:'center', marginBottom:20 }}>
-            <Image source={{ uri: token.logoURI || 'https://img.jup.ag/tokens/'+token.mint }}
-              style={{ width:44, height:44, borderRadius:22, backgroundColor:C.card2, marginRight:12 }} />
-            <View style={{ flex:1 }}>
-              <Text style={{ color:C.text, fontWeight:'bold', fontSize:18 }}>{token.symbol}</Text>
-              <Text style={{ color:C.muted, fontSize:13 }}>{token.amount?.toFixed(4)} {token.symbol}</Text>
-            </View>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={{ color:C.muted, fontSize:22 }}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          {view === 'main' && (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* USD Value */}
-              <View style={{ alignItems:'center', marginBottom:20 }}>
-                <Text style={{ color:C.text, fontSize:32, fontWeight:'bold' }}>
-                  ${((token.amount||0)*(token.price||0)).toFixed(2)}
-                </Text>
-                <Text style={{ color:C.muted, fontSize:13, marginTop:2 }}>
-                  {(token.amount||0).toFixed(6)} {token.symbol}
-                </Text>
-              </View>
-
-              {/* Stats Row */}
-              <View style={{ flexDirection:'row', gap:10, marginBottom:16 }}>
-                <View style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:14, alignItems:'center' }}>
-                  <Text style={{ color:C.muted, fontSize:11, marginBottom:4, flexShrink:1 }}>Price</Text>
-                  <Text style={{ color:C.text, fontWeight:'bold', fontSize:15 }}>
-                    {token.price ? '$'+Number(token.price).toFixed(4) : '—'}
-                  </Text>
-                </View>
-                <View style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:14, alignItems:'center' }}>
-                  <Text style={{ color:C.muted, fontSize:11, marginBottom:4 }}>Holdings</Text>
-                  <Text style={{ color:C.green, fontWeight:'bold', fontSize:15 }}>
-                    ${((token.amount||0)*(token.price||0)).toFixed(2)}
-                  </Text>
-                </View>
-                <View style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:14, alignItems:'center' }}>
-                  <Text style={{ color:C.muted, fontSize:11, marginBottom:4 }}>Status</Text>
-                  <View style={{ flexDirection:'row', alignItems:'center', gap:3 }}>
-                    {token.isVerified
-                      ? <><Ionicons name="checkmark-circle" size={14} color={C.green}/><Text style={{ color:C.green, fontWeight:'bold', fontSize:13 }}>Verified</Text></>
-                      : <Text style={{ color:'#ff9900', fontWeight:'bold', fontSize:13 }}>Unverified</Text>}
-                  </View>
-                </View>
-              </View>
-
-              {/* Mint Address */}
-              <View style={{ backgroundColor:C.card, borderRadius:14, padding:14, marginBottom:16 }}>
-                <Text style={{ color:C.muted, fontSize:11, marginBottom:6 }}>Contract Address</Text>
-                <TouchableOpacity onPress={() => Alert.alert('Mint Address', token.mint)}>
-                  <Text style={{ color:C.text, fontSize:12, fontFamily:'monospace' }} numberOfLines={1}>
-                    {token.mint ? token.mint.slice(0,16)+'...'+token.mint.slice(-8) : '—'}
-                  </Text>
-                  <Text style={{ color:C.green, fontSize:11, marginTop:4 }}>Tap to view full address</Text>
-                </TouchableOpacity>
-              </View>
-
-
-              {/* Native Chart */}
-              {/* DexScreener Chart */}
-              <View style={{ borderRadius:14, overflow:'hidden', marginBottom:16, height:380 }}>
-                <WebView
-                  source={{ uri: 'https://dexscreener.com/solana/'+token.mint+'?embed=1&theme=dark&trades=0&info=0' }}
-                  style={{ flex:1, backgroundColor:C.modal }}
-                  javaScriptEnabled={true}
-                  domStorageEnabled={true}
-                  startInLoadingState={true}
-                  renderLoading={() => (
-                    <View style={{ flex:1, alignItems:'center', justifyContent:'center', backgroundColor:C.modal }}>
-                      <ActivityIndicator color={'#39ff14'} />
-                      <Text style={{ color:'#888', fontSize:12, marginTop:8 }}>Loading chart...</Text>
-                    </View>
-                  )}
-                />
-              </View>
-
-              {/* DexScreener Chart - HIDDEN
-              <View style={{ borderRadius:14, overflow:'hidden', marginBottom:16, height:380 }}>
-                <WebView
-                  source={{ uri: 'https://dexscreener.com/solana/'+token.mint+'?embed=1&theme=dark&trades=0&info=0' }}
-                  style={{ flex:1, backgroundColor:C.modal }}
-                  startInLoadingState={true}
-                  renderLoading={() => (
-                    <View style={{ flex:1, alignItems:'center', justifyContent:'center', backgroundColor:C.modal }}>
-                      <ActivityIndicator color={'#39ff14'} />
-                      <Text style={{ color:'#888', fontSize:12, marginTop:8 }}>Loading chart...</Text>
-                    </View>
-                  )}
-                />
-              </View>
-              */}
-
-              {/* Action Buttons */}
-              <View style={{ flexDirection:'row', gap:12, marginBottom:8 }}>
-                <TouchableOpacity onPress={() => setView('receive')}
-                  style={{ flex:1, backgroundColor:C.card, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                  <Ionicons name="arrow-down-outline" size={24} color={C.text} />
-                  <Text style={{ color:C.text, fontWeight:'600' }}>Receive</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setView('send')}
-                  style={{ flex:1, backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', gap:6 }}>
-                  <Ionicons name="arrow-up-outline" size={24} color="#0d1117" />
-                  <Text style={{ color:'#0d1117', fontWeight:'bold' }}>Send</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          )}
-
-          {view === 'receive' && (
-            <ScrollView>
-              <TouchableOpacity onPress={() => setView('main')} style={{ marginBottom:16 }}>
-                <Text style={{ color:C.text, fontSize:16 }}>‹ Back</Text>
-              </TouchableOpacity>
-              <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16, textAlign:'center' }}>
-                Receive {token.symbol}
-              </Text>
-              <View style={{ backgroundColor:C.card, borderRadius:16, padding:20, alignItems:'center', marginBottom:16 }}>
-                <Image source={{ uri: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + (pubkey||'') }}
-                  style={{ width:200, height:200, borderRadius:8 }} />
-              </View>
-              <Text style={{ color:C.muted, fontSize:12, textAlign:'center', marginBottom:8 }}>Your wallet address</Text>
-              <TouchableOpacity onPress={() => Alert.alert('Copied', pubkey||'')}
-                style={{ backgroundColor:C.card, borderRadius:12, padding:14 }}>
-                <Text style={{ color:C.green, fontSize:12, fontFamily:'monospace', textAlign:'center' }}>{pubkey}</Text>
-              </TouchableOpacity>
-              <Text style={{ color:C.muted, fontSize:11, textAlign:'center', marginTop:8 }}>Tap address to copy</Text>
-            </ScrollView>
-          )}
-
-          {view === 'send' && (
-            <ScrollView>
-              <TouchableOpacity onPress={() => setView('main')} style={{ marginBottom:16 }}>
-                <Text style={{ color:C.text, fontSize:16 }}>‹ Back</Text>
-              </TouchableOpacity>
-              <Text style={{ color:C.text, fontWeight:'bold', fontSize:16, marginBottom:16 }}>Send {token.symbol}</Text>
-              <Text style={{ color:C.muted, fontSize:13, marginBottom:6 }}>Recipient Address</Text>
-              <TextInput value={sendAddr} onChangeText={setSendAddr}
-                placeholder="Enter Solana address..." placeholderTextColor={C.muted}
-                style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:13, marginBottom:16 }}
-                autoCapitalize="none" />
-              <Text style={{ color:C.muted, fontSize:13, marginBottom:6 }}>Amount ({token.symbol})</Text>
-              <TextInput value={sendAmt} onChangeText={setSendAmt}
-                placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric"
-                style={{ backgroundColor:C.card, color:C.text, borderRadius:12, padding:14, fontSize:20, fontWeight:'bold', marginBottom:24 }} />
-              <TouchableOpacity style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', opacity: sending ? 0.6 : 1 }}
-                disabled={sending}
-                onPress={async () => {
-                  if (!sendAddr.trim()) { Alert.alert('Error','Enter recipient address'); return; }
-                  if (!sendAmt || isNaN(parseFloat(sendAmt))) { Alert.alert('Error','Enter a valid amount'); return; }
-                  setSending(true);
-                  try {
-                    await onSend(token.mint, sendAddr.trim(), sendAmt, token.symbol, token.decimals ?? 6);
-                    setSendAddr(''); setSendAmt(''); setView('main');
-                  } catch(e) { Alert.alert('Send failed', e.message || 'Unknown error'); }
-                  finally { setSending(false); }
-                }}>
-                {sending
-                  ? <ActivityIndicator color="#0d1117" />
-                  : <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Send {token.symbol}</Text>}
-              </TouchableOpacity>
-            </ScrollView>
-          )}
-
+    <Animated.View style={{ position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:C.bg, transform:[{translateY:slideAnim}], zIndex:9999, elevation:20 }}>
+      <View style={{ backgroundColor:C.card, paddingTop:(StatusBar.currentHeight||44)+4, paddingBottom:12, paddingHorizontal:16, flexDirection:'row', alignItems:'center', gap:10, borderBottomWidth:1, borderBottomColor:C.border }}>
+        <TouchableOpacity onPress={handleClose} style={{ padding:6 }}>
+          <Ionicons name="arrow-back" size={22} color={C.text} />
+        </TouchableOpacity>
+        {token.logoURI
+          ? <Image source={{uri:token.logoURI}} style={{width:34,height:34,borderRadius:17,backgroundColor:C.bg}}/>
+          : <View style={{width:34,height:34,borderRadius:17,backgroundColor:C.green,alignItems:'center',justifyContent:'center'}}>
+              <Text style={{color:'#000',fontWeight:'700'}}>{(token.symbol||'?')[0]}</Text>
+            </View>}
+        <View style={{flex:1}}>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:17}}>{token.symbol}</Text>
+          <Text style={{color:C.muted,fontSize:11}}>{token.mint.slice(0,10)}...{token.mint.slice(-6)}</Text>
         </View>
+        <TouchableOpacity onPress={()=>{Clipboard.setString(token.mint);Alert.alert('Copied','Contract address copied');}} style={{padding:6}}>
+          <Ionicons name="copy-outline" size={18} color={C.muted}/>
+        </TouchableOpacity>
       </View>
-      </KeyboardAvoidingView>
-    </Modal>
+
+      <ScrollView contentContainerStyle={{paddingBottom:120}} showsVerticalScrollIndicator={false}>
+        <View style={{padding:20,paddingBottom:10}}>
+          <Text style={{color:C.text,fontSize:38,fontWeight:'800',letterSpacing:-1}}>${fmt(price)}</Text>
+          <Text style={{color:isUp?C.green:C.red,fontSize:15,fontWeight:'700',marginTop:6}}>
+            {isUp?'▲':'▼'} {Math.abs(change24h).toFixed(2)}% (24h)
+          </Text>
+        </View>
+
+        <View style={{flexDirection:'row',paddingHorizontal:16,gap:8,marginBottom:12}}>
+          {[
+            {label:'Price',value:'$'+fmt(price)},
+            {label:'Holdings',value:'$'+fmt(usdVal)},
+            {label:'Status',value:pair?'Verified':'Unverified',color:pair?C.green:C.orange},
+          ].map((st,i)=>(
+            <View key={i} style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:12,alignItems:'center'}}>
+              <Text style={{color:C.muted,fontSize:11,marginBottom:4}}>{st.label}</Text>
+              <Text style={{color:(st as any).color||C.text,fontWeight:'700',fontSize:12}} numberOfLines={1}>{st.value}</Text>
+            </View>
+          ))}
+        </View>
+
+        {pair&&(
+          <View style={{flexDirection:'row',paddingHorizontal:16,gap:8,marginBottom:16}}>
+            {[
+              {label:'Mkt Cap',value:pair.marketCap?fmtK(pair.marketCap):'—'},
+              {label:'Liquidity',value:pair.liquidity?.usd?fmtK(pair.liquidity.usd):'—'},
+              {label:'24h Txns',value:pair.txns?.h24?String((pair.txns.h24.buys||0)+(pair.txns.h24.sells||0)):'—'},
+            ].map((st,i)=>(
+              <View key={i} style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:12,alignItems:'center'}}>
+                <Text style={{color:C.muted,fontSize:11,marginBottom:4}}>{st.label}</Text>
+                <Text style={{color:C.text,fontWeight:'700',fontSize:13}}>{st.value}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={{marginHorizontal:16,borderRadius:16,overflow:'hidden',marginBottom:16,height:340}}>
+          <WebView source={{uri:`https://dexscreener.com/solana/${token.mint}?embed=1&theme=dark&trades=0&info=0`}}
+            style={{flex:1}} scrollEnabled={false} javaScriptEnabled />
+        </View>
+
+        <View style={{marginHorizontal:16,backgroundColor:C.card,borderRadius:16,padding:16,marginBottom:16,flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+          <View>
+            <Text style={{color:C.green,fontWeight:'700',fontSize:13,marginBottom:6}}>📊 Position</Text>
+            <Text style={{color:C.text,fontSize:22,fontWeight:'700'}}>${fmt(usdVal)}</Text>
+            <Text style={{color:C.muted,fontSize:13,marginTop:2}}>{typeof token.amount==='number'?token.amount.toFixed(4):token.amount} {token.symbol}</Text>
+          </View>
+          <View style={{alignItems:'flex-end'}}>
+            <Text style={{color:C.muted,fontSize:11,marginBottom:4}}>24H</Text>
+            <Text style={{color:isUp?C.green:C.red,fontSize:18,fontWeight:'700'}}>{isUp?'+':''}{change24h.toFixed(2)}%</Text>
+          </View>
+        </View>
+
+        {pair?.info&&(pair.info.socials?.length>0||pair.info.websites?.length>0)&&(
+          <View style={{marginHorizontal:16,flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:16}}>
+            {(pair.info.websites||[]).map((w:any,i:number)=>(
+              <TouchableOpacity key={'w'+i} onPress={()=>Linking.openURL(w.url)}
+                style={{backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:8,flexDirection:'row',gap:6,alignItems:'center'}}>
+                <Ionicons name="globe-outline" size={13} color={C.muted}/>
+                <Text style={{color:C.text,fontSize:12}}>{w.label||'Website'}</Text>
+              </TouchableOpacity>
+            ))}
+            {(pair.info.socials||[]).map((s:any,i:number)=>(
+              <TouchableOpacity key={'s'+i} onPress={()=>Linking.openURL(s.url)}
+                style={{backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:8,flexDirection:'row',gap:6,alignItems:'center'}}>
+                <Ionicons name="logo-twitter" size={13} color={C.muted}/>
+                <Text style={{color:C.text,fontSize:12}}>{s.type||'Social'}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        <View style={{marginHorizontal:16,marginBottom:20}}>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:8}}>Token Insights</Text>
+          <Text style={{color:C.muted,fontSize:13,lineHeight:21}}>
+            {pair?.baseToken?.name||token.name||token.symbol} ({token.symbol}) on Solana.
+            {pair?.marketCap?` Market Cap: ${fmtK(pair.marketCap)}.`:''}
+            {pair?.liquidity?.usd?` Liquidity: ${fmtK(pair.liquidity.usd)}.`:''}
+            {pair?.volume?.h24?` 24h Volume: ${fmtK(pair.volume.h24)}.`:''}
+          </Text>
+        </View>
+      </ScrollView>
+
+      {view==='main'&&(
+        <View style={{position:'absolute',bottom:0,left:0,right:0,backgroundColor:C.card,padding:16,paddingBottom:32,flexDirection:'row',gap:12,borderTopWidth:1,borderTopColor:C.border}}>
+          <TouchableOpacity onPress={()=>setView('receive')}
+            style={{flex:1,borderRadius:16,padding:16,alignItems:'center',backgroundColor:C.bg,borderWidth:1,borderColor:C.green}}>
+            <Text style={{color:C.green,fontWeight:'700',fontSize:16}}>↓ Receive</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={()=>setView('send')}
+            style={{flex:1,borderRadius:16,padding:16,alignItems:'center',backgroundColor:C.green}}>
+            <Text style={{color:'#000',fontWeight:'700',fontSize:16}}>↑ Send</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {view==='receive'&&(
+        <View style={{position:'absolute',bottom:0,left:0,right:0,backgroundColor:C.card,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:40}}>
+          <TouchableOpacity onPress={()=>setView('main')} style={{marginBottom:12}}>
+            <Text style={{color:C.text,fontSize:15}}>‹ Back</Text>
+          </TouchableOpacity>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:17,textAlign:'center',marginBottom:16}}>Receive {token.symbol}</Text>
+          <Image source={{uri:'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+(pubkey||'')}} style={{width:180,height:180,borderRadius:8,alignSelf:'center',marginBottom:12}}/>
+          <TouchableOpacity onPress={()=>{Clipboard.setString(pubkey||'');Alert.alert('Copied','Wallet address copied');}} style={{backgroundColor:C.bg,borderRadius:12,padding:12}}>
+            <Text style={{color:C.green,fontSize:11,fontFamily:'monospace',textAlign:'center'}}>{pubkey}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {view==='send'&&(
+        <View style={{position:'absolute',bottom:0,left:0,right:0,backgroundColor:C.card,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:40}}>
+          <TouchableOpacity onPress={()=>setView('main')} style={{marginBottom:12}}>
+            <Text style={{color:C.text,fontSize:15}}>‹ Back</Text>
+          </TouchableOpacity>
+          <Text style={{color:C.text,fontWeight:'700',fontSize:17,marginBottom:12}}>Send {token.symbol}</Text>
+          <TextInput value={sendAddr} onChangeText={setSendAddr} placeholder="Recipient address..." placeholderTextColor={C.muted}
+            style={{backgroundColor:C.bg,color:C.text,borderRadius:12,padding:14,marginBottom:12,fontSize:13}} autoCapitalize="none"/>
+          <TextInput value={sendAmt} onChangeText={setSendAmt} placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric"
+            style={{backgroundColor:C.bg,color:C.text,borderRadius:12,padding:14,fontSize:22,fontWeight:'700',marginBottom:16}}/>
+          <TouchableOpacity style={{backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center'}}
+            onPress={()=>Alert.alert('Send',`Send ${sendAmt} ${token.symbol} to ${sendAddr.slice(0,8)}...?`)}>
+            <Text style={{color:'#000',fontWeight:'700',fontSize:16}}>Send {token.symbol}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </Animated.View>
   );
 }
 
-
-function TokLogo({uri, symbol, style, fallback, mint}: {uri:string, symbol:string, style:any, fallback?:string, mint?:string}) {
-  const [tries, setTries] = React.useState(0);
-  const sources = [
-    uri,
-    fallback || '',
-    mint ? 'https://img.birdeye.so/icon/v1/?address='+mint : '',
-    mint ? 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/'+mint+'/logo.png' : '',
-  ].filter(Boolean);
-  if(tries >= sources.length) return <View style={[style,{alignItems:'center',justifyContent:'center',backgroundColor:'#1a2a1a'}]}><Text style={{color:'#39ff14',fontSize:11,fontWeight:'bold'}}>{symbol?symbol.slice(0,3):''}</Text></View>;
-  return <Image source={{uri:sources[tries]}} style={style} onError={()=>setTries(t=>t+1)} />;
-}
 function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userName, setUserName, accounts, setAccounts, activeAccIdx, switchAccount, addAccount }: any) {
   const [view, setView] = React.useState('main');
   const [nameInput, setNameInput] = React.useState(userName || '');
