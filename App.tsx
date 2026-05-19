@@ -4260,8 +4260,7 @@ https://solscan.io/tx/${sig}` }]);
           createRecurringOrder={createRecurringOrder}
         />
       </View>
-      {tab === 'portfolio' && (
-        <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
+      <ScrollView style={[s.pad, {display: tab === 'portfolio' ? 'flex' : 'none'}]} contentContainerStyle={{paddingBottom:100}} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
           {!wallet ? (
             <View style={s.emptyState}>
               <Text style={s.emptyTitle}>No Wallet</Text>
@@ -4341,15 +4340,13 @@ https://solscan.io/tx/${sig}` }]);
             </View>
           )}
         </ScrollView>
-      )}
 
             {/* DAPP BROWSER */}
-        <View style={{flex:1, display: tab === 'dapp' ? 'flex' : 'none'}}>
+        <View style={{flex:1, display: tab === 'dapp' || tab === 'explore' ? 'flex' : 'none'}}>
           <DappBrowser walletAddress={pubkey} secretKey={wallet ? deriveWallet(wallet).secretKey : null} wallet={wallet} mwaInitUrl={mwaInitUrl} onMwaHandled={() => setMwaInitUrl(null)} />
         </View>
         {/* SETTINGS */}
-      {tab === 'settings' && (
-        <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}}>
+      <ScrollView style={[s.pad, {display: tab === 'settings' ? 'flex' : 'none'}]} contentContainerStyle={{paddingBottom:100}}>
           {/* Wallet profile row */}
           {wallet && (
             <View style={s.stGroup}>
@@ -4418,7 +4415,6 @@ https://solscan.io/tx/${sig}` }]);
             </View>
           )}
         </ScrollView>
-      )}
       </KeyboardAvoidingView>
 
       {/* TAB BAR */}
