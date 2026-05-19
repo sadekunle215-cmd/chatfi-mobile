@@ -229,7 +229,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
         {view === 'main' && (
           <>
             {/* Header */}
-            <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.border}}>
+            <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:12,paddingTop:16,borderBottomWidth:1,borderBottomColor:C.border}}>
               <TouchableOpacity onPress={onClose} style={{marginRight:12}}>
                 <Ionicons name="arrow-back" size={24} color={C.text}/>
               </TouchableOpacity>
@@ -254,22 +254,22 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                   </Text>
                 )}
               </View>
-              <View style={{alignItems:'flex-end',gap:4}}>
-                <View style={{flexDirection:'row',justifyContent:'space-between',gap:24}}>
-                  <Text style={{color:C.muted,fontSize:12}}>Mkt Cap</Text>
-                  <Text style={{color:C.text,fontSize:12,fontWeight:'600'}}>{mktCap?fmt(mktCap):'—'}</Text>
+              <View style={{alignItems:'flex-end',gap:6}}>
+                <View style={{flexDirection:'row',gap:6}}>
+                  <Text style={{color:C.muted,fontSize:11}}>Mkt Cap</Text>
+                  <Text style={{color:C.text,fontSize:11,fontWeight:'600'}}>{mktCap?fmt(mktCap):'—'}</Text>
                 </View>
-                <View style={{flexDirection:'row',justifyContent:'space-between',gap:24}}>
-                  <Text style={{color:C.muted,fontSize:12}}>Liquidity</Text>
-                  <Text style={{color:C.text,fontSize:12,fontWeight:'600'}}>{liquidity?fmt(liquidity):'—'}</Text>
+                <View style={{flexDirection:'row',gap:6}}>
+                  <Text style={{color:C.muted,fontSize:11}}>Liquidity</Text>
+                  <Text style={{color:C.text,fontSize:11,fontWeight:'600'}}>{liquidity?fmt(liquidity):'—'}</Text>
                 </View>
-                <View style={{flexDirection:'row',justifyContent:'space-between',gap:24}}>
-                  <Text style={{color:C.muted,fontSize:12}}>Holders</Text>
-                  <Text style={{color:C.text,fontSize:12,fontWeight:'600'}}>{holders||'—'}</Text>
+                <View style={{flexDirection:'row',gap:6}}>
+                  <Text style={{color:C.muted,fontSize:11}}>Holders</Text>
+                  <Text style={{color:C.text,fontSize:11,fontWeight:'600'}}>{holders||'—'}</Text>
                 </View>
-                <View style={{flexDirection:'row',justifyContent:'space-between',gap:24}}>
-                  <Text style={{color:C.muted,fontSize:12}}>Org. Score</Text>
-                  <Text style={{color:orgScore?C.green:'#ff4444',fontSize:12,fontWeight:'600'}}>{orgScore??0}</Text>
+                <View style={{flexDirection:'row',gap:6}}>
+                  <Text style={{color:C.muted,fontSize:11}}>Org. Score</Text>
+                  <Text style={{color:orgScore?C.green:'#ff4444',fontSize:11,fontWeight:'600'}}>{orgScore??0}</Text>
                 </View>
               </View>
             </View>
