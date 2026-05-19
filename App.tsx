@@ -1690,7 +1690,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
                       <Text style={{ fontSize:20 }}>⇄</Text>
                     </View>
                     <View style={{ flex:1 }}>
-                      <Text style={{ color:C.text, fontWeight:'600', fontSize:14 }}>{sent?.mint?.slice(0,4)||'?'} → {recv?.mint?.slice(0,4)||'?'}</Text>
+                      <Text style={{ color:C.text, fontWeight:'600', fontSize:14 }}>{sent?.symbol||sent?.mint?.slice(0,6)||'?'} → {recv?.symbol||recv?.mint?.slice(0,6)||'?}</Text>
                       <Text style={{ color:C.muted, fontSize:11 }}>{new Date((tx.timestamp||0)*1000).toLocaleTimeString()}</Text>
                     </View>
                     <View style={{ alignItems:'flex-end' }}>
