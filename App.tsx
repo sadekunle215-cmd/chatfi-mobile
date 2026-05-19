@@ -306,7 +306,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
         )}
 
         {view === 'receive' && (
-          <ScrollView contentContainerStyle={{padding:16}}>
+          <ScrollView contentContainerStyle={{padding:16,paddingTop:(StatusBar.currentHeight||0)+16}}>
             <TouchableOpacity onPress={()=>setView('main')} style={{marginBottom:16}}>
               <Text style={{color:C.text,fontSize:16}}>‹ Back</Text>
             </TouchableOpacity>
@@ -323,7 +323,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
         )}
 
         {view === 'send' && (
-          <ScrollView contentContainerStyle={{padding:16}}>
+          <ScrollView contentContainerStyle={{padding:16,paddingTop:(StatusBar.currentHeight||0)+16}}>
             <TouchableOpacity onPress={()=>setView('main')} style={{marginBottom:16}}>
               <Text style={{color:C.text,fontSize:16}}>‹ Back</Text>
             </TouchableOpacity>
@@ -1983,9 +1983,25 @@ export default function App() {
     await AsyncStorage.setItem('active_acc', String(idx));
     await AsyncStorage.setItem('wallet_mnemonic', acc.mnemonic);
   };
-  const fetchPortfolio = async () => {
+  const fetchPortfolio = async (silent = false) => {
     lastFetch.current = Date.now();
     if (!pubkey) return;
+    const cacheKey = 'portfolio_cache_' + pubkey;
+    if (!silent) {
+      try {
+        const cached = await AsyncStorage.getItem(cacheKey);
+        if (cached) {
+          const { tokens: ct, ts } = JSON.parse(cached);
+          if (ct && Date.now() - ts < 300000) {
+            const sol = ct.find((t:any) => t.symbol === 'SOL');
+            setSolBalance(sol?.amount || 0);
+            setSolPrice(sol?.price || 0);
+            setTokenBalances(ct);
+            setPortfolioLoading(false);
+          }
+        }
+      } catch(e) {}
+    }
     setPortfolioLoading(true);
     try {
       let verifiedMints = new Set<string>();
@@ -4795,7 +4811,7 @@ const s = StyleSheet.create({
   tabItem: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 0 },
   tabIcon: { fontSize: 22, color: 'rgba(255,255,255,0.4)' },
   tabIconActive: { color: '#39FF82', textShadowColor: '#39FF82', textShadowOffset: {width:0,height:0}, textShadowRadius: 8 },
-  tabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, marginTop: 2, letterSpacing: -0.3 },
+  tabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, marginTop: 2, letterSpacing: -0.3, width: '100%', textAlign: 'center' },
   tabLabelActive: { color: '#C7F284', fontWeight: '600' },
   swapCard:{ backgroundColor:C.card, borderRadius:16, padding:16, marginBottom:4 },
   swapCardLabel:{ color:C.muted, fontSize:13, marginBottom:10 },
