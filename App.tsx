@@ -4317,7 +4317,7 @@ https://solscan.io/tx/${sig}` }]);
               <View style={{alignItems:'center',paddingTop:16,paddingBottom:8}}>
                 <TouchableOpacity onPress={()=>setPrivacyMode(p=>!p)}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : privacyMode ? '****' : '$'+((tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(2)}
+                  {privacyMode ? '****' : '$'+((tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(2)}
                 </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:4}}>
@@ -4354,7 +4354,23 @@ https://solscan.io/tx/${sig}` }]);
               {tokenBalances.length===0&&!portfolioLoading&&(
                 <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
               )}
-              {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
+              {portfolioLoading && tokenBalances.length===0 && (
+                  <View style={{marginTop:8}}>
+                    {[1,2,3,4,5].map(i=>(
+                      <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
+                        <View style={{width:40,height:40,borderRadius:20,backgroundColor:C.card,marginRight:12}}/>
+                        <View style={{flex:1}}>
+                          <View style={{width:60,height:14,backgroundColor:C.card,borderRadius:6,marginBottom:6}}/>
+                          <View style={{width:100,height:11,backgroundColor:C.card,borderRadius:6}}/>
+                        </View>
+                        <View style={{alignItems:'flex-end'}}>
+                          <View style={{width:50,height:14,backgroundColor:C.card,borderRadius:6,marginBottom:6}}/>
+                          <View style={{width:40,height:11,backgroundColor:C.card,borderRadius:6}}/>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
               {/* SOL Row */}
               {solBalance !== null && solBalance > 0 && (
                 <TouchableOpacity style={s.pfTokenRow} onPress={()=>setSelectedToken({symbol:'SOL',mint:'So11111111111111111111111111111111111111112',amount:solBalance||0,logoURI:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112',price:solPrice||0,isVerified:true})}>
