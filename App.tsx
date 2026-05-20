@@ -191,6 +191,24 @@ function NativeChart({ mint }: { mint: string }) {
   );
 }
 
+function BuySellBar({buys, sells, C}: {buys:number, sells:number, C:any}) {
+  const total = buys + sells;
+  const buyPct = total > 0 ? (buys / total) * 100 : 50;
+  const sellPct = 100 - buyPct;
+  return (
+    <View style={{marginTop:8}}>
+      <View style={{flexDirection:'row',height:8,borderRadius:4,overflow:'hidden'}}>
+        <View style={{flex:buyPct,backgroundColor:C.green}}/>
+        <View style={{flex:sellPct,backgroundColor:'#ff4444'}}/>
+      </View>
+      <View style={{flexDirection:'row',justifyContent:'space-between',marginTop:6}}>
+        <Text style={{color:C.green,fontSize:11}}>{buyPct.toFixed(1)}% Buy</Text>
+        <Text style={{color:'#ff4444',fontSize:11}}>{sellPct.toFixed(1)}% Sell</Text>
+      </View>
+    </View>
+  );
+}
+
 function TokenModal({ token, pubkey, onClose, onSend, tokenBalances, solBalance, solPrice }) {
   const [view, setView] = React.useState('main');
   const [detailTab, setDetailTab] = React.useState('overview');
@@ -520,18 +538,7 @@ function TokenModal({ token, pubkey, onClose, onSend, tokenBalances, solBalance,
                         <Text style={{color:C.muted,fontSize:11}}>Sells</Text>
                       </View>
                     </View>
-                    {pairData?.txns?.h24 && (
-                      <View style={{marginTop:8}}>
-                        <View style={{flexDirection:'row',height:8,borderRadius:4,overflow:'hidden'}}>
-                          <View style={{flex:(pairData.txns.h24.buys||0),backgroundColor:C.green}}/>
-                          <View style={{flex:(pairData.txns.h24.sells||0),backgroundColor:'#ff4444'}}/>
-                        </View>
-                        <View style={{flexDirection:'row',justifyContent:'space-between',marginTop:6}}>
-                          <Text style={{color:C.green,fontSize:11}}>{(pairData.txns.h24.buys||0)+( pairData.txns.h24.sells||0)>0?(((pairData.txns.h24.buys||0)/((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0)))*100).toFixed(1):50}% Buy</Text>
-                          <Text style={{color:'#ff4444',fontSize:11}}>{(pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0)>0?((( pairData.txns.h24.sells||0)/((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0)))*100).toFixed(1):50}% Sell</Text>
-                        </View>
-                      </View>
-                    )}
+                    {pairData?.txns?.h24 && <BuySellBar buys={pairData.txns.h24.buys||0} sells={pairData.txns.h24.sells||0} C={C}/>}
                   </View>
                 </View>
               )}
