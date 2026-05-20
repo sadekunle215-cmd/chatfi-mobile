@@ -4221,8 +4221,12 @@ https://solscan.io/tx/${sig}` }]);
           
           <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />{userName ? <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{userName}</Text> : null}</TouchableOpacity>
         </View>
-        <TouchableOpacity style={[s.walletBtn, s.walletBtnOn]} onPress={() => setShowChat(v => !v)}>
-          <Text style={[s.walletBtnTxt, { color: C.green }]}>{showChat ? 'Wallet ↓' : 'Chat ↓'}</Text>
+        <TouchableOpacity
+          onPress={() => setShowChat(v => !v)}
+          style={{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:showChat?'rgba(163,230,53,0.12)':'rgba(163,230,53,0.08)',borderWidth:1,borderColor:C.green,borderRadius:24,paddingHorizontal:14,paddingVertical:7}}>
+          <Ionicons name={showChat ? 'wallet-outline' : 'chatbubble-ellipses-outline'} size={15} color={C.green}/>
+          <Text style={{color:C.green,fontSize:12,fontWeight:'700',letterSpacing:0.3}}>{showChat ? 'Wallet' : 'Chat'}</Text>
+          <Ionicons name={showChat ? 'arrow-up' : 'arrow-down'} size={12} color={C.green}/>
         </TouchableOpacity>
       </View>}
 
