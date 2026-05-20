@@ -1763,7 +1763,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
                     style={{ flexDirection:'row', alignItems:'center', padding:12, borderBottomWidth:1, borderBottomColor:C.border }}>
                     <Image source={{uri:t.logoURI||`https://img.jup.ag/tokens/${t.mint}`}} style={{width:36,height:36,borderRadius:18,backgroundColor:C.bg,marginRight:12}}/>
                     <View style={{flex:1}}>
-                      <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
+                      <View style={{flexDirection:'row',alignItems:'center',gap:4}}><Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>{t.isVerified && <Ionicons name="checkmark-circle" size={14} color={C.green}/>}</View>
                       <Text style={{color:C.muted,fontSize:12}}>{t.name||t.symbol}</Text>
                     </View>
                     <Text style={{color:C.muted,fontSize:13}}>{t.amount?.toFixed(4)}</Text>
@@ -1774,7 +1774,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
                     style={{ flexDirection:'row', alignItems:'center', padding:12, borderBottomWidth:1, borderBottomColor:C.border }}>
                     <Image source={{uri:t.logoURI||`https://img.jup.ag/tokens/${t.address}`}} style={{width:36,height:36,borderRadius:18,backgroundColor:C.bg,marginRight:12}}/>
                     <View style={{flex:1}}>
-                      <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
+                      <View style={{flexDirection:'row',alignItems:'center',gap:4}}><Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>{t.isVerified && <Ionicons name="checkmark-circle" size={14} color={C.green}/>}</View>
                       <Text style={{color:C.muted,fontSize:12}}>{t.name}</Text>
                     </View>
                   </TouchableOpacity>
@@ -2511,7 +2511,7 @@ export default function App() {
           <Text style={{color:C.muted,fontSize:11,fontWeight:'700',marginBottom:6,letterSpacing:1}}>TOKENS</Text>
           {tokens.map((t:any,i:number)=>(
             <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:5,borderBottomWidth:i<tokens.length-1?1:0,borderBottomColor:C.border}}>
-              <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
+              <View style={{flexDirection:'row',alignItems:'center',gap:4}}><Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>{t.isVerified && <Ionicons name="checkmark-circle" size={14} color={C.green}/>}</View>
               <View style={{alignItems:'flex-end'}}>
                 <Text style={{color:C.text,fontSize:13}}>{typeof t.amount==='number'?t.amount.toFixed(4):t.amount}</Text>
                 <Text style={{color:C.muted,fontSize:11}}>${((t.amount||0)*(t.price||0)).toFixed(2)}</Text>
@@ -2637,7 +2637,7 @@ export default function App() {
           <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Your Portfolio</Text>
           {(data.tokens||[]).slice(0,5).map((t:any,i:number)=>(
             <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderBottomWidth:i<4?1:0,borderBottomColor:C.border}}>
-              <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
+              <View style={{flexDirection:'row',alignItems:'center',gap:4}}><Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>{t.isVerified && <Ionicons name="checkmark-circle" size={14} color={C.green}/>}</View>
               <View style={{alignItems:'flex-end'}}>
                 <Text style={{color:C.text}}>{t.amount?.toFixed(4)}</Text>
                 <Text style={{color:C.muted,fontSize:11}}>${((t.amount||0)*(t.price||0)).toFixed(2)}</Text>
