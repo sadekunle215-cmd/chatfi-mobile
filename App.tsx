@@ -4229,7 +4229,7 @@ https://solscan.io/tx/${sig}` }]);
       <KeyboardAvoidingView style={s.content} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
 
         {/* CHAT */}
-        <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:99,display:showChat?'flex':'none',backgroundColor:C.bg}}>
+        <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:9999,display:showChat?'flex':'none',backgroundColor:C.bg}}>
           <View style={s.flex}>
 
                 <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }}>
@@ -4807,7 +4807,7 @@ const s = StyleSheet.create({
   seedWordTxt: { color: C.text, fontSize: 13, fontWeight: '600' },
   addressBox: { backgroundColor: C.bg, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: C.border, marginBottom: 16 },
   addressTxt: { color: C.text, fontSize: 13, lineHeight: 20 },
-  tabBar: { flexDirection: 'row', backgroundColor: '#080c0a', borderTopWidth: 0, borderTopColor: 'transparent', paddingTop: 10, paddingBottom: 24, paddingHorizontal: 4 },
+  tabBar: { flexDirection: 'row', backgroundColor: '#080c0a', borderTopWidth: 0, borderTopColor: 'transparent', paddingTop: 10, paddingBottom: 24, paddingHorizontal: 4, zIndex: 1 },
   tabItem: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 0 },
   tabIcon: { fontSize: 22, color: 'rgba(255,255,255,0.4)' },
   tabIconActive: { color: '#39FF82', textShadowColor: '#39FF82', textShadowOffset: {width:0,height:0}, textShadowRadius: 8 },
