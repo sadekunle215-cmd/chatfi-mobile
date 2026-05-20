@@ -4364,9 +4364,14 @@ https://solscan.io/tx/${sig}` }]);
                       <Text style={s.pfTokenName}>SOL</Text>
                       <Ionicons name="checkmark-circle" size={14} color="#39ff14" />
                     </View>
-                    <Text style={s.pfTokenAmt}>{privacyMode ? "****" : (solBalance||0).toFixed(4)} SOL</Text>
+                    <View style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:2}}>
+                      <Text style={{color:C.muted,fontSize:12}}>{privacyMode?'****':solPrice?'$'+Number(solPrice).toFixed(2):'—'}</Text>
+                    </View>
                   </View>
-                  <Text style={s.pfTokenVal}>{privacyMode ? '****' : solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
+                  <View style={{alignItems:'flex-end'}}>
+                    <Text style={s.pfTokenVal}>{privacyMode ? '****' : solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
+                    <Text style={{color:C.muted,fontSize:12,marginTop:2}}>{privacyMode ? '****' : (solBalance||0).toFixed(4)} SOL</Text>
+                  </View>
                 </TouchableOpacity>
               )}
               {tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').map((t,i)=>(
@@ -4377,9 +4382,14 @@ https://solscan.io/tx/${sig}` }]);
                       <Text style={s.pfTokenName}>{t.symbol}</Text>
                       {t.isVerified && <Ionicons name="checkmark-circle" size={14} color="#39ff14" />}
                     </View>
-                    <Text style={s.pfTokenAmt}>{privacyMode ? "****" : (Number(t.amount)||0).toFixed(4)} {t.symbol}</Text>
+                    <View style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:2}}>
+                      <Text style={{color:C.muted,fontSize:12}}>{privacyMode?'****':t.price?'$'+Number(t.price).toFixed(Number(t.price)<0.01?6:4):'—'}</Text>
+                    </View>
                   </View>
-                  <Text style={s.pfTokenVal}>{privacyMode ? '****' : t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
+                  <View style={{alignItems:'flex-end'}}>
+                    <Text style={s.pfTokenVal}>{privacyMode ? '****' : t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
+                    <Text style={{color:C.muted,fontSize:12,marginTop:2}}>{privacyMode ? '****' : (Number(t.amount)||0).toFixed(4)} {t.symbol}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
