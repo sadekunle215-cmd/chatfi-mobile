@@ -191,47 +191,20 @@ function NativeChart({ mint }: { mint: string }) {
   );
 }
 
-function BuySellBar({buys, sells, C}: {buys:number, sells:number, C:any}) {
-  const total = buys + sells;
-  const buyPct = total > 0 ? (buys / total) * 100 : 50;
-  const sellPct = 100 - buyPct;
-  return (
-    <View style={{marginTop:8}}>
-      <View style={{flexDirection:'row',height:8,borderRadius:4,overflow:'hidden'}}>
-        <View style={{flex:buyPct,backgroundColor:C.green}}/>
-        <View style={{flex:sellPct,backgroundColor:'#ff4444'}}/>
-      </View>
-      <View style={{flexDirection:'row',justifyContent:'space-between',marginTop:6}}>
-        <Text style={{color:C.green,fontSize:11}}>{buyPct.toFixed(1)}% Buy</Text>
-        <Text style={{color:'#ff4444',fontSize:11}}>{sellPct.toFixed(1)}% Sell</Text>
-      </View>
-    </View>
-  );
-}
-
-function TokenModal({ token, pubkey, onClose, onSend, tokenBalances, solBalance, solPrice }) {
+function TokenModal({ token, pubkey, onClose, onSend }) {
   const [view, setView] = React.useState('main');
-  const [detailTab, setDetailTab] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
   const [sending, setSending] = React.useState(false);
   const [pairData, setPairData] = React.useState<any>(null);
   const [pairLoading, setPairLoading] = React.useState(true);
-  const [trades, setTrades] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     if (!token) return;
     setPairLoading(true);
-    setDetailTab('overview');
     fetch('https://api.dexscreener.com/latest/dex/tokens/' + token.mint)
       .then(r => r.json())
-      .then(d => {
-        const pair = d?.pairs?.[0];
-        if (pair) {
-          setPairData(pair);
-          setTrades(pair.txns ? [] : []);
-        }
-      })
+      .then(d => { const pair = d?.pairs?.[0]; if (pair) setPairData(pair); })
       .catch(() => {})
       .finally(() => setPairLoading(false));
   }, [token?.mint]);
@@ -275,38 +248,36 @@ function TokenModal({ token, pubkey, onClose, onSend, tokenBalances, solBalance,
               </View>
             </View>
 
-            {/* Price + Change + Stats */}
-            <View style={{paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between'}}>
+            {/* Price + Change */}
+            <View style={{paddingHorizontal:16,paddingVertical:10,flexDirection:'row',alignItems:'flex-end',justifyContent:'space-between'}}>
               <View>
-                <Text style={{color:C.text,fontWeight:'bold',fontSize:26}}>{price?'$'+Number(price).toFixed(Number(price)<0.01?6:4):'$0.00'}</Text>
+                <Text style={{color:C.text,fontWeight:'bold',fontSize:28}}>{price?'$'+Number(price).toFixed(Number(price)<0.01?6:4):'$0.00'}</Text>
                 {priceChange != null && (
-                  <Text style={{color:priceChange>=0?C.green:'#ff4444',fontSize:13,marginTop:2}}>
+                  <Text style={{color:priceChange>=0?C.green:'#ff4444',fontSize:14,marginTop:2}}>
                     {priceChange>=0?'+':''}{priceChange?.toFixed(2)}% (24h)
                   </Text>
                 )}
               </View>
-              <View style={{alignItems:'flex-end',gap:3}}>
-                <View style={{flexDirection:'row',gap:8}}>
-                  <Text style={{color:C.muted,fontSize:11}}>Mkt Cap</Text>
-                  <Text style={{color:C.text,fontSize:11,fontWeight:'600'}}>{mktCap?fmt(mktCap):'—'}</Text>
+              <View style={{flexDirection:'row',gap:16,alignItems:'center'}}>
+                <View style={{alignItems:'center',gap:2}}>
+                  <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>MKT CAP</Text>
+                  <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{mktCap?fmt(mktCap):'—'}</Text>
                 </View>
-                <View style={{flexDirection:'row',gap:8}}>
-                  <Text style={{color:C.muted,fontSize:11}}>Liquidity</Text>
-                  <Text style={{color:C.text,fontSize:11,fontWeight:'600'}}>{liquidity?fmt(liquidity):'—'}</Text>
+                <View style={{width:1,height:24,backgroundColor:C.border}}/>
+                <View style={{alignItems:'center',gap:2}}>
+                  <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>LIQUIDITY</Text>
+                  <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{liquidity?fmt(liquidity):'—'}</Text>
                 </View>
-                <View style={{flexDirection:'row',gap:8}}>
-                  <Text style={{color:C.muted,fontSize:11}}>Holders</Text>
-                  <Text style={{color:C.text,fontSize:11,fontWeight:'600'}}>{holders||'—'}</Text>
-                </View>
-                <View style={{flexDirection:'row',gap:8}}>
-                  <Text style={{color:C.muted,fontSize:11}}>Org. Score</Text>
-                  <Text style={{color:orgScore?C.green:'#ff4444',fontSize:11,fontWeight:'600'}}>{orgScore??0}</Text>
+                <View style={{width:1,height:24,backgroundColor:C.border}}/>
+                <View style={{alignItems:'center',gap:2}}>
+                  <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>HOLDERS</Text>
+                  <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{holders||'—'}</Text>
                 </View>
               </View>
             </View>
 
-            {/* Chart - half screen */}
-            <View style={{height:220,overflow:'hidden'}}>
+            {/* Chart */}
+            <View style={{flex:1,marginHorizontal:0,overflow:'hidden'}}>
               <WebView
                 source={{uri:'https://dexscreener.com/solana/'+pairAddress+'?embed=1&theme=dark&trades=0&info=0'}}
                 style={{flex:1,backgroundColor:C.bg}}
@@ -321,270 +292,6 @@ function TokenModal({ token, pubkey, onClose, onSend, tokenBalances, solBalance,
                 )}
               />
             </View>
-
-            {/* Detail Tabs */}
-            <View style={{flexDirection:'row',backgroundColor:C.card,marginHorizontal:16,marginTop:12,borderRadius:12,padding:3}}>
-              {['Overview','Movement','Feed'].map(t=>(
-                <TouchableOpacity key={t} onPress={()=>setDetailTab(t.toLowerCase())}
-                  style={{flex:1,paddingVertical:8,borderRadius:10,alignItems:'center',backgroundColor:detailTab===t.toLowerCase()?C.bg:'transparent'}}>
-                  <Text style={{color:detailTab===t.toLowerCase()?C.text:C.muted,fontWeight:detailTab===t.toLowerCase()?'700':'400',fontSize:13}}>{t}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <ScrollView style={{flex:1}} contentContainerStyle={{padding:16,paddingBottom:100}}>
-              {/* OVERVIEW TAB */}
-              {detailTab==='overview' && (
-                <View style={{gap:12}}>
-                  <View style={{flexDirection:'row',gap:10}}>
-                    <View style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:14}}>
-                      <Text style={{color:C.muted,fontSize:11,marginBottom:4}}>Holdings</Text>
-                      <Text style={{color:C.green,fontWeight:'bold',fontSize:16}}>${((token.amount||0)*(token.price||0)).toFixed(2)}</Text>
-                      <Text style={{color:C.muted,fontSize:12}}>{(token.amount||0).toFixed(4)} {token.symbol}</Text>
-                    </View>
-                    <View style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:14}}>
-                      <Text style={{color:C.muted,fontSize:11,marginBottom:4}}>Token Price</Text>
-                      <Text style={{color:C.text,fontWeight:'bold',fontSize:16}}>{token.price?'$'+Number(token.price).toFixed(Number(token.price)<0.01?6:4):'—'}</Text>
-                      <Text style={{color:token.isVerified?C.green:'#ff9900',fontSize:12}}>{token.isVerified?'✓ Verified':'⚠ Unverified'}</Text>
-                    </View>
-                  </View>
-                  <View style={{backgroundColor:C.card,borderRadius:14,padding:14}}>
-                    <Text style={{color:C.muted,fontSize:11,marginBottom:6}}>Contract Address</Text>
-                    <TouchableOpacity onPress={()=>Alert.alert('Mint Address',token.mint)}>
-                      <Text style={{color:C.text,fontSize:12,fontFamily:'monospace'}}>{token.mint?token.mint.slice(0,16)+'...'+token.mint.slice(-8):'—'}</Text>
-                      <Text style={{color:C.green,fontSize:11,marginTop:4}}>Tap to view full address</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
-              {/* MOVEMENT TAB */}
-              {detailTab==='movement' && (
-                <View style={{gap:12}}>
-                  <View style={{backgroundColor:C.card,borderRadius:14,padding:14}}>
-                    <Text style={{color:C.muted,fontSize:11,marginBottom:10,fontWeight:'600'}}>PRICE CHANGE</Text>
-                    <View style={{flexDirection:'row',justifyContent:'space-between'}}>
-                      {[['5m',pairData?.priceChange?.m5],['1h',pairData?.priceChange?.h1],['6h',pairData?.priceChange?.h6],['24h',pairData?.priceChange?.h24]].map(([label,val]:any)=>(
-                        <View key={label} style={{alignItems:'center'}}>
-                          <Text style={{color:C.muted,fontSize:11}}>{label}</Text>
-                          <Text style={{color:val>=0?C.green:'#ff4444',fontWeight:'bold',fontSize:14,marginTop:4}}>{val!=null?(val>=0?'+':'')+Number(val).toFixed(2)+'%':'—'}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                  <View style={{backgroundColor:C.card,borderRadius:14,padding:14}}>
-                    <Text style={{color:C.muted,fontSize:11,marginBottom:10,fontWeight:'600'}}>VOLUME</Text>
-                    <View style={{flexDirection:'row',justifyContent:'space-between'}}>
-                      {[['5m',pairData?.volume?.m5],['1h',pairData?.volume?.h1],['6h',pairData?.volume?.h6],['24h',pairData?.volume?.h24]].map(([label,val]:any)=>(
-                        <View key={label} style={{alignItems:'center'}}>
-                          <Text style={{color:C.muted,fontSize:11}}>{label}</Text>
-                          <Text style={{color:C.text,fontWeight:'bold',fontSize:13,marginTop:4}}>{val?fmt(val):'—'}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                  <View style={{backgroundColor:C.card,borderRadius:14,padding:14}}>
-                    <Text style={{color:C.muted,fontSize:11,marginBottom:10,fontWeight:'600'}}>24H TRADES</Text>
-                    <View style={{flexDirection:'row',justifyContent:'space-between',marginBottom:10}}>
-                      <View style={{alignItems:'center'}}>
-                        <Text style={{color:C.green,fontWeight:'bold',fontSize:18}}>{pairData?.txns?.h24?.buys||'—'}</Text>
-                        <Text style={{color:C.muted,fontSize:11}}>Buys</Text>
-                      </View>
-                      <View style={{alignItems:'center'}}>
-                        <Text style={{color:C.text,fontWeight:'bold',fontSize:18}}>{((pairData?.txns?.h24?.buys||0)+(pairData?.txns?.h24?.sells||0))||'—'}</Text>
-                        <Text style={{color:C.muted,fontSize:11}}>Total</Text>
-                      </View>
-                      <View style={{alignItems:'center'}}>
-                        <Text style={{color:'#ff4444',fontWeight:'bold',fontSize:18}}>{pairData?.txns?.h24?.sells||'—'}</Text>
-                        <Text style={{color:C.muted,fontSize:11}}>Sells</Text>
-                      </View>
-                    </View>
-                    {pairData?.txns?.h24 && (
-                      <View>
-                        <View style={{flexDirection:'row',height:8,borderRadius:4,overflow:'hidden',marginTop:8}}>
-                          <View style={{flex:((pairData.txns.h24.buys||0)+((pairData.txns.h24.sells||0))>0?(pairData.txns.h24.buys||0)/((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))*100:50),backgroundColor:C.green}}/>
-                          <View style={{flex:(100-((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))>0?(pairData.txns.h24.buys||0)/((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))*100:50)),backgroundColor:'#ff4444'}}/>
-                        </View>
-                        <View style={{flexDirection:'row',justifyContent:'space-between',marginTop:6}}>
-                          <Text style={{color:C.green,fontSize:11}}>{((pairData.txns.h24.buys||0)+((pairData.txns.h24.sells||0))>0?((pairData.txns.h24.buys||0)/((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))*100):50).toFixed(1)}% Buy</Text>
-                          <Text style={{color:'#ff4444',fontSize:11}}>{(100-((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))>0?((pairData.txns.h24.buys||0)/((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))*100):50)).toFixed(1)}% Sell</Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              )}
-
-              {/* FEED TAB */}
-              {detailTab==='feed' && (
-                <View style={{gap:10}}>
-                  {[['Last 1h',pairData?.txns?.h1],['Last 6h',pairData?.txns?.h6],['Last 24h',pairData?.txns?.h24]].filter(([,v])=>v).map(([label,r]:any,i:number)=>{
-                    const total=(r.buys||0)+(r.sells||0);
-                    const bp=total>0?((r.buys||0)/total*100):50;
-                    return (
-                      <View key={i} style={{backgroundColor:C.card,borderRadius:14,padding:14}}>
-                        <Text style={{color:C.text,fontWeight:'600',fontSize:14,marginBottom:8}}>{label}</Text>
-                        <View style={{flexDirection:'row',justifyContent:'space-between',marginBottom:8}}>
-                          <View style={{alignItems:'center'}}>
-                            <Text style={{color:C.green,fontWeight:'bold',fontSize:18}}>{r.buys}</Text>
-                            <Text style={{color:C.muted,fontSize:11}}>Buys</Text>
-                          </View>
-                          <View style={{alignItems:'center'}}>
-                            <Text style={{color:C.text,fontWeight:'bold',fontSize:18}}>{total}</Text>
-                            <Text style={{color:C.muted,fontSize:11}}>Total</Text>
-                          </View>
-                          <View style={{alignItems:'center'}}>
-                            <Text style={{color:'#ff4444',fontWeight:'bold',fontSize:18}}>{r.sells}</Text>
-                            <Text style={{color:C.muted,fontSize:11}}>Sells</Text>
-                          </View>
-                        </View>
-                        <View style={{flexDirection:'row',height:6,borderRadius:3,overflow:'hidden'}}>
-                          <View style={{flex:bp,backgroundColor:C.green}}/>
-                          <View style={{flex:100-bp,backgroundColor:'#ff4444'}}/>
-                        </View>
-                        <View style={{flexDirection:'row',justifyContent:'space-between',marginTop:4}}>
-                          <Text style={{color:C.green,fontSize:11}}>{bp.toFixed(1)}% Buy</Text>
-                          <Text style={{color:'#ff4444',fontSize:11}}>{(100-bp).toFixed(1)}% Sell</Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                  <TouchableOpacity onPress={()=>Linking.openURL('https://dexscreener.com/solana/'+token.mint)}
-                    style={{backgroundColor:C.card,borderRadius:14,padding:14,alignItems:'center',flexDirection:'row',justifyContent:'center',gap:8}}>
-                    <Text style={{color:C.green,fontWeight:'600'}}>View Live Feed on DexScreener</Text>
-                    <Ionicons name="open-outline" size={16} color={C.green}/>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </ScrollView>
-
-            {/* Bottom Buttons */}
-            <View style={{flexDirection:'row',gap:12,padding:16,borderTopWidth:1,borderTopColor:C.border}}>
-              <TouchableOpacity onPress={()=>setView('receive')}
-                style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:16,alignItems:'center',flexDirection:'row',justifyContent:'center',gap:8}}>
-                <Ionicons name="arrow-down-outline" size={20} color={C.text}/>
-                <Text style={{color:C.text,fontWeight:'600'}}>Receive</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={()=>setView('send')}
-                style={{flex:1,backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center',flexDirection:'row',justifyContent:'center',gap:8}}>
-                <Ionicons name="arrow-up-outline" size={20} color="#0d1117"/>
-                <Text style={{color:'#0d1117',fontWeight:'bold'}}>Send</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-              {detailTab==='overview' && (
-                <View style={{gap:12}}>
-                  <View style={{flexDirection:'row',gap:10}}>
-                    <View style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:14}}>
-                      <Text style={{color:C.muted,fontSize:11,marginBottom:4}}>Holdings</Text>
-                      <Text style={{color:C.green,fontWeight:'bold',fontSize:16}}>${((token.amount||0)*(token.price||0)).toFixed(2)}</Text>
-                      <Text style={{color:C.muted,fontSize:12}}>{(token.amount||0).toFixed(4)} {token.symbol}</Text>
-                    </View>
-                    <View style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:14}}>
-                      <Text style={{color:C.muted,fontSize:11,marginBottom:4}}>Token Price</Text>
-                      <Text style={{color:C.text,fontWeight:'bold',fontSize:16}}>{token.price?'$'+Number(token.price).toFixed(Number(token.price)<0.01?6:4):'—'}</Text>
-                      <Text style={{color:token.isVerified?C.green:'#ff9900',fontSize:12}}>{token.isVerified?'✓ Verified':'⚠ Unverified'}</Text>
-                    </View>
-                  </View>
-                  <View style={{backgroundColor:C.card,borderRadius:14,padding:14}}>
-                    <Text style={{color:C.muted,fontSize:11,marginBottom:6}}>Contract Address</Text>
-                    <TouchableOpacity onPress={()=>Alert.alert('Mint Address',token.mint)}>
-                      <Text style={{color:C.text,fontSize:12,fontFamily:'monospace'}}>{token.mint?token.mint.slice(0,16)+'...'+token.mint.slice(-8):'—'}</Text>
-                      <Text style={{color:C.green,fontSize:11,marginTop:4}}>Tap to view full address</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
-              {/* MOVEMENT TAB */}
-              {detailTab==='movement' && (
-                <View style={{gap:12}}>
-                  <View style={{backgroundColor:C.card,borderRadius:14,padding:14}}>
-                    <Text style={{color:C.muted,fontSize:11,marginBottom:10,fontWeight:'600'}}>PRICE CHANGE</Text>
-                    <View style={{flexDirection:'row',justifyContent:'space-between'}}>
-                      {[['5m',pairData?.priceChange?.m5],['1h',pairData?.priceChange?.h1],['6h',pairData?.priceChange?.h6],['24h',pairData?.priceChange?.h24]].map(([label,val]:any)=>(
-                        <View key={label} style={{alignItems:'center'}}>
-                          <Text style={{color:C.muted,fontSize:11}}>{label}</Text>
-                          <Text style={{color:val>=0?C.green:'#ff4444',fontWeight:'bold',fontSize:14,marginTop:4}}>{val!=null?(val>=0?'+':'')+Number(val).toFixed(2)+'%':'—'}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                  <View style={{backgroundColor:C.card,borderRadius:14,padding:14}}>
-                    <Text style={{color:C.muted,fontSize:11,marginBottom:10,fontWeight:'600'}}>VOLUME</Text>
-                    <View style={{flexDirection:'row',justifyContent:'space-between'}}>
-                      {[['5m',pairData?.volume?.m5],['1h',pairData?.volume?.h1],['6h',pairData?.volume?.h6],['24h',pairData?.volume?.h24]].map(([label,val]:any)=>(
-                        <View key={label} style={{alignItems:'center'}}>
-                          <Text style={{color:C.muted,fontSize:11}}>{label}</Text>
-                          <Text style={{color:C.text,fontWeight:'bold',fontSize:13,marginTop:4}}>{val?fmt(val):'—'}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                  <View style={{backgroundColor:C.card,borderRadius:14,padding:14}}>
-                    <Text style={{color:C.muted,fontSize:11,marginBottom:10,fontWeight:'600'}}>24H TRADES</Text>
-                    <View style={{flexDirection:'row',justifyContent:'space-between',marginBottom:10}}>
-                      <View style={{alignItems:'center'}}>
-                        <Text style={{color:C.green,fontWeight:'bold',fontSize:18}}>{pairData?.txns?.h24?.buys||'—'}</Text>
-                        <Text style={{color:C.muted,fontSize:11}}>Buys</Text>
-                      </View>
-                      <View style={{alignItems:'center'}}>
-                        <Text style={{color:C.text,fontWeight:'bold',fontSize:18}}>{((pairData?.txns?.h24?.buys||0)+(pairData?.txns?.h24?.sells||0))||'—'}</Text>
-                        <Text style={{color:C.muted,fontSize:11}}>Total</Text>
-                      </View>
-                      <View style={{alignItems:'center'}}>
-                        <Text style={{color:'#ff4444',fontWeight:'bold',fontSize:18}}>{pairData?.txns?.h24?.sells||'—'}</Text>
-                        <Text style={{color:C.muted,fontSize:11}}>Sells</Text>
-                      </View>
-                    </View>
-                    {pairData?.txns?.h24 && <BuySellBar buys={pairData.txns.h24.buys||0} sells={pairData.txns.h24.sells||0} C={C}/>}
-                  </View>
-                </View>
-              )}
-
-              {/* FEED TAB */}
-              {detailTab==='feed' && (
-                <View style={{gap:10}}>
-                  {[['Last 1h',pairData?.txns?.h1],['Last 6h',pairData?.txns?.h6],['Last 24h',pairData?.txns?.h24]].filter(([,v])=>v).map(([label,r]:any,i:number)=>{
-                    const total=(r.buys||0)+(r.sells||0);
-                    const bp=total>0?((r.buys||0)/total*100):50;
-                    return (
-                      <View key={i} style={{backgroundColor:C.card,borderRadius:14,padding:14}}>
-                        <Text style={{color:C.text,fontWeight:'600',fontSize:14,marginBottom:8}}>{label}</Text>
-                        <View style={{flexDirection:'row',justifyContent:'space-between',marginBottom:8}}>
-                          <View style={{alignItems:'center'}}>
-                            <Text style={{color:C.green,fontWeight:'bold',fontSize:18}}>{r.buys}</Text>
-                            <Text style={{color:C.muted,fontSize:11}}>Buys</Text>
-                          </View>
-                          <View style={{alignItems:'center'}}>
-                            <Text style={{color:C.text,fontWeight:'bold',fontSize:18}}>{total}</Text>
-                            <Text style={{color:C.muted,fontSize:11}}>Total</Text>
-                          </View>
-                          <View style={{alignItems:'center'}}>
-                            <Text style={{color:'#ff4444',fontWeight:'bold',fontSize:18}}>{r.sells}</Text>
-                            <Text style={{color:C.muted,fontSize:11}}>Sells</Text>
-                          </View>
-                        </View>
-                        <View style={{flexDirection:'row',height:6,borderRadius:3,overflow:'hidden'}}>
-                          <View style={{flex:bp,backgroundColor:C.green}}/>
-                          <View style={{flex:100-bp,backgroundColor:'#ff4444'}}/>
-                        </View>
-                        <View style={{flexDirection:'row',justifyContent:'space-between',marginTop:4}}>
-                          <Text style={{color:C.green,fontSize:11}}>{bp.toFixed(1)}% Buy</Text>
-                          <Text style={{color:'#ff4444',fontSize:11}}>{(100-bp).toFixed(1)}% Sell</Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                  <TouchableOpacity onPress={()=>Linking.openURL('https://dexscreener.com/solana/'+token.mint)}
-                    style={{backgroundColor:C.card,borderRadius:14,padding:14,alignItems:'center',flexDirection:'row',justifyContent:'center',gap:8}}>
-                    <Text style={{color:C.green,fontWeight:'600'}}>View Live Feed on DexScreener</Text>
-                    <Ionicons name="open-outline" size={16} color={C.green}/>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </ScrollView>
 
             {/* Bottom Buttons */}
             <View style={{flexDirection:'row',gap:12,padding:16,borderTopWidth:1,borderTopColor:C.border}}>
@@ -2047,7 +1754,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
                     style={{ flexDirection:'row', alignItems:'center', padding:12, borderBottomWidth:1, borderBottomColor:C.border }}>
                     <Image source={{uri:t.logoURI||`https://img.jup.ag/tokens/${t.mint}`}} style={{width:36,height:36,borderRadius:18,backgroundColor:C.bg,marginRight:12}}/>
                     <View style={{flex:1}}>
-                      <View style={{flexDirection:'row',alignItems:'center',gap:4}}><Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>{t.isVerified && <Ionicons name="checkmark-circle" size={14} color={C.green}/>}</View>
+                      <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
                       <Text style={{color:C.muted,fontSize:12}}>{t.name||t.symbol}</Text>
                     </View>
                     <Text style={{color:C.muted,fontSize:13}}>{t.amount?.toFixed(4)}</Text>
@@ -2058,7 +1765,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
                     style={{ flexDirection:'row', alignItems:'center', padding:12, borderBottomWidth:1, borderBottomColor:C.border }}>
                     <Image source={{uri:t.logoURI||`https://img.jup.ag/tokens/${t.address}`}} style={{width:36,height:36,borderRadius:18,backgroundColor:C.bg,marginRight:12}}/>
                     <View style={{flex:1}}>
-                      <View style={{flexDirection:'row',alignItems:'center',gap:4}}><Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>{t.isVerified && <Ionicons name="checkmark-circle" size={14} color={C.green}/>}</View>
+                      <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
                       <Text style={{color:C.muted,fontSize:12}}>{t.name}</Text>
                     </View>
                   </TouchableOpacity>
@@ -2795,7 +2502,7 @@ export default function App() {
           <Text style={{color:C.muted,fontSize:11,fontWeight:'700',marginBottom:6,letterSpacing:1}}>TOKENS</Text>
           {tokens.map((t:any,i:number)=>(
             <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:5,borderBottomWidth:i<tokens.length-1?1:0,borderBottomColor:C.border}}>
-              <View style={{flexDirection:'row',alignItems:'center',gap:4}}><Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>{t.isVerified && <Ionicons name="checkmark-circle" size={14} color={C.green}/>}</View>
+              <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
               <View style={{alignItems:'flex-end'}}>
                 <Text style={{color:C.text,fontSize:13}}>{typeof t.amount==='number'?t.amount.toFixed(4):t.amount}</Text>
                 <Text style={{color:C.muted,fontSize:11}}>${((t.amount||0)*(t.price||0)).toFixed(2)}</Text>
@@ -2921,7 +2628,7 @@ export default function App() {
           <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Your Portfolio</Text>
           {(data.tokens||[]).slice(0,5).map((t:any,i:number)=>(
             <View key={i} style={{flexDirection:'row',justifyContent:'space-between',paddingVertical:6,borderBottomWidth:i<4?1:0,borderBottomColor:C.border}}>
-              <View style={{flexDirection:'row',alignItems:'center',gap:4}}><Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>{t.isVerified && <Ionicons name="checkmark-circle" size={14} color={C.green}/>}</View>
+              <Text style={{color:C.text,fontWeight:'600'}}>{t.symbol}</Text>
               <View style={{alignItems:'flex-end'}}>
                 <Text style={{color:C.text}}>{t.amount?.toFixed(4)}</Text>
                 <Text style={{color:C.muted,fontSize:11}}>${((t.amount||0)*(t.price||0)).toFixed(2)}</Text>
@@ -4459,7 +4166,7 @@ https://solscan.io/tx/${sig}` }]);
           </View>
         </View>
       </Modal>
-      <TokenModal token={selectedToken} pubkey={pubkey} tokenBalances={tokenBalances} solBalance={solBalance} solPrice={solPrice} onClose={() => setSelectedToken(null)}
+      <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
   onSend={async (mint, recipient, amount, symbol, decimals) => {
     const { secretKey, publicKey: pk } = deriveWallet(wallet);
     const amountNum = Math.round(parseFloat(amount) * Math.pow(10, decimals));
@@ -4601,7 +4308,7 @@ https://solscan.io/tx/${sig}` }]);
               <View style={{alignItems:'center',paddingTop:16,paddingBottom:8}}>
                 <TouchableOpacity onPress={()=>setPrivacyMode(p=>!p)}>
                 <Text style={s.pfBalanceAmt}>
-                  {privacyMode ? '****' : '$'+((tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(2)}
+                  {portfolioLoading ? '...' : privacyMode ? '****' : '$'+((tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(2)}
                 </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:4}}>
@@ -4638,23 +4345,7 @@ https://solscan.io/tx/${sig}` }]);
               {tokenBalances.length===0&&!portfolioLoading&&(
                 <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
               )}
-              {portfolioLoading && tokenBalances.length===0 && (
-                  <View style={{marginTop:8}}>
-                    {[1,2,3,4,5].map(i=>(
-                      <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
-                        <View style={{width:40,height:40,borderRadius:20,backgroundColor:C.card,marginRight:12}}/>
-                        <View style={{flex:1}}>
-                          <View style={{width:60,height:14,backgroundColor:C.card,borderRadius:6,marginBottom:6}}/>
-                          <View style={{width:100,height:11,backgroundColor:C.card,borderRadius:6}}/>
-                        </View>
-                        <View style={{alignItems:'flex-end'}}>
-                          <View style={{width:50,height:14,backgroundColor:C.card,borderRadius:6,marginBottom:6}}/>
-                          <View style={{width:40,height:11,backgroundColor:C.card,borderRadius:6}}/>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
+              {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
               {/* SOL Row */}
               {solBalance !== null && solBalance > 0 && (
                 <TouchableOpacity style={s.pfTokenRow} onPress={()=>setSelectedToken({symbol:'SOL',mint:'So11111111111111111111111111111111111111112',amount:solBalance||0,logoURI:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112',price:solPrice||0,isVerified:true})}>
@@ -4664,14 +4355,9 @@ https://solscan.io/tx/${sig}` }]);
                       <Text style={s.pfTokenName}>SOL</Text>
                       <Ionicons name="checkmark-circle" size={14} color="#39ff14" />
                     </View>
-                    <View style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:2}}>
-                      <Text style={{color:C.muted,fontSize:12}}>{privacyMode?'****':solPrice?'$'+Number(solPrice).toFixed(2):'—'}</Text>
-                    </View>
+                    <Text style={s.pfTokenAmt}>{privacyMode ? "****" : (solBalance||0).toFixed(4)} SOL</Text>
                   </View>
-                  <View style={{alignItems:'flex-end'}}>
-                    <Text style={s.pfTokenVal}>{privacyMode ? '****' : solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
-                    <Text style={{color:C.muted,fontSize:12,marginTop:2}}>{privacyMode ? '****' : (solBalance||0).toFixed(4)} SOL</Text>
-                  </View>
+                  <Text style={s.pfTokenVal}>{privacyMode ? '****' : solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               )}
               {tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').map((t,i)=>(
@@ -4682,14 +4368,9 @@ https://solscan.io/tx/${sig}` }]);
                       <Text style={s.pfTokenName}>{t.symbol}</Text>
                       {t.isVerified && <Ionicons name="checkmark-circle" size={14} color="#39ff14" />}
                     </View>
-                    <View style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:2}}>
-                      <Text style={{color:C.muted,fontSize:12}}>{privacyMode?'****':t.price?'$'+Number(t.price).toFixed(Number(t.price)<0.01?6:4):'—'}</Text>
-                    </View>
+                    <Text style={s.pfTokenAmt}>{privacyMode ? "****" : (Number(t.amount)||0).toFixed(4)} {t.symbol}</Text>
                   </View>
-                  <View style={{alignItems:'flex-end'}}>
-                    <Text style={s.pfTokenVal}>{privacyMode ? '****' : t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
-                    <Text style={{color:C.muted,fontSize:12,marginTop:2}}>{privacyMode ? '****' : (Number(t.amount)||0).toFixed(4)} {t.symbol}</Text>
-                  </View>
+                  <Text style={s.pfTokenVal}>{privacyMode ? '****' : t.price ? '$'+((t.amount||0)*(t.price||0)).toFixed(2) : '—'}</Text>
                 </TouchableOpacity>
               ))}
             </View>
