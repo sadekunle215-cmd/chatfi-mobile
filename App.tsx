@@ -402,8 +402,8 @@ function TokenModal({ token, pubkey, onClose, onSend, tokenBalances, solBalance,
                     {pairData?.txns?.h24 && (
                       <View>
                         <View style={{flexDirection:'row',height:8,borderRadius:4,overflow:'hidden',marginTop:8}}>
-                          <View style={{flex:((pairData.txns.h24.buys||0)+((pairData.txns.h24.sells||0))>0?(pairData.txns.h24.buys||0)/((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))*100:50),backgroundColor:C.green}}/>
-                          <View style={{flex:(100-((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))>0?(pairData.txns.h24.buys||0)/((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))*100:50)),backgroundColor:'#ff4444'}}/>
+                          <View style={{flex:((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))>0?((pairData.txns.h24.buys||0)/((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))):0.5,backgroundColor:C.green}}/>
+                          <View style={{flex:((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))>0?(1-((pairData.txns.h24.buys||0)/((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0)))):0.5,backgroundColor:'#ff4444'}}/>
                         </View>
                         <View style={{flexDirection:'row',justifyContent:'space-between',marginTop:6}}>
                           <Text style={{color:C.green,fontSize:11}}>{((pairData.txns.h24.buys||0)+((pairData.txns.h24.sells||0))>0?((pairData.txns.h24.buys||0)/((pairData.txns.h24.buys||0)+(pairData.txns.h24.sells||0))*100):50).toFixed(1)}% Buy</Text>
