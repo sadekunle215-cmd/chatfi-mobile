@@ -2212,6 +2212,7 @@ export default function App() {
                   return {...tok, logoURI: info.icon||info.logoURI||tok.logoURI, isVerified: info.isVerified||tok.isVerified};
                 }));
               } catch(e) {}
+      } catch(e) {}
       try {
         const mints=data.tokens.map((t:any)=>t.mint).filter(Boolean).join(",");
         const pr=await fetch('https://lite-api.jup.ag/price/v3?ids='+mints);
