@@ -73,7 +73,6 @@ async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amou
 }
 
 const TABS = [
-  { id: 'chat', label: 'Chat', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
   { id: 'swap', label: 'Trade', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
   { id: 'portfolio', label: 'Assets', icon: 'wallet-outline', iconActive: 'wallet' },
   { id: 'dapp', label: 'Explore', icon: 'compass-outline', iconActive: 'compass-sharp' },
@@ -1794,7 +1793,8 @@ export default function App() {
     return () => sub.remove();
   }, []);
   const [tab, setTab] = useState('portfolio');
-  React.useEffect(()=>{AsyncStorage.getItem('active_tab').then(t=>{if(t)setTab(t);});},[]);
+  const [showChat, setShowChat] = useState(false);
+  React.useEffect(()=>{AsyncStorage.getItem('active_tab').then(t=>{if(t && t !== 'chat')setTab(t);});},[]);
   const setTabPersist = React.useCallback((t:string)=>{setTab(t);AsyncStorage.setItem('active_tab',t);},[]);
   const [splashDone, setSplashDone] = useState(false);
   const [onboardStep, setOnboardStep] = useState<'passcode'|'fingerprint'|'wordcount'|'seedphrase'|'username'|null>(null);
@@ -4221,15 +4221,15 @@ https://solscan.io/tx/${sig}` }]);
           
           <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />{userName ? <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{userName}</Text> : null}</TouchableOpacity>
         </View>
-        <TouchableOpacity style={[s.walletBtn, wallet ? s.walletBtnOn : null]} onPress={() => { if(pubkey){ Clipboard.setString(pubkey); showToast('Address copied!','success'); } }}>
-          <Text style={[s.walletBtnTxt, wallet ? { color: C.green } : null]}>{wallet ? shortKey : 'Connect Wallet'}</Text>
+        <TouchableOpacity style={[s.walletBtn, s.walletBtnOn]} onPress={() => setShowChat(v => !v)}>
+          <Text style={[s.walletBtnTxt, { color: C.green }]}>{showChat ? 'Wallet ↓' : 'Chat ↓'}</Text>
         </TouchableOpacity>
       </View>}
 
       <KeyboardAvoidingView style={s.content} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
 
         {/* CHAT */}
-        <View style={{flex:1, display: tab === 'chat' ? 'flex' : 'none'}}>
+        <View style={{flex:1, display: showChat ? 'flex' : 'none'}}>
           <View style={s.flex}>
 
                 <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }}>
