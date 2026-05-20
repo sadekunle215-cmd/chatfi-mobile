@@ -2028,21 +2028,20 @@ export default function App() {
         setSolBalance(sol?.amount || 0);
         setSolPrice(sol?.price || 0);
         setTokenBalances(tokens);
-              // Fetch logos + verified in bulk
-              try {
-                const tokenInfoMap: Record<string, any> = {};
-                await Promise.all(tokens.map(async (tok:any) => {
-                  try {
-                    const r = await fetch(`https://lite-api.jup.ag/tokens/v2/token/${tok.mint}`);
-                    if (r.ok) { const d = await r.json(); if (d) tokenInfoMap[tok.mint] = d; }
-                  } catch(e) {}
-                }));
-                setTokenBalances(prev => prev.map(tok => {
-                  const info = tokenInfoMap[tok.mint];
-                  if (!info) return tok;
-                  return {...tok, logoURI: info.icon||info.logoURI||tok.logoURI, isVerified: info.isVerified||tok.isVerified};
-                }));
-              } catch(e) {}
+        // Fetch logos for tokens missing them
+        const missingLogo = tokens.filter((t:any) => !t.logoURI || t.logoURI.includes('img.jup.ag/tokens/'+t.mint));
+        if (missingLogo.length > 0) {
+          missingLogo.forEach(async (t:any) => {
+            try {
+              const r = await fetch('https://api.jup.ag/tokens/v1/token/'+t.mint);
+              const d = await r.json();
+              if (d.logoURI) {
+                setTokenBalances(prev => prev.map(tok => tok.mint === t.mint ? {...tok, logoURI: d.logoURI} : tok));
+              }
+            } catch(e) {}
+          });
+        }
+      }
       try {
         const mints=data.tokens.map((t:any)=>t.mint).filter(Boolean).join(",");
         const pr=await fetch('https://lite-api.jup.ag/price/v3?ids='+mints);
@@ -4347,10 +4346,7 @@ https://solscan.io/tx/${sig}` }]);
                 <TouchableOpacity style={s.pfTokenRow} onPress={()=>setSelectedToken({symbol:'SOL',mint:'So11111111111111111111111111111111111111112',amount:solBalance||0,logoURI:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112',price:solPrice||0,isVerified:true})}>
                   <TokLogo uri={'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112'} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'} symbol={'SOL'} style={s.pfTokenLogo} />
                   <View style={{flex:1,marginLeft:12}}>
-                    <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
-                      <Text style={s.pfTokenName}>SOL</Text>
-                      <Ionicons name="checkmark-circle" size={14} color="#39ff14" />
-                    </View>
+                    <Text style={s.pfTokenName}>SOL</Text>
                     <Text style={s.pfTokenAmt}>{privacyMode ? "****" : (solBalance||0).toFixed(4)} SOL</Text>
                   </View>
                   <Text style={s.pfTokenVal}>{privacyMode ? '****' : solPrice ? '$'+((solBalance||0)*(solPrice||0)).toFixed(2) : '—'}</Text>
