@@ -235,12 +235,16 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               </TouchableOpacity>
               <TokLogo uri={token.logoURI||'https://img.jup.ag/tokens/'+token.mint} fallback={''} symbol={token.symbol} style={{width:36,height:36,borderRadius:18,marginRight:10}} mint={token.mint}/>
               <View style={{flex:1}}>
-                <Text style={{color:C.text,fontWeight:'bold',fontSize:17}}>{token.symbol}</Text>
+                <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                  <View style={{width:10,height:10,borderRadius:5,backgroundColor:token.isVerified?C.green:'#ff9900'}}/>
+                  <Text style={{color:C.text,fontWeight:'bold',fontSize:17}}>{token.symbol}</Text>
+                  {token.isVerified && <Ionicons name="checkmark-circle" size={16} color={C.green}/>}
+                </View>
                 <Text style={{color:C.muted,fontSize:12}}>{token.mint?token.mint.slice(0,6)+'...'+token.mint.slice(-4):''}</Text>
               </View>
-              <View style={{alignItems:'flex-end'}}>
-                <Text style={{color:C.text,fontWeight:'bold',fontSize:16}}>{price?'$'+Number(price).toFixed(Number(price)<0.01?6:4):'$0.00'}</Text>
-                <Text style={{color:token.isVerified?C.green:'#ff9900',fontSize:12}}>{token.isVerified?'Verified':'Unverified'}</Text>
+              <View style={{alignItems:'flex-end',flexShrink:0}}>
+                <Text style={{color:C.text,fontWeight:'bold',fontSize:16}} numberOfLines={1}>{price?'$'+Number(price).toFixed(Number(price)<0.01?6:4):'$0.00'}</Text>
+                <Text style={{color:token.isVerified?C.green:'#ff9900',fontSize:12,fontWeight:'600'}}>{token.isVerified?'Verified':'Unverified'}</Text>
               </View>
             </View>
 
