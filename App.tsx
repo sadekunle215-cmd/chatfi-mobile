@@ -235,10 +235,10 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               </TouchableOpacity>
               <TokLogo uri={token.logoURI||'https://img.jup.ag/tokens/'+token.mint} fallback={''} symbol={token.symbol} style={{width:36,height:36,borderRadius:18,marginRight:10}} mint={token.mint}/>
               <View style={{flex:1}}>
-                <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
-                  <View style={{width:10,height:10,borderRadius:5,backgroundColor:token.isVerified?C.green:'#ff9900'}}/>
-                  <Text style={{color:C.text,fontWeight:'bold',fontSize:17}}>{token.symbol}</Text>
+                <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
                   {token.isVerified && <Ionicons name="checkmark-circle" size={16} color={C.green}/>}
+                  {!token.isVerified && <Ionicons name="alert-circle" size={16} color="#ff9900"/>}
+                  <Text style={{color:C.text,fontWeight:'bold',fontSize:17}}>{token.symbol}</Text>
                 </View>
                 <Text style={{color:C.muted,fontSize:12}}>{token.mint?token.mint.slice(0,6)+'...'+token.mint.slice(-4):''}</Text>
               </View>
