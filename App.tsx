@@ -606,7 +606,6 @@ function TokenModal({ token, pubkey, onClose, onSend, tokenBalances, solBalance,
             </View>
           </>
         )}
-        )}
 
         {view === 'receive' && (
           <ScrollView contentContainerStyle={{padding:16,paddingTop:(StatusBar.currentHeight||0)+16}}>
