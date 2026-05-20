@@ -4229,7 +4229,7 @@ https://solscan.io/tx/${sig}` }]);
       <KeyboardAvoidingView style={s.content} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
 
         {/* CHAT */}
-        <View style={{flex:1, display: showChat ? 'flex' : 'none'}}>
+        <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:99,display:showChat?'flex':'none',backgroundColor:C.bg}}>
           <View style={s.flex}>
 
                 <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }}>
@@ -4262,7 +4262,7 @@ https://solscan.io/tx/${sig}` }]);
         </View>
 
         {/* SWAP */}
-      <View style={{flex:1, display: tab === 'swap' ? 'flex' : 'none'}}>
+      <View style={{flex:1, display: !showChat && tab === 'swap' ? 'flex' : 'none'}}>
         <SwapScreen
           wallet={wallet}
           pubkey={pubkey}
