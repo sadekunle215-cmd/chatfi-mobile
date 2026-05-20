@@ -191,20 +191,29 @@ function NativeChart({ mint }: { mint: string }) {
   );
 }
 
-function TokenModal({ token, pubkey, onClose, onSend }) {
+function TokenModal({ token, pubkey, onClose, onSend, tokenBalances, solBalance, solPrice }) {
   const [view, setView] = React.useState('main');
+  const [detailTab, setDetailTab] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
   const [sending, setSending] = React.useState(false);
   const [pairData, setPairData] = React.useState<any>(null);
   const [pairLoading, setPairLoading] = React.useState(true);
+  const [trades, setTrades] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     if (!token) return;
     setPairLoading(true);
+    setDetailTab('overview');
     fetch('https://api.dexscreener.com/latest/dex/tokens/' + token.mint)
       .then(r => r.json())
-      .then(d => { const pair = d?.pairs?.[0]; if (pair) setPairData(pair); })
+      .then(d => {
+        const pair = d?.pairs?.[0];
+        if (pair) {
+          setPairData(pair);
+          setTrades(pair.txns ? [] : []);
+        }
+      })
       .catch(() => {})
       .finally(() => setPairLoading(false));
   }, [token?.mint]);
@@ -4166,7 +4175,7 @@ https://solscan.io/tx/${sig}` }]);
           </View>
         </View>
       </Modal>
-      <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
+      <TokenModal token={selectedToken} pubkey={pubkey} tokenBalances={tokenBalances} solBalance={solBalance} solPrice={solPrice} onClose={() => setSelectedToken(null)}
   onSend={async (mint, recipient, amount, symbol, decimals) => {
     const { secretKey, publicKey: pk } = deriveWallet(wallet);
     const amountNum = Math.round(parseFloat(amount) * Math.pow(10, decimals));
