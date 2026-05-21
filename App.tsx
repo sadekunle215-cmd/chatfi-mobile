@@ -275,7 +275,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
   const positionChange = positionVal - (token.amount * (token.avgBuy || token.price || 0));
   const fmt = (n:number) => n >= 1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n >= 1e3 ? '$'+(n/1e3).toFixed(2)+'K' : '$'+n?.toFixed(2);
   const tfMap: Record<string,string> = {'1H':'15','1D':'60','1W':'240','1M':'1D','YTD':'1W'};
-  const chartUrl = `https://birdeye.so/tv-widget/${token.mint}?chain=solana&viewMode=pair&chartInterval=${tfMap[timeframe]||'60'}&chartType=line&chartTimezone=UTC&chartLeftToolbar=hide&theme=dark`;
+  const chartUrl = pairData?.pairAddress ? `https://www.geckoterminal.com/solana/pools/${pairData.pairAddress}?embed=1&info=0&swaps=0&grayscale=0&light_chart=0` : '';
 
   return (
     <Modal visible={!!token} animationType="slide" transparent={false} onRequestClose={onClose}>
@@ -295,8 +295,8 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                 </View>
                 <Text style={{color:C.muted,fontSize:11}}>{token.mint?token.mint.slice(0,8)+'...'+token.mint.slice(-4):''}</Text>
               </View>
-              <TouchableOpacity style={{padding:8}}>
-                <Ionicons name="star-outline" size={22} color={C.text}/>
+              <TouchableOpacity style={{padding:8}} onPress={()=>setIsFavorite(f=>!f)}>
+                <Ionicons name={isFavorite?'star':'star-outline'} size={22} color={isFavorite?C.green:C.text}/>
               </TouchableOpacity>
               <TouchableOpacity style={{padding:8}}>
                 <Ionicons name="ellipsis-horizontal" size={22} color={C.text}/>
@@ -340,6 +340,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               ))}
             </View>
             <View style={{height:220}}>
+              {chartUrl ? (
               <WebView
                 source={{uri: chartUrl}}
                 style={{flex:1,backgroundColor:C.bg}}
@@ -353,11 +354,17 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                   </View>
                 )}
               />
+              ) : (
+              <View style={{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:C.bg}}>
+                <ActivityIndicator color={C.green}/>
+                <Text style={{color:C.muted,fontSize:12,marginTop:8}}>Fetching pair data...</Text>
+              </View>
+              )}
             </View>
             <View style={{flexDirection:'row',borderBottomWidth:1,borderBottomColor:C.border}}>
               {['Overview','Terminal','Live Feed'].map(tab=>(
-                <TouchableOpacity key={tab} style={{flex:1,paddingVertical:12,alignItems:'center',borderBottomWidth:2,borderBottomColor:tab==='Overview'?C.green:'transparent'}}>
-                  <Text style={{color:tab==='Overview'?C.green:C.muted,fontSize:14,fontWeight:'600'}}>{tab}</Text>
+                <TouchableOpacity key={tab} onPress={()=>{setActiveTab(tab);if(tab==='Terminal')fetchHolders();if(tab==='Live Feed')fetchTrades();}} style={{flex:1,paddingVertical:12,alignItems:'center',borderBottomWidth:2,borderBottomColor:tab===activeTab?C.green:'transparent'}}>
+                  <Text style={{color:tab===activeTab?C.green:C.muted,fontSize:14,fontWeight:'600'}}>{tab}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -463,10 +470,50 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               </TouchableOpacity>
               <TouchableOpacity onPress={()=>setView('send')}
                 style={{flex:1,backgroundColor:C.green,borderRadius:14,padding:14,alignItems:'center',justifyContent:'center'}}>
-                <Text style={{color:'#0d1117',fontWeight:'bold'}}>Buy</Text>
+                <Text style={{color:'#0d1117',fontWeight:'bold'}}>Send</Text>
               </TouchableOpacity>
             </View>
           </View>
+        )}
+        {/* Share Card Modal */}
+        {showShareCard && (
+          <Modal visible={showShareCard} transparent animationType="fade">
+            <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.85)',alignItems:'center',justifyContent:'center',padding:24}}>
+              <View style={{backgroundColor:'#0d1a0d',borderRadius:24,padding:24,width:'100%',borderWidth:1,borderColor:C.green}}>
+                <View style={{flexDirection:'row',alignItems:'center',gap:12,marginBottom:20}}>
+                  <TokLogo uri={token.logoURI||''} symbol={token.symbol} style={{width:44,height:44,borderRadius:22}} mint={token.mint}/>
+                  <View style={{flex:1}}>
+                    <Text style={{color:C.text,fontWeight:'bold',fontSize:18}}>{token.symbol}</Text>
+                    <Text style={{color:C.muted,fontSize:12}}>{token.mint?.slice(0,8)}...{token.mint?.slice(-4)}</Text>
+                  </View>
+                  <Text style={{color:C.muted,fontSize:12}}>via ChatFi</Text>
+                </View>
+                <Text style={{color:positionChange>=0?C.green:'#ff4444',fontSize:40,fontWeight:'bold'}}>
+                  {positionChange>=0?'+':''}{fmt(Math.abs(positionChange))}
+                </Text>
+                <Text style={{color:C.muted,fontSize:16,marginTop:4}}>{positionChange>=0?'+':''}{((positionChange/((positionVal-positionChange)||1))*100).toFixed(2)}%</Text>
+                <View style={{flexDirection:'row',gap:20,marginTop:16,marginBottom:20}}>
+                  <View><Text style={{color:C.muted,fontSize:12}}>Holdings</Text><Text style={{color:C.text,fontWeight:'700'}}>{fmt(positionVal)}</Text></View>
+                  <View><Text style={{color:C.muted,fontSize:12}}>Price</Text><Text style={{color:C.text,fontWeight:'700'}}>${Number(price||0).toFixed(6)}</Text></View>
+                  <View><Text style={{color:C.muted,fontSize:12}}>Amount</Text><Text style={{color:C.text,fontWeight:'700'}}>{token.amount?.toFixed(2)}</Text></View>
+                </View>
+                <View style={{backgroundColor:'#0a120a',borderRadius:12,padding:12,alignItems:'center',marginBottom:16}}>
+                  <Text style={{color:C.green,fontWeight:'bold',fontSize:14}}>chatfi.pro</Text>
+                  <Text style={{color:C.muted,fontSize:11}}>Your AI DeFi co-pilot on Solana</Text>
+                </View>
+                <View style={{flexDirection:'row',gap:10}}>
+                  <TouchableOpacity onPress={()=>setShowShareCard(false)}
+                    style={{flex:1,backgroundColor:C.card,borderRadius:12,padding:14,alignItems:'center'}}>
+                    <Text style={{color:C.text,fontWeight:'600'}}>Close</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={()=>Alert.alert('Share','Share feature coming soon!')}
+                    style={{flex:2,backgroundColor:C.green,borderRadius:12,padding:14,alignItems:'center'}}>
+                    <Text style={{color:'#0d1117',fontWeight:'bold'}}>Share Card</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         )}
         {view === 'receive' && (
           <ScrollView contentContainerStyle={{padding:16,paddingTop:(StatusBar.currentHeight||0)+16}}>
