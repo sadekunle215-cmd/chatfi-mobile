@@ -198,9 +198,19 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
   const [pairData, setPairData] = React.useState<any>(null);
   const [timeframe, setTimeframe] = React.useState('1D');
   const [insights, setInsights] = React.useState('');
+  const [activeTab, setActiveTab] = React.useState('Overview');
+  const [isFavorite, setIsFavorite] = React.useState(false);
+  const [topHolders, setTopHolders] = React.useState<any[]>([]);
+  const [trades, setTrades] = React.useState<any[]>([]);
+  const [holdersLoading, setHoldersLoading] = React.useState(false);
+  const [tradesLoading, setTradesLoading] = React.useState(false);
+  const [showShareCard, setShowShareCard] = React.useState(false);
+  const [holderCount, setHolderCount] = React.useState<number|null>(null);
 
   React.useEffect(() => {
     if (!token) return;
+    setActiveTab('Overview');
+    setTopHolders([]); setTrades([]); setHolderCount(null);
     fetch('https://api.dexscreener.com/latest/dex/tokens/' + token.mint)
       .then(r => r.json())
       .then(d => { const pair = d?.pairs?.[0]; if (pair) setPairData(pair); })
@@ -209,7 +219,47 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
       .then(r => r.json())
       .then(d => { if (d?.extensions?.description) setInsights(d.extensions.description); })
       .catch(() => {});
+    fetch('https://chatfi.pro/api/jupiter', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ url:`https://api.helius.xyz/v0/token-metadata?api-key=demo`, method:'POST', body:{mintAccounts:[token.mint]} })
+    }).then(r=>r.json()).then(d=>{ if(d?.[0]?.onChainAccountInfo?.accountInfo?.data?.parsed?.info?.supply) {} }).catch(()=>{});
   }, [token?.mint]);
+
+  const fetchHolders = async () => {
+    if (!token?.mint || holdersLoading) return;
+    setHoldersLoading(true);
+    try {
+      const r = await fetch('https://chatfi.pro/api/jupiter', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ url:`https://mainnet.helius-rpc.com/?api-key=demo`, method:'POST',
+          body:{ jsonrpc:'2.0', id:1, method:'getTokenLargestAccounts', params:[token.mint] } })
+      });
+      const d = await r.json();
+      const accounts = d?.result?.value || [];
+      setTopHolders(accounts.slice(0,20));
+      setHolderCount(accounts.length);
+    } catch(e) {}
+    setHoldersLoading(false);
+  };
+
+  const fetchTrades = async () => {
+    if (!token?.mint || tradesLoading) return;
+    setTradesLoading(true);
+    try {
+      const r = await fetch('https://api.dexscreener.com/latest/dex/tokens/' + token.mint);
+      const d = await r.json();
+      const pair = d?.pairs?.[0];
+      if (pair?.pairAddress) {
+        const r2 = await fetch('https://api.dexscreener.com/latest/dex/pairs/solana/' + pair.pairAddress);
+        const d2 = await r2.json();
+        setTrades(d2?.pairs?.[0]?.txns ? [
+          { type:'Buy', vol: d2.pairs[0].volume?.h1||0, count: d2.pairs[0].txns?.h1?.buys||0, time:'1h' },
+          { type:'Sell', vol: d2.pairs[0].volume?.h1||0, count: d2.pairs[0].txns?.h1?.sells||0, time:'1h' },
+        ] : []);
+      }
+    } catch(e) {}
+    setTradesLoading(false);
+  };
 
   if (!token) return null;
 
@@ -217,8 +267,8 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
   const priceChange = pairData?.priceChange?.h24;
   const mktCap = pairData?.marketCap;
   const liquidity = pairData?.liquidity?.usd;
-  const holders = pairData?.info?.holders;
-  const orgScore = pairData?.info?.openGraph?.score ?? 0;
+  const holders = holderCount ?? pairData?.info?.holders ?? null;
+  const orgScore = pairData?.info?.openGraph?.score ?? pairData?.fdv ? Math.min(10, Math.round((pairData?.liquidity?.usd||0)/10000)) : 0;
   const twitter = pairData?.info?.socials?.find((s:any)=>s.type==='twitter')?.url;
   const website = pairData?.info?.websites?.[0]?.url;
   const positionVal = token.amount * (token.price || 0);
@@ -319,7 +369,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                       <Ionicons name="bar-chart-outline" size={16} color={C.green}/>
                       <Text style={{color:C.green,fontWeight:'700',fontSize:14}}>Position</Text>
                     </View>
-                    <TouchableOpacity style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                    <TouchableOpacity onPress={()=>setShowShareCard(true)} style={{flexDirection:'row',alignItems:'center',gap:4}}>
                       <Ionicons name="share-outline" size={14} color={C.muted}/>
                       <Text style={{color:C.muted,fontSize:13}}>Share</Text>
                     </TouchableOpacity>
@@ -355,6 +405,52 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                   <Text style={{color:C.muted,fontSize:14,lineHeight:22}}>{insights}</Text>
                 </View>
               ) : null}
+              {/* Terminal Tab */}
+              {activeTab === 'Terminal' && (
+                <View style={{padding:16}}>
+                  <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Top Holders</Text>
+                  {holdersLoading && <ActivityIndicator color={C.green} style={{marginTop:20}}/>}
+                  {!holdersLoading && topHolders.length === 0 && (
+                    <Text style={{color:C.muted,textAlign:'center',marginTop:20}}>No holder data available</Text>
+                  )}
+                  {topHolders.map((h:any,i:number)=>(
+                    <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.border}}>
+                      <Text style={{color:C.muted,fontSize:13,width:28}}>#{i+1}</Text>
+                      <Text style={{color:C.green,fontSize:13,flex:1,fontFamily:'monospace'}} numberOfLines={1}>
+                        {h.address ? h.address.slice(0,8)+'...'+h.address.slice(-4) : '—'}
+                      </Text>
+                      <Text style={{color:C.text,fontSize:13,fontWeight:'600'}}>
+                        {h.uiAmount ? Number(h.uiAmount).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Live Feed Tab */}
+              {activeTab === 'Live Feed' && (
+                <View style={{padding:16}}>
+                  <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Trading Activity</Text>
+                  {tradesLoading && <ActivityIndicator color={C.green} style={{marginTop:20}}/>}
+                  {!tradesLoading && trades.length === 0 && (
+                    <Text style={{color:C.muted,textAlign:'center',marginTop:20}}>No trading data available</Text>
+                  )}
+                  {pairData && (
+                    <View style={{gap:10}}>
+                      {[{label:'5m Buys',val:pairData.txns?.m5?.buys,color:C.green},{label:'5m Sells',val:pairData.txns?.m5?.sells,color:'#ff4444'},
+                        {label:'1h Buys',val:pairData.txns?.h1?.buys,color:C.green},{label:'1h Sells',val:pairData.txns?.h1?.sells,color:'#ff4444'},
+                        {label:'24h Buys',val:pairData.txns?.h24?.buys,color:C.green},{label:'24h Sells',val:pairData.txns?.h24?.sells,color:'#ff4444'},
+                        {label:'24h Vol',val:pairData.volume?.h24,color:C.text,prefix:'$'},{label:'6h Vol',val:pairData.volume?.h6,color:C.text,prefix:'$'},
+                      ].map((item:any,i:number)=>(
+                        <View key={i} style={{flexDirection:'row',justifyContent:'space-between',backgroundColor:C.card,borderRadius:10,padding:12}}>
+                          <Text style={{color:C.muted,fontSize:14}}>{item.label}</Text>
+                          <Text style={{color:item.color,fontSize:14,fontWeight:'700'}}>{item.prefix||''}{item.val!=null?Number(item.val).toLocaleString():'—'}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
             </ScrollView>
             <View style={{flexDirection:'row',gap:10,padding:16,borderTopWidth:1,borderTopColor:C.border}}>
               <TouchableOpacity onPress={()=>setView('receive')}
