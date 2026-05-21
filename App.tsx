@@ -2280,7 +2280,6 @@ export default function App() {
         )}
       </View>
     );
-  });
   };
   const renderCard = (card: any) => {
     const { type, data, onConfirm, onCancel, status } = card;
