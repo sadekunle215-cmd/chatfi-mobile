@@ -453,7 +453,6 @@ function TokenModal({ token, pubkey, onClose, onSend, onSell }) {
                   <Text style={{color:C.muted,fontSize:14,lineHeight:22}}>{insights}</Text>
                 </View>
               ) : null}
-              )}
             </ScrollView>
             <View style={{flexDirection:'row',gap:10,padding:16,borderTopWidth:1,borderTopColor:C.border}}>
               <TouchableOpacity onPress={()=>setView('receive')}
