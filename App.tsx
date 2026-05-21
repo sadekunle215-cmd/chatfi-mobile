@@ -1349,7 +1349,7 @@ const StudioLaunchCard = ({ card, wallet, deriveWallet, setMsgs, C, s }: any) =>
 };
 
 
-function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromToken2,toToken2,setToToken2,showToast,C,s,nacl,deriveWallet,executeSwapTx,fetchPortfolio,requireAuth,createTriggerOrder,createRecurringOrder}:any) {
+const SwapScreen = React.memo(function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromToken2,toToken2,setToToken2,showToast,C,s,nacl,deriveWallet,executeSwapTx,fetchPortfolio,requireAuth,createTriggerOrder,createRecurringOrder}:any) {
   const [mode, setMode] = React.useState('Market');
   const [amount, setAmount] = React.useState('');
   const [showNumpad, setShowNumpad] = React.useState(false);
@@ -1772,6 +1772,21 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
       )}
     </View>
   );
+}
+
+});
+
+function SkeletonBox({ width, height, borderRadius=8, style={} }: any) {
+  const anim = React.useRef(new Animated.Value(0.3)).current;
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0.3, duration: 700, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#1C2936', opacity: anim }, style]} />;
 }
 
 export default function App() {
@@ -4307,7 +4322,7 @@ https://solscan.io/tx/${sig}` }]);
               <View style={{alignItems:'center',paddingTop:16,paddingBottom:8}}>
                 <TouchableOpacity onPress={()=>setPrivacyMode(p=>!p)}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : privacyMode ? '****' : '$'+((tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(2)}
+                  {portfolioLoading ? <SkeletonBox width={160} height={40} borderRadius={8} style={{alignSelf:'center',marginVertical:4}}/> : privacyMode ? '****' : '$'+((tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(2)}
                 </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:4}}>
@@ -4344,7 +4359,20 @@ https://solscan.io/tx/${sig}` }]);
               {tokenBalances.length===0&&!portfolioLoading&&(
                 <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
               )}
-              {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
+              {portfolioLoading&&(
+                <View style={{gap:8,marginTop:8}}>
+                  {[1,2,3].map(i=>(
+                    <View key={i} style={{flexDirection:'row',alignItems:'center',padding:14,backgroundColor:C.card,borderRadius:14,borderWidth:1,borderColor:C.border}}>
+                      <SkeletonBox width={40} height={40} borderRadius={20} />
+                      <View style={{flex:1,marginLeft:12,gap:6}}>
+                        <SkeletonBox width={80} height={12} />
+                        <SkeletonBox width={50} height={10} />
+                      </View>
+                      <SkeletonBox width={60} height={14} />
+                    </View>
+                  ))}
+                </View>
+              )}
               {/* SOL Row */}
               {solBalance !== null && solBalance > 0 && (
                 <TouchableOpacity style={s.pfTokenRow} onPress={()=>setSelectedToken({symbol:'SOL',mint:'So11111111111111111111111111111111111111112',amount:solBalance||0,logoURI:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112',price:solPrice||0,isVerified:true})}>
