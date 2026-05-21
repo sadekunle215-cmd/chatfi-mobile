@@ -2914,7 +2914,7 @@ export default function App() {
     }
 
     return null;
-  };
+  }, [msgs, wallet, pubkey, C, s]);
 
 
   const sendMsg = async (overrideText?: string) => {
