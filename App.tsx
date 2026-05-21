@@ -191,21 +191,24 @@ function NativeChart({ mint }: { mint: string }) {
 }
 
 function TokenModal({ token, pubkey, onClose, onSend }) {
-  const [view, setView] = React.useState('main');
+  const [view, setView] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
   const [sending, setSending] = React.useState(false);
   const [pairData, setPairData] = React.useState<any>(null);
-  const [pairLoading, setPairLoading] = React.useState(true);
+  const [timeframe, setTimeframe] = React.useState('1D');
+  const [insights, setInsights] = React.useState('');
 
   React.useEffect(() => {
     if (!token) return;
-    setPairLoading(true);
     fetch('https://api.dexscreener.com/latest/dex/tokens/' + token.mint)
       .then(r => r.json())
       .then(d => { const pair = d?.pairs?.[0]; if (pair) setPairData(pair); })
-      .catch(() => {})
-      .finally(() => setPairLoading(false));
+      .catch(() => {});
+    fetch('https://tokens.jup.ag/token/' + token.mint)
+      .then(r => r.json())
+      .then(d => { if (d?.extensions?.description) setInsights(d.extensions.description); })
+      .catch(() => {});
   }, [token?.mint]);
 
   if (!token) return null;
@@ -215,66 +218,80 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
   const mktCap = pairData?.marketCap;
   const liquidity = pairData?.liquidity?.usd;
   const holders = pairData?.info?.holders;
-  const orgScore = pairData?.info?.openGraph?.score;
-  const pairAddress = pairData?.pairAddress || token.mint;
-
+  const orgScore = pairData?.info?.openGraph?.score ?? 0;
+  const twitter = pairData?.info?.socials?.find((s:any)=>s.type==='twitter')?.url;
+  const website = pairData?.info?.websites?.[0]?.url;
+  const positionVal = token.amount * (token.price || 0);
+  const positionChange = positionVal - (token.amount * (token.avgBuy || token.price || 0));
   const fmt = (n:number) => n >= 1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n >= 1e3 ? '$'+(n/1e3).toFixed(2)+'K' : '$'+n?.toFixed(2);
+  const tfMap: Record<string,string> = {'1H':'15','1D':'60','1W':'240','1M':'1D','YTD':'1W'};
+  const chartUrl = `https://birdeye.so/tv-widget/${token.mint}?chain=solana&viewMode=pair&chartInterval=${tfMap[timeframe]||'60'}&chartType=line&chartTimezone=UTC&chartLeftToolbar=hide&theme=dark`;
 
   return (
     <Modal visible={!!token} animationType="slide" transparent={false} onRequestClose={onClose}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg}/>
       <SafeAreaView style={{flex:1, backgroundColor:C.bg}}>
-
-        {view === 'main' && (
-          <>
-            {/* Header */}
-            <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:12,paddingTop:(StatusBar.currentHeight||0)+16,borderBottomWidth:1,borderBottomColor:C.border}}>
+        {view === 'overview' && (
+          <View style={{flex:1}}>
+            <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:12,paddingTop:(StatusBar.currentHeight||0)+12}}>
               <TouchableOpacity onPress={onClose} style={{marginRight:12}}>
                 <Ionicons name="arrow-back" size={24} color={C.text}/>
               </TouchableOpacity>
               <TokLogo uri={token.logoURI||'https://img.jup.ag/tokens/'+token.mint} fallback={''} symbol={token.symbol} style={{width:36,height:36,borderRadius:18,marginRight:10}} mint={token.mint}/>
               <View style={{flex:1}}>
-                <Text style={{color:C.text,fontWeight:'bold',fontSize:17}}>{token.symbol}</Text>
-                <Text style={{color:C.muted,fontSize:12}}>{token.mint?token.mint.slice(0,6)+'...'+token.mint.slice(-4):''}</Text>
+                <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                  <Text style={{color:C.text,fontWeight:'bold',fontSize:17}}>{token.symbol}</Text>
+                  {token.isVerified && <Ionicons name="checkmark-circle" size={16} color={C.green}/>}
+                </View>
+                <Text style={{color:C.muted,fontSize:11}}>{token.mint?token.mint.slice(0,8)+'...'+token.mint.slice(-4):''}</Text>
               </View>
-              <View style={{alignItems:'flex-end'}}>
-                <Text style={{color:C.text,fontWeight:'bold',fontSize:16}}>{price?'$'+Number(price).toFixed(Number(price)<0.01?6:4):'$0.00'}</Text>
-                <Text style={{color:token.isVerified?C.green:'#ff9900',fontSize:12}}>{token.isVerified?'Verified':'Unverified'}</Text>
+              <TouchableOpacity style={{padding:8}}>
+                <Ionicons name="star-outline" size={22} color={C.text}/>
+              </TouchableOpacity>
+              <TouchableOpacity style={{padding:8}}>
+                <Ionicons name="ellipsis-horizontal" size={22} color={C.text}/>
+              </TouchableOpacity>
+            </View>
+            <View style={{paddingHorizontal:16,paddingBottom:8}}>
+              <Text style={{color:C.text,fontWeight:'bold',fontSize:32}}>{price?'$'+Number(price).toFixed(Number(price)<0.001?8:Number(price)<0.01?6:4):'$0.00'}</Text>
+              {priceChange != null && (
+                <Text style={{color:priceChange>=0?C.green:'#ff4444',fontSize:14,marginTop:2}}>
+                  {priceChange>=0?'+':''}{priceChange?.toFixed(2)}% (24h)
+                </Text>
+              )}
+            </View>
+            <View style={{flexDirection:'row',paddingHorizontal:16,paddingBottom:12,gap:12}}>
+              <View style={{alignItems:'center'}}>
+                <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>MKT CAP</Text>
+                <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{mktCap?fmt(mktCap):'—'}</Text>
+              </View>
+              <View style={{width:1,backgroundColor:C.border}}/>
+              <View style={{alignItems:'center'}}>
+                <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>LIQUIDITY</Text>
+                <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{liquidity?fmt(liquidity):'—'}</Text>
+              </View>
+              <View style={{width:1,backgroundColor:C.border}}/>
+              <View style={{alignItems:'center'}}>
+                <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>HOLDERS</Text>
+                <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{holders||'—'}</Text>
+              </View>
+              <View style={{width:1,backgroundColor:C.border}}/>
+              <View style={{alignItems:'center'}}>
+                <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>ORG SCORE</Text>
+                <Text style={{color:orgScore>0?C.green:'#ff4444',fontSize:12,fontWeight:'700'}}>{orgScore}</Text>
               </View>
             </View>
-
-            {/* Price + Change */}
-            <View style={{paddingHorizontal:16,paddingVertical:10,flexDirection:'row',alignItems:'flex-end',justifyContent:'space-between'}}>
-              <View>
-                <Text style={{color:C.text,fontWeight:'bold',fontSize:28}}>{price?'$'+Number(price).toFixed(Number(price)<0.01?6:4):'$0.00'}</Text>
-                {priceChange != null && (
-                  <Text style={{color:priceChange>=0?C.green:'#ff4444',fontSize:14,marginTop:2}}>
-                    {priceChange>=0?'+':''}{priceChange?.toFixed(2)}% (24h)
-                  </Text>
-                )}
-              </View>
-              <View style={{flexDirection:'row',gap:16,alignItems:'center'}}>
-                <View style={{alignItems:'center',gap:2}}>
-                  <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>MKT CAP</Text>
-                  <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{mktCap?fmt(mktCap):'—'}</Text>
-                </View>
-                <View style={{width:1,height:24,backgroundColor:C.border}}/>
-                <View style={{alignItems:'center',gap:2}}>
-                  <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>LIQUIDITY</Text>
-                  <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{liquidity?fmt(liquidity):'—'}</Text>
-                </View>
-                <View style={{width:1,height:24,backgroundColor:C.border}}/>
-                <View style={{alignItems:'center',gap:2}}>
-                  <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>HOLDERS</Text>
-                  <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{holders||'—'}</Text>
-                </View>
-              </View>
+            <View style={{flexDirection:'row',paddingHorizontal:16,marginBottom:4,gap:4}}>
+              {['1H','1D','1W','1M','YTD'].map(tf=>(
+                <TouchableOpacity key={tf} onPress={()=>setTimeframe(tf)}
+                  style={{paddingHorizontal:12,paddingVertical:6,borderRadius:8,backgroundColor:timeframe===tf?C.green:'transparent'}}>
+                  <Text style={{color:timeframe===tf?'#0d1117':C.muted,fontSize:13,fontWeight:'600'}}>{tf}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-
-            {/* Chart */}
-            <View style={{flex:1,marginHorizontal:0,overflow:'hidden'}}>
+            <View style={{height:220}}>
               <WebView
-                source={{uri:'https://dexscreener.com/solana/'+pairAddress+'?embed=1&theme=dark&trades=0&info=0'}}
+                source={{uri: chartUrl}}
                 style={{flex:1,backgroundColor:C.bg}}
                 javaScriptEnabled={true}
                 domStorageEnabled={true}
@@ -287,26 +304,77 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                 )}
               />
             </View>
-
-            {/* Bottom Buttons */}
-            <View style={{flexDirection:'row',gap:12,padding:16,borderTopWidth:1,borderTopColor:C.border}}>
+            <View style={{flexDirection:'row',borderBottomWidth:1,borderBottomColor:C.border}}>
+              {['Overview','Terminal','Live Feed'].map(tab=>(
+                <TouchableOpacity key={tab} style={{flex:1,paddingVertical:12,alignItems:'center',borderBottomWidth:2,borderBottomColor:tab==='Overview'?C.green:'transparent'}}>
+                  <Text style={{color:tab==='Overview'?C.green:C.muted,fontSize:14,fontWeight:'600'}}>{tab}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <ScrollView style={{flex:1}} showsVerticalScrollIndicator={false}>
+              {token.amount > 0 && (
+                <View style={{margin:16,backgroundColor:C.card,borderRadius:16,padding:16}}>
+                  <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                    <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                      <Ionicons name="bar-chart-outline" size={16} color={C.green}/>
+                      <Text style={{color:C.green,fontWeight:'700',fontSize:14}}>Position</Text>
+                    </View>
+                    <TouchableOpacity style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                      <Ionicons name="share-outline" size={14} color={C.muted}/>
+                      <Text style={{color:C.muted,fontSize:13}}>Share</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={{color:C.text,fontWeight:'bold',fontSize:22}}>{fmt(positionVal)}</Text>
+                  <Text style={{color:C.muted,fontSize:13}}>{token.amount.toFixed(4)} {token.symbol}</Text>
+                  <Text style={{color:positionChange>=0?C.green:'#ff4444',fontSize:14,marginTop:4}}>
+                    {positionChange>=0?'+':''}{fmt(Math.abs(positionChange))}
+                  </Text>
+                </View>
+              )}
+              {(twitter || website) && (
+                <View style={{flexDirection:'row',paddingHorizontal:16,gap:8,marginBottom:16,flexWrap:'wrap'}}>
+                  {twitter && (
+                    <TouchableOpacity onPress={()=>Linking.openURL(twitter)}
+                      style={{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:8}}>
+                      <Ionicons name="logo-twitter" size={14} color={C.text}/>
+                      <Text style={{color:C.text,fontSize:13}}>Twitter</Text>
+                    </TouchableOpacity>
+                  )}
+                  {website && (
+                    <TouchableOpacity onPress={()=>Linking.openURL(website)}
+                      style={{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:8}}>
+                      <Ionicons name="globe-outline" size={14} color={C.text}/>
+                      <Text style={{color:C.text,fontSize:13}}>Website</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+              {insights ? (
+                <View style={{paddingHorizontal:16,marginBottom:24}}>
+                  <Text style={{color:C.text,fontWeight:'bold',fontSize:16,marginBottom:8}}>Token Insights</Text>
+                  <Text style={{color:C.muted,fontSize:14,lineHeight:22}}>{insights}</Text>
+                </View>
+              ) : null}
+            </ScrollView>
+            <View style={{flexDirection:'row',gap:10,padding:16,borderTopWidth:1,borderTopColor:C.border}}>
               <TouchableOpacity onPress={()=>setView('receive')}
-                style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:16,alignItems:'center',flexDirection:'row',justifyContent:'center',gap:8}}>
-                <Ionicons name="arrow-down-outline" size={20} color={C.text}/>
+                style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:14,alignItems:'center',flexDirection:'row',justifyContent:'center',gap:6}}>
+                <Ionicons name="arrow-down-outline" size={18} color={C.text}/>
                 <Text style={{color:C.text,fontWeight:'600'}}>Receive</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={{flex:1,backgroundColor:'#ff4444',borderRadius:14,padding:14,alignItems:'center',justifyContent:'center'}}>
+                <Text style={{color:'#fff',fontWeight:'bold'}}>Sell</Text>
+              </TouchableOpacity>
               <TouchableOpacity onPress={()=>setView('send')}
-                style={{flex:1,backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center',flexDirection:'row',justifyContent:'center',gap:8}}>
-                <Ionicons name="arrow-up-outline" size={20} color="#0d1117"/>
-                <Text style={{color:'#0d1117',fontWeight:'bold'}}>Send</Text>
+                style={{flex:1,backgroundColor:C.green,borderRadius:14,padding:14,alignItems:'center',justifyContent:'center'}}>
+                <Text style={{color:'#0d1117',fontWeight:'bold'}}>Buy</Text>
               </TouchableOpacity>
             </View>
-          </>
+          </View>
         )}
-
         {view === 'receive' && (
           <ScrollView contentContainerStyle={{padding:16,paddingTop:(StatusBar.currentHeight||0)+16}}>
-            <TouchableOpacity onPress={()=>setView('main')} style={{marginBottom:16}}>
+            <TouchableOpacity onPress={()=>setView('overview')} style={{marginBottom:16}}>
               <Text style={{color:C.text,fontSize:16}}>‹ Back</Text>
             </TouchableOpacity>
             <Text style={{color:C.text,fontWeight:'bold',fontSize:16,marginBottom:16,textAlign:'center'}}>Receive {token.symbol}</Text>
@@ -317,13 +385,11 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
             <TouchableOpacity onPress={()=>Alert.alert('Copied',pubkey||'')} style={{backgroundColor:C.card,borderRadius:12,padding:14}}>
               <Text style={{color:C.green,fontSize:12,fontFamily:'monospace',textAlign:'center'}}>{pubkey}</Text>
             </TouchableOpacity>
-            <Text style={{color:C.muted,fontSize:11,textAlign:'center',marginTop:8}}>Tap address to copy</Text>
           </ScrollView>
         )}
-
         {view === 'send' && (
           <ScrollView contentContainerStyle={{padding:16,paddingTop:(StatusBar.currentHeight||0)+16}}>
-            <TouchableOpacity onPress={()=>setView('main')} style={{marginBottom:16}}>
+            <TouchableOpacity onPress={()=>setView('overview')} style={{marginBottom:16}}>
               <Text style={{color:C.text,fontSize:16}}>‹ Back</Text>
             </TouchableOpacity>
             <Text style={{color:C.text,fontWeight:'bold',fontSize:16,marginBottom:16}}>Send {token.symbol}</Text>
@@ -344,7 +410,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                 setSending(true);
                 try{
                   await onSend(token.mint,sendAddr.trim(),sendAmt,token.symbol,token.decimals??6);
-                  setSendAddr('');setSendAmt('');setView('main');
+                  setSendAddr('');setSendAmt('');setView('overview');
                 }catch(e:any){Alert.alert('Send failed',e.message||'Unknown error');}
                 finally{setSending(false);}
               }}>
@@ -352,12 +418,10 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
             </TouchableOpacity>
           </ScrollView>
         )}
-
       </SafeAreaView>
     </Modal>
   );
 }
-
 function TokLogo({uri, symbol, style, fallback, mint}: {uri:string, symbol:string, style:any, fallback?:string, mint?:string}) {
   const [tries, setTries] = React.useState(0);
   const sources = [
