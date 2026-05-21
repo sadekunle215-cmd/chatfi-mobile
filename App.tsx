@@ -190,7 +190,7 @@ function NativeChart({ mint }: { mint: string }) {
   );
 }
 
-function TokenModal({ token, pubkey, onClose, onSend }) {
+function TokenModal({ token, pubkey, onClose, onSend, onSell }) {
   const [view, setView] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
@@ -4392,7 +4392,7 @@ https://solscan.io/tx/${sig}` }]);
           </View>
         </View>
       </Modal>
-      <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
+      <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)} onSell={(tok) => { setFromToken2(tok); setTabPersist('swap'); }}
   onSend={async (mint, recipient, amount, symbol, decimals) => {
     const { secretKey, publicKey: pk } = deriveWallet(wallet);
     const amountNum = Math.round(parseFloat(amount) * Math.pow(10, decimals));
