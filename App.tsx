@@ -1774,7 +1774,6 @@ const SwapScreen = React.memo(function SwapScreen({wallet,pubkey,tokenBalances,s
   );
 }
 
-});
 
 function SkeletonBox({ width, height, borderRadius=8, style={} }: any) {
   const anim = React.useRef(new Animated.Value(0.3)).current;
