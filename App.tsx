@@ -1233,7 +1233,7 @@ function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandle
   );
 }
 
-const StudioLaunchCard = ({ card, wallet, deriveWallet, setMsgs, C, s }: any) => {
+const StudioLaunchCard = React.memo(({ card, wallet, deriveWallet, setMsgs, C, s }: any) => {
   const data = card.data || {};
   const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
   const [studioImg, setStudioImg] = React.useState<{uri:string,type:string,base64:string}|null>(null);
@@ -1346,10 +1346,10 @@ const StudioLaunchCard = ({ card, wallet, deriveWallet, setMsgs, C, s }: any) =>
       {studioStatus === 'error' && <Text style={{color:'#ef4444',fontSize:12,marginTop:8}}>❌ {studioErr}</Text>}
     </View>
   );
-};
+});
 
 
-function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromToken2,toToken2,setToToken2,showToast,C,s,nacl,deriveWallet,executeSwapTx,fetchPortfolio,requireAuth,createTriggerOrder,createRecurringOrder}:any) {
+const SwapScreen = React.memo(function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromToken2,toToken2,setToToken2,showToast,C,s,nacl,deriveWallet,executeSwapTx,fetchPortfolio,requireAuth,createTriggerOrder,createRecurringOrder}:any) {
   const [mode, setMode] = React.useState('Market');
   const [amount, setAmount] = React.useState('');
   const [showNumpad, setShowNumpad] = React.useState(false);
@@ -2150,7 +2150,7 @@ export default function App() {
 
 
 
-  const EarnActionCard = ({card,isDeposit,pubkey,wallet,deriveWallet,requireAuth,rpcFetch,showToast,fetchPortfolio,C,s}:any) => {
+  const EarnActionCard = React.memo(({card,isDeposit,pubkey,wallet,deriveWallet,requireAuth,rpcFetch,showToast,fetchPortfolio,C,s}:any) => {
     const vault = card?.data?.preVault;
     const [amount, setAmount] = React.useState("");
     const [loading, setLoading] = React.useState(false);
@@ -2196,7 +2196,7 @@ export default function App() {
     );
   };
 
-  const MigrateEarnCard = ({card,pubkey,wallet,deriveWallet,requireAuth,rpcFetch,showToast,fetchPortfolio,setMsgs,C,s}:any) => {
+  const MigrateEarnCard = React.memo(({card,pubkey,wallet,deriveWallet,requireAuth,rpcFetch,showToast,fetchPortfolio,setMsgs,C,s}:any) => {
     const {migrations=[],allVaults=[]}=card.data||{};
     const [idx,setIdx]=React.useState(0);
     const [loading,setLoading]=React.useState(false);
