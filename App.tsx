@@ -2294,6 +2294,373 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
   );
 }
 
+function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAccounts, wallet, pubkey, requireAuth, setSeedPhrase, setShowSeedModal, setPrivKey, setShowPrivKeyModal, setWallet, setPubkey, setSolBalance, securityEnabled, setChangingPasscode, deriveWallet, getPrivateKey, nacl, C, s }: any) {
+  const [settingsView, setSettingsView] = React.useState('main');
+  const [notifEnabled, setNotifEnabled] = React.useState(false);
+  const [notifSettings, setNotifSettings] = React.useState<any>({ receivedTokens:true, receivedCollectibles:true, sentTokens:false, sentCollectibles:false, priceAlerts:true });
+  const [newAccName, setNewAccName] = React.useState('Account ' + ((accounts||[]).length + 1));
+  const [privKeyInput, setPrivKeyInput] = React.useState('');
+  const [privKeyName, setPrivKeyName] = React.useState('');
+  const [watchAddr, setWatchAddr] = React.useState('');
+  const [watchName, setWatchName] = React.useState('');
+  const [importSeedInput, setImportSeedInput] = React.useState('');
+
+  const Header = ({ title, back }: any) => (
+    <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+      <TouchableOpacity onPress={() => setSettingsView(back)} style={{ marginRight:12 }}>
+        <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
+      </TouchableOpacity>
+      <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>{title}</Text>
+    </View>
+  );
+
+  if (settingsView === 'main') return (
+    <ScrollView style={s.pad} contentContainerStyle={{ paddingBottom:100 }}>
+      {[
+        { label:'General', sub:'Language, currency, network', icon:'settings-outline', onPress: () => setSettingsView('general') },
+        { label:'Manage Accounts', sub:'Add, import or watch accounts', icon:'people-outline', onPress: () => setSettingsView('manageAccounts') },
+        { label:'Notifications', sub:'Alerts and updates', icon:'notifications-outline', onPress: () => setSettingsView('notifications') },
+        { label:'Security & Privacy', sub:'Passcode, terms, privacy', icon:'shield-outline', onPress: () => setSettingsView('security') },
+        { label:'Support', sub:'Contact our support', icon:'help-circle-outline', onPress: () => {} },
+      ].map((item, i, arr) => (
+        <TouchableOpacity key={i} onPress={item.onPress}
+          style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:16, paddingVertical:16,
+            borderBottomWidth: i < arr.length-1 ? 1 : 0, borderBottomColor:'#30363d',
+            backgroundColor:'#1c2128', marginBottom: i === arr.length-1 ? 0 : 1 }}>
+          <View style={{ width:36, height:36, borderRadius:18, backgroundColor:'#0d1117', alignItems:'center', justifyContent:'center', marginRight:14 }}>
+            <Ionicons name={item.icon as any} size={18} color={C.green} />
+          </View>
+          <View style={{ flex:1 }}>
+            <Text style={{ color:C.text, fontSize:15 }}>{item.label}</Text>
+            <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{item.sub}</Text>
+          </View>
+          <Text style={{ color:C.muted, fontSize:18 }}>›</Text>
+        </TouchableOpacity>
+      ))}
+      <Text style={{ color:C.muted, fontSize:11, textAlign:'center', marginTop:24 }}>Version 1.0.0</Text>
+    </ScrollView>
+  );
+
+  if (settingsView === 'general') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="General" back="main" />
+      {[
+        { label:'Language', sub:'English (EN)' },
+        { label:'Currency', sub:'US Dollar' },
+        { label:'Network', sub:'Mainnet' },
+      ].map((item, i, arr) => (
+        <TouchableOpacity key={i}
+          style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:20, paddingVertical:16,
+            borderBottomWidth: i < arr.length-1 ? 1 : 0, borderBottomColor:'#30363d' }}>
+          <View style={{ flex:1 }}>
+            <Text style={{ color:C.text, fontSize:15 }}>{item.label}</Text>
+            <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{item.sub}</Text>
+          </View>
+          <Text style={{ color:C.muted, fontSize:18 }}>›</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+
+  if (settingsView === 'notifications') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Notifications" back="main" />
+      {!notifEnabled ? (
+        <View style={{ alignItems:'center', padding:48 }}>
+          <Ionicons name="notifications-outline" size={80} color={C.muted} />
+          <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', marginTop:24 }}>{"Don't miss out"}</Text>
+          <Text style={{ color:C.muted, fontSize:13, textAlign:'center', marginTop:8, lineHeight:20 }}>
+            Get instant alerts for received funds, important news, price changes and rewards.
+          </Text>
+          <TouchableOpacity onPress={() => setNotifEnabled(true)}
+            style={{ backgroundColor:'#f0c800', borderRadius:30, paddingVertical:16, paddingHorizontal:40, marginTop:32 }}>
+            <Text style={{ color:'#000', fontWeight:'bold', fontSize:15 }}>Enable Notifications</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={{ paddingBottom:20 }}>
+          {[
+            { key:'receivedTokens', label:'Received tokens', sub:'Notify me when I receive tokens' },
+            { key:'receivedCollectibles', label:'Received collectibles', sub:'Notify me when I receive collectibles' },
+            { key:'sentTokens', label:'Sent tokens', sub:'Notify me when I send tokens' },
+            { key:'sentCollectibles', label:'Sent collectibles', sub:'Notify me when I send collectibles' },
+            { key:'priceAlerts', label:'Price alerts', sub:'Notify me when token prices move' },
+          ].map((item) => (
+            <View key={item.key} style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:20, paddingVertical:14, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+              <View style={{ flex:1 }}>
+                <Text style={{ color:C.text, fontSize:15 }}>{item.label}</Text>
+                <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{item.sub}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setNotifSettings((p:any) => ({ ...p, [item.key]: !p[item.key] }))}
+                style={{ width:50, height:28, borderRadius:14, backgroundColor: notifSettings[item.key] ? '#f0c800' : '#30363d', justifyContent:'center', paddingHorizontal:3 }}>
+                <View style={{ width:22, height:22, borderRadius:11, backgroundColor:'#fff', alignSelf: notifSettings[item.key] ? 'flex-end' : 'flex-start' }} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+
+  if (settingsView === 'security') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Security & Privacy" back="main" />
+      {[
+        { label:'Change Passcode', sub:'Update your account security', onPress: () => setChangingPasscode(true) },
+        { label:'Request Authentication', sub:'24 hours', onPress: () => {} },
+      ].map((item, i) => (
+        <TouchableOpacity key={i} onPress={item.onPress}
+          style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:20, paddingVertical:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+          <View style={{ flex:1 }}>
+            <Text style={{ color:C.text, fontSize:15 }}>{item.label}</Text>
+            <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{item.sub}</Text>
+          </View>
+          <Text style={{ color:C.muted, fontSize:18 }}>›</Text>
+        </TouchableOpacity>
+      ))}
+      <TouchableOpacity onPress={() => Linking.openURL('https://chatfi.pro/terms')}
+        style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:20, paddingVertical:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+        <View style={{ flex:1 }}>
+          <Text style={{ color:C.text, fontSize:15 }}>Terms of Service</Text>
+          <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>Review rules and policies</Text>
+        </View>
+        <Ionicons name="open-outline" size={18} color={C.muted} />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => Linking.openURL('https://chatfi.pro/privacy')}
+        style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:20, paddingVertical:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+        <View style={{ flex:1 }}>
+          <Text style={{ color:C.text, fontSize:15 }}>Privacy Policy</Text>
+          <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>Learn how we use and protect data</Text>
+        </View>
+        <Ionicons name="open-outline" size={18} color={C.muted} />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => {
+        Alert.alert('Log Out', 'Remove this account? Other accounts will not be affected.', [
+          { text:'Cancel', style:'cancel' },
+          { text:'Log Out', style:'destructive', onPress: async () => {
+            const raw = await AsyncStorage.getItem('accounts');
+            const accs = raw ? JSON.parse(raw) : [];
+            const updated = accs.filter((_:any, i:number) => i !== activeAccIdx);
+            await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+            if(updated.length > 0){ await AsyncStorage.setItem('active_acc', '0'); switchAccount(0); }
+            else { setWallet(null); setPubkey(null); setSolBalance(null); }
+          }}
+        ]);
+      }}
+        style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:20, paddingVertical:16 }}>
+        <View style={{ flex:1 }}>
+          <Text style={{ color:C.red, fontSize:15 }}>Log Out</Text>
+          <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>Remove this account</Text>
+        </View>
+        <Ionicons name="log-out-outline" size={18} color={C.red} />
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
+  if (settingsView === 'manageAccounts') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+        <TouchableOpacity onPress={() => setSettingsView('main')} style={{ marginRight:12 }}>
+          <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
+        </TouchableOpacity>
+        <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>Manage Accounts</Text>
+        <TouchableOpacity onPress={() => setSettingsView('addAccount')}
+          style={{ width:32, height:32, borderRadius:16, backgroundColor:'#1c2128', alignItems:'center', justifyContent:'center' }}>
+          <Text style={{ color:C.green, fontSize:22, lineHeight:28 }}>+</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ margin:16, backgroundColor:'#1c2128', borderRadius:14, overflow:'hidden' }}>
+        <TextInput placeholder="Search accounts..." placeholderTextColor={C.muted}
+          style={{ backgroundColor:'#0d1117', color:C.text, borderRadius:10, margin:10, padding:10, fontSize:14 }}
+          autoCapitalize="none" />
+        {(accounts||[]).map((acc:any, idx:number) => (
+          <TouchableOpacity key={acc.id} onPress={() => switchAccount(idx)}
+            style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+            <View style={{ width:36, height:36, borderRadius:18, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
+              <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:14 }}>{acc.name?acc.name[0]:'A'}</Text>
+            </View>
+            <View style={{ flex:1 }}>
+              <Text style={{ color:C.text, fontSize:15, fontWeight:'600' }}>{acc.name}</Text>
+              <Text style={{ color:C.muted, fontSize:12 }}>{(acc.pubkey||'').slice(0,6)+'...'+(acc.pubkey||'').slice(-4)}</Text>
+            </View>
+            {idx === activeAccIdx && <Text style={{ color:C.green, fontSize:18 }}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  );
+
+  if (settingsView === 'addAccount') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Add Account" back="manageAccounts" />
+      <View style={{ padding:20, gap:12 }}>
+        {[
+          { label:'Create New Account', sub:'Add a new account', icon:'add-circle-outline', next:'createAccount' },
+          { label:'Import Recovery Phrase', sub:'Restore from 12 or 24 word phrase', icon:'document-text-outline', next:'importPhrase' },
+          { label:'Import Private Key', sub:'Import a single account', icon:'download-outline', next:'importPrivKey' },
+          { label:'Watch Address', sub:'Track any public wallet address', icon:'eye-outline', next:'watchAddress' },
+        ].map((item, i) => (
+          <TouchableOpacity key={i} onPress={() => setSettingsView(item.next)}
+            style={{ flexDirection:'row', alignItems:'center', backgroundColor:'#1c2128', borderRadius:14, padding:18, borderWidth:1, borderColor:'#30363d' }}>
+            <View style={{ width:40, height:40, borderRadius:20, backgroundColor:'#0d1117', alignItems:'center', justifyContent:'center', marginRight:14 }}>
+              <Ionicons name={item.icon as any} size={20} color={C.green} />
+            </View>
+            <View style={{ flex:1 }}>
+              <Text style={{ color:C.text, fontWeight:'bold', fontSize:15 }}>{item.label}</Text>
+              <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{item.sub}</Text>
+            </View>
+            <Text style={{ color:C.muted, fontSize:18 }}>›</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  );
+
+  if (settingsView === 'createAccount') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Create Account" back="addAccount" />
+      <View style={{ padding:20 }}>
+        <TextInput value={newAccName} onChangeText={setNewAccName}
+          style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:15, marginBottom:24 }}
+          placeholderTextColor={C.muted} />
+        <TouchableOpacity onPress={async () => {
+          addAccount();
+          await new Promise(r => setTimeout(r, 100));
+          const updated = await AsyncStorage.getItem('accounts');
+          const final = updated ? JSON.parse(updated) : [];
+          if(final.length > 0 && newAccName.trim()) {
+            final[final.length-1].name = newAccName.trim();
+            await AsyncStorage.setItem('accounts', JSON.stringify(final));
+          }
+          switchAccount(final.length-1);
+          setSettingsView('main');
+        }} style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}>
+          <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Create</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+
+  if (settingsView === 'importPhrase') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Import Recovery Phrase" back="addAccount" />
+      <View style={{ padding:20 }}>
+        <Text style={{ color:C.muted, fontSize:13, marginBottom:12, lineHeight:20 }}>
+          Restore an existing wallet with your 12 or 24-word recovery phrase
+        </Text>
+        <TextInput value={importSeedInput} onChangeText={setImportSeedInput}
+          placeholder="Recovery Phrase" placeholderTextColor={C.muted}
+          multiline numberOfLines={4} autoCapitalize="none"
+          style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:14, minHeight:100, marginBottom:16 }} />
+        <TouchableOpacity onPress={async () => {
+          const words = importSeedInput.trim().split(/\s+/);
+          if(words.length !== 12 && words.length !== 24){ Alert.alert('Invalid','Enter a valid 12 or 24 word seed phrase'); return; }
+          try {
+            const { publicKey: pk } = deriveWallet(importSeedInput.trim());
+            const raw = await AsyncStorage.getItem('accounts');
+            const existing = raw ? JSON.parse(raw) : [];
+            const newAcc = { id: existing.length+1, name:'Account '+(existing.length+1), mnemonic: importSeedInput.trim(), pubkey: pk };
+            const updated = [...existing, newAcc];
+            await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+            await AsyncStorage.setItem('active_acc', String(existing.length));
+            switchAccount(updated.length-1);
+            setImportSeedInput('');
+            setSettingsView('main');
+          } catch { Alert.alert('Error','Invalid seed phrase'); }
+        }} style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}>
+          <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Import</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+
+  if (settingsView === 'importPrivKey') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Import Private Key" back="addAccount" />
+      <View style={{ padding:20, gap:12 }}>
+        <View style={{ backgroundColor:'#1c2128', borderRadius:12, padding:14, flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
+          <Text style={{ color:C.text, fontSize:15, fontWeight:'600' }}>Network</Text>
+          <Text style={{ color:C.muted, fontSize:14 }}>Solana ›</Text>
+        </View>
+        <TextInput value={privKeyName} onChangeText={setPrivKeyName}
+          placeholder="Name" placeholderTextColor={C.muted}
+          style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:14 }} />
+        <View style={{ backgroundColor:'#1c2128', borderRadius:12, padding:14, flexDirection:'row', alignItems:'center' }}>
+          <TextInput value={privKeyInput} onChangeText={setPrivKeyInput}
+            placeholder="Private key" placeholderTextColor={C.muted}
+            autoCapitalize="none" secureTextEntry style={{ flex:1, color:C.text, fontSize:14 }} />
+          <TouchableOpacity onPress={async () => { const txt = await Clipboard.getString(); setPrivKeyInput(txt); }}>
+            <Text style={{ color:C.green, fontWeight:'bold', fontSize:14 }}>Paste</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity onPress={async () => {
+          if(!privKeyInput.trim()){ Alert.alert('Error','Enter a private key'); return; }
+          try {
+            const keyBytes = Uint8Array.from(JSON.parse(privKeyInput.trim()));
+            const kp = nacl.sign.keyPair.fromSecretKey(keyBytes);
+            const ALPHA='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+            const bs58=(b:Uint8Array)=>{const d:number[]=[],carry=0;let c=carry;for(let i=0;i<b.length;i++){c=b[i];for(let j=0;j<d.length;j++){c+=d[j]<<8;d[j]=c%58;c=Math.floor(c/58);}while(c>0){d.push(c%58);c=Math.floor(c/58);}}return b.slice(0,b.findIndex((x:number)=>x!==0)).map(()=>'1').join('')+d.reverse().map((x:number)=>ALPHA[x]).join('');};
+            const pk = bs58(kp.publicKey);
+            const raw = await AsyncStorage.getItem('accounts');
+            const existing = raw ? JSON.parse(raw) : [];
+            const name = privKeyName.trim() || 'Account '+(existing.length+1);
+            const updated = [...existing, { id:existing.length+1, name, privkey:privKeyInput.trim(), pubkey:pk }];
+            await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+            await AsyncStorage.setItem('active_acc', String(existing.length));
+            switchAccount(updated.length-1);
+            setPrivKeyInput(''); setPrivKeyName('');
+            setSettingsView('main');
+          } catch { Alert.alert('Error','Invalid private key'); }
+        }} style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', marginTop:8 }}>
+          <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Import</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+
+  if (settingsView === 'watchAddress') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Watch Address" back="addAccount" />
+      <View style={{ padding:20, gap:12 }}>
+        <Text style={{ color:C.muted, fontSize:13, lineHeight:20 }}>
+          Add an address you would like to watch. You will have view-only access and cannot sign transactions.
+        </Text>
+        <View style={{ backgroundColor:'#1c2128', borderRadius:12, padding:14, flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
+          <Text style={{ color:C.text, fontSize:15, fontWeight:'600' }}>Network</Text>
+          <Text style={{ color:C.muted, fontSize:14 }}>Solana ›</Text>
+        </View>
+        <TextInput value={watchName} onChangeText={setWatchName}
+          placeholder="Name" placeholderTextColor={C.muted}
+          style={{ backgroundColor:'#1c2128', color:C.text, borderRadius:12, padding:14, fontSize:14 }} />
+        <View style={{ backgroundColor:'#1c2128', borderRadius:12, padding:14, flexDirection:'row', alignItems:'center' }}>
+          <TextInput value={watchAddr} onChangeText={setWatchAddr}
+            placeholder="Address or Domain" placeholderTextColor={C.muted} autoCapitalize="none"
+            style={{ flex:1, color:C.text, fontSize:14 }} />
+          <TouchableOpacity onPress={async () => { const txt = await Clipboard.getString(); setWatchAddr(txt); }}>
+            <Text style={{ color:C.green, fontWeight:'bold', fontSize:14 }}>Paste</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity onPress={async () => {
+          if(!watchAddr.trim()){ Alert.alert('Error','Enter an address'); return; }
+          const raw = await AsyncStorage.getItem('accounts');
+          const existing = raw ? JSON.parse(raw) : [];
+          const name = watchName.trim() || 'Watch '+(existing.length+1);
+          const updated = [...existing, { id:existing.length+1, name, pubkey:watchAddr.trim(), watchOnly:true }];
+          await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+          await AsyncStorage.setItem('active_acc', String(existing.length));
+          switchAccount(updated.length-1);
+          setWatchAddr(''); setWatchName('');
+          setSettingsView('main');
+        }} style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', marginTop:8 }}>
+          <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Import</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+
+  return null;
+}
+
 export default function App() {
   const [mwaInitUrl, setMwaInitUrl] = React.useState<string|null>(null);
   React.useEffect(() => {
@@ -4901,75 +5268,30 @@ https://solscan.io/tx/${sig}` }]);
         </View>
         {/* SETTINGS */}
       {tab === 'settings' && (
-        <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}}>
-          {/* Wallet profile row */}
-          {wallet && (
-            <View style={s.stGroup}>
-              <Text style={{color:C.muted,fontSize:11,fontWeight:'600',paddingHorizontal:16,paddingTop:12,paddingBottom:6,letterSpacing:1,paddingRight:2}}>ACCOUNTS</Text>
-              {accounts.map((acc,idx)=>(
-                <TouchableOpacity key={acc.id} onPress={()=>switchAccount(idx)} style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderBottomWidth:idx<accounts.length-1?1:0,borderBottomColor:C.border}}>
-                  <View style={{width:36,height:36,borderRadius:18,backgroundColor:idx===activeAccIdx?C.green:C.card,alignItems:'center',justifyContent:'center',marginRight:12}}>
-                    <Text style={{color:idx===activeAccIdx?'#0d1117':C.muted,fontWeight:'bold',fontSize:14}}>{idx+1}</Text>
-                  </View>
-                  <View style={{flex:1}}>
-                    <Text style={{color:C.text,fontWeight:'600',fontSize:14}}>{acc.name}{idx===activeAccIdx?' ✓':''}</Text>
-                    <Text style={{color:C.muted,fontSize:12}}>{acc.pubkey?acc.pubkey.slice(0,6)+'...'+acc.pubkey.slice(-4):''}</Text>
-                  </View>
-                  {idx===activeAccIdx&&<TouchableOpacity onPress={copyAddress}><Text style={{color:C.green,fontSize:12}}>Copy</Text></TouchableOpacity>}
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-              <View style={[s.stGroup,{marginTop:12}]}>
-                <TouchableOpacity style={s.stRow} onPress={()=>setShowWalletModal(true)}>
-                  <View style={{flex:1}}>
-                    <Text style={s.stRowTxt}>Import Wallet</Text>
-                    <Text style={{color:C.muted,fontSize:12,marginTop:2}}>Import using seed phrase</Text>
-                  </View>
-                  <Text style={{color:C.muted,fontSize:18}}>›</Text>
-                </TouchableOpacity>
-              </View>
-
-
-
-          {/* Security */}
-          <View style={[s.stGroup,{marginTop:12}]}>
-            <TouchableOpacity style={s.stRow} onPress={()=>setShowSecurityModal(true)}>
-              <View style={{flex:1}}>
-                <Text style={s.stRowTxt}>Security</Text>
-                <Text style={{color:C.muted,fontSize:12,marginTop:2}}>{securityEnabled?'App lock on':'App lock off'}</Text>
-              </View>
-              <Text style={{color:C.muted,fontSize:18}}>›</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Info rows */}
-          <View style={s.stGroup}>
-            <View style={s.stRow}>
-              <Text style={s.stRowTxt}>Theme</Text>
-              <Text style={s.stRowVal}>Dark</Text>
-            </View>
-            <View style={[s.stRow,{borderBottomWidth:0}]}>
-              <Text style={s.stRowTxt}>Version</Text>
-              <Text style={s.stRowVal}>1.0.0</Text>
-            </View>
-          </View>
-
-          {/* Danger */}
-          {wallet && (
-            <View style={{gap:12,marginTop:8}}>
-              <TouchableOpacity style={s.dangerBtn} onPress={async()=>{ const ok=await requireAuth(); if(!ok)return; const acc=accounts[activeAccIdx]; if(acc){ setSeedPhrase(acc.mnemonic); setShowSeedModal(true); } }}>
-                <Text style={s.dangerBtnTxt}>Show Seed Phrase</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.dangerBtn} onPress={async()=>{ const ok=await requireAuth(); if(!ok)return; const acc=accounts[activeAccIdx]; if(acc){ setPrivKey(getPrivateKey(acc.mnemonic)); setShowPrivKeyModal(true); } }}>
-                <Text style={s.dangerBtnTxt}>Show Private Key</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.dangerBtn} onPress={()=>{Alert.alert('Remove Wallet','Make sure you have your seed phrase!',[{text:'Cancel',style:'cancel'},{text:'Remove',style:'destructive',onPress:async()=>{await AsyncStorage.removeItem('wallet_mnemonic');setWallet(null);setPubkey(null);setSolBalance(null);}}]);}}>
-                <Text style={s.dangerBtnTxt}>Remove Wallet</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </ScrollView>
+        <SettingsTab
+          accounts={accounts}
+          activeAccIdx={activeAccIdx}
+          switchAccount={switchAccount}
+          addAccount={addAccount}
+          setAccounts={setAccounts}
+          wallet={wallet}
+          pubkey={pubkey}
+          requireAuth={requireAuth}
+          setSeedPhrase={setSeedPhrase}
+          setShowSeedModal={setShowSeedModal}
+          setPrivKey={setPrivKey}
+          setShowPrivKeyModal={setShowPrivKeyModal}
+          setWallet={setWallet}
+          setPubkey={setPubkey}
+          setSolBalance={setSolBalance}
+          securityEnabled={securityEnabled}
+          setChangingPasscode={setChangingPasscode}
+          deriveWallet={deriveWallet}
+          getPrivateKey={getPrivateKey}
+          nacl={nacl}
+          C={C}
+          s={s}
+        />
       )}
       </KeyboardAvoidingView>
 
