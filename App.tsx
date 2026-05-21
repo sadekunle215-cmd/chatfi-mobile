@@ -272,7 +272,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
             </View>
 
             {/* Chart */}
-            <View style={{flex:1,marginHorizontal:0,overflow:'hidden'}}>
+            <View style={{height:320,marginHorizontal:0,overflow:'hidden'}}>
               <WebView
                 source={{uri:'https://dexscreener.com/solana/'+pairAddress+'?embed=1&theme=dark&trades=0&info=0'}}
                 style={{flex:1,backgroundColor:C.bg}}
