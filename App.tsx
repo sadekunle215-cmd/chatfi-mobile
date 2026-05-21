@@ -272,7 +272,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
             </View>
 
             {/* Chart */}
-            <View style={{height:320,marginHorizontal:0,overflow:'hidden'}}>
+            <View style={{flex:1,marginHorizontal:0,overflow:'hidden'}}>
               <WebView
                 source={{uri:'https://dexscreener.com/solana/'+pairAddress+'?embed=1&theme=dark&trades=0&info=0'}}
                 style={{flex:1,backgroundColor:C.bg}}
@@ -1841,7 +1841,6 @@ export default function App() {
   ]);
   const [input, setInput] = useState('');
   const inputRef = React.useRef('');
-  const flatListRef = React.useRef<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
   // Swap state
@@ -2135,14 +2134,6 @@ export default function App() {
 
 
 
-  // Keep msgs capped at 100 to prevent memory bloat
-  const addMsg = React.useCallback((msg: any) => {
-    setMsgs(p => {
-      const next = [...p, msg];
-      return next.length > 100 ? next.slice(-100) : next;
-    });
-  }, []);
-
   const updateCard = (msgId: number, updates: any) => {
     setMsgs(p => p.map(m => m.id === msgId ? {...m, card: {...m.card, ...updates}} : m));
   };
@@ -2281,6 +2272,7 @@ export default function App() {
       </View>
     );
   };
+
   const renderCard = (card: any) => {
     const { type, data, onConfirm, onCancel, status } = card;
 
@@ -4244,36 +4236,26 @@ https://solscan.io/tx/${sig}` }]);
         <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:9999,display:showChat?'flex':'none',backgroundColor:C.bg}}>
           <View style={s.flex}>
 
-                <FlatList
-                ref={flatListRef}
-                style={s.msgs}
-                contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }}
-                data={msgs}
-                keyExtractor={(m:any) => String(m.id)}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={10}
-                windowSize={10}
-                initialNumToRender={15}
-                onContentSizeChange={()=>flatListRef.current?.scrollToEnd({animated:false})}
-                ListFooterComponent={aiLoading ? (
-                  <View style={[s.botBubble, s.bubble]}>
-                    <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-                    <ActivityIndicator color={C.green} size="small" />
-                  </View>
-                ) : null}
-                renderItem={({item:m}:any) => (
-                  <View style={m.from === 'user' ? [s.bubble, s.userBubble] : {marginBottom:8}}>
-                    {m.from === 'bot' && !m.card && (
-                      <View style={[s.bubble, s.botBubble]}>
-                        <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-                        <Text style={s.bubbleTxt}>{m.text}</Text>
-                      </View>
-                    )}
-                    {m.from === 'user' && <Text style={s.bubbleTxt}>{m.text}</Text>}
-                    {m.card && renderCard(m.card)}
-                  </View>
-                )}
-              />
+                <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }}>
+              {msgs.map(m => (
+                <View key={m.id} style={m.from === 'user' ? [s.bubble, s.userBubble] : {marginBottom:8}}>
+                  {m.from === 'bot' && !m.card && (
+                    <View style={[s.bubble, s.botBubble]}>
+                      <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+                      <Text style={s.bubbleTxt}>{m.text}</Text>
+                    </View>
+                  )}
+                  {m.from === 'user' && <Text style={s.bubbleTxt}>{m.text}</Text>}
+                  {m.card && renderCard(m.card)}
+                </View>
+              ))}
+              {aiLoading && (
+                <View style={[s.botBubble, s.bubble]}>
+                  <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+                  <ActivityIndicator color={C.green} size="small" />
+                </View>
+              )}
+            </ScrollView>
             <View style={s.inputRow}>
               <TextInput style={s.input} value={input} onChangeText={(t)=>{setInput(t);inputRef.current=t;}} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current||input)} editable={!aiLoading} autoCorrect={false} autoCapitalize="none" blurOnSubmit={false} />
               <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current||input)} disabled={aiLoading}>
