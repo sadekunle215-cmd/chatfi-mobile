@@ -2583,6 +2583,8 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
             const { publicKey: pk } = deriveWallet(importSeedInput.trim());
             const raw = await AsyncStorage.getItem('accounts');
             const existing = raw ? JSON.parse(raw) : [];
+            const dupIdx = existing.findIndex((a:any) => a.pubkey === pk || a.mnemonic === importSeedInput.trim());
+            if(dupIdx !== -1){ switchAccount(dupIdx); setImportSeedInput(''); setSettingsView('main'); Alert.alert('Already exists','Switched to existing account'); return; }
             const newAcc = { id: existing.length+1, name:'Account '+(existing.length+1), mnemonic: importSeedInput.trim(), pubkey: pk };
             const updated = [...existing, newAcc];
             await AsyncStorage.setItem('accounts', JSON.stringify(updated));
@@ -2627,6 +2629,8 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
             const pk = bs58(kp.publicKey);
             const raw = await AsyncStorage.getItem('accounts');
             const existing = raw ? JSON.parse(raw) : [];
+            const dupIdx = existing.findIndex((a:any) => a.pubkey === pk || a.privkey === privKeyInput.trim());
+            if(dupIdx !== -1){ switchAccount(dupIdx); setPrivKeyInput(''); setPrivKeyName(''); setSettingsView('main'); Alert.alert('Already exists','Switched to existing account'); return; }
             const name = privKeyName.trim() || 'Account '+(existing.length+1);
             const updated = [...existing, { id:existing.length+1, name, privkey:privKeyInput.trim(), pubkey:pk }];
             await AsyncStorage.setItem('accounts', JSON.stringify(updated));
