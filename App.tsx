@@ -588,6 +588,14 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
   const [watchAddr, setWatchAddr] = React.useState('');
   const [watchName, setWatchName] = React.useState('');
   const [importSeedInput, setImportSeedInput] = React.useState('');
+  const [menuAccIdx, setMenuAccIdx] = React.useState<number|null>(null);
+  const [managingAcc, setManagingAcc] = React.useState<any>(null);
+  const [managingAccIdx, setManagingAccIdx] = React.useState<number>(-1);
+  const [editName, setEditName] = React.useState('');
+  const [showWarning, setShowWarning] = React.useState<'seed'|'key'|null>(null);
+  const [revealed, setRevealed] = React.useState(false);
+  const [revealData, setRevealData] = React.useState('');
+  const [revealType, setRevealType] = React.useState('');
   const short = pubkey ? pubkey.slice(0,6)+'...'+pubkey.slice(-4) : '';
 
   return (
@@ -2120,6 +2128,14 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
   const [watchAddr, setWatchAddr] = React.useState('');
   const [watchName, setWatchName] = React.useState('');
   const [importSeedInput, setImportSeedInput] = React.useState('');
+  const [menuAccIdx, setMenuAccIdx] = React.useState<number|null>(null);
+  const [managingAcc, setManagingAcc] = React.useState<any>(null);
+  const [managingAccIdx, setManagingAccIdx] = React.useState<number>(-1);
+  const [editName, setEditName] = React.useState('');
+  const [showWarning, setShowWarning] = React.useState<'seed'|'key'|null>(null);
+  const [revealed, setRevealed] = React.useState(false);
+  const [revealData, setRevealData] = React.useState('');
+  const [revealType, setRevealType] = React.useState('');
 
   const Header = ({ title, back }: any) => (
     <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
@@ -2290,18 +2306,210 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
           style={{ backgroundColor:'#0d1117', color:C.text, borderRadius:10, margin:10, padding:10, fontSize:14 }}
           autoCapitalize="none" />
         {(accounts||[]).map((acc:any, idx:number) => (
-          <TouchableOpacity key={acc.id} onPress={() => switchAccount(idx)}
-            style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
-            <View style={{ width:36, height:36, borderRadius:18, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-              <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:14 }}>{acc.name?acc.name[0]:'A'}</Text>
-            </View>
-            <View style={{ flex:1 }}>
-              <Text style={{ color:C.text, fontSize:15, fontWeight:'600' }}>{acc.name}</Text>
-              <Text style={{ color:C.muted, fontSize:12 }}>{(acc.pubkey||'').slice(0,6)+'...'+(acc.pubkey||'').slice(-4)}</Text>
-            </View>
-            {idx === activeAccIdx && <Text style={{ color:C.green, fontSize:18 }}>✓</Text>}
+          <View key={acc.id}>
+            <TouchableOpacity onPress={() => switchAccount(idx)}
+              style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+              <View style={{ width:36, height:36, borderRadius:18, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
+                <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:14 }}>{acc.avatar||acc.name?.[0]||'A'}</Text>
+              </View>
+              <View style={{ flex:1 }}>
+                <Text style={{ color:C.text, fontSize:15, fontWeight:'600' }}>{acc.name}</Text>
+                <Text style={{ color:C.muted, fontSize:12 }}>{(acc.pubkey||'').slice(0,6)+'...'+(acc.pubkey||'').slice(-4)}</Text>
+              </View>
+              {idx === activeAccIdx && <Text style={{ color:C.green, fontSize:18, marginRight:8 }}>✓</Text>}
+              <TouchableOpacity onPress={() => setMenuAccIdx(menuAccIdx === idx ? null : idx)}
+                style={{ padding:8 }}>
+                <Ionicons name="ellipsis-vertical" size={18} color={C.muted} />
+              </TouchableOpacity>
+            </TouchableOpacity>
+            {menuAccIdx === idx && (
+              <View style={{ backgroundColor:'#1c2128', marginHorizontal:16, marginBottom:8, borderRadius:12, overflow:'hidden', borderWidth:1, borderColor:'#30363d' }}>
+                <TouchableOpacity onPress={() => { setMenuAccIdx(null); setManagingAcc(acc); setManagingAccIdx(idx); setEditName(acc.name||''); setSettingsView('manageWallet'); }}
+                  style={{ flexDirection:'row', alignItems:'center', padding:14, gap:10, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+                  <Ionicons name="person-outline" size={16} color={C.text} />
+                  <Text style={{ color:C.text, fontSize:14 }}>Manage Wallet</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setMenuAccIdx(null); Clipboard.setString(acc.pubkey||''); Alert.alert('Copied','Address copied'); }}
+                  style={{ flexDirection:'row', alignItems:'center', padding:14, gap:10 }}>
+                  <Ionicons name="copy-outline" size={16} color={C.text} />
+                  <Text style={{ color:C.text, fontSize:14 }}>Copy Address</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+
+  const AVATARS = ['😀','😎','🦊','🐸','🦁','🐯','🐻','🦄','🐙','🎭','🤖','👾','🔥','⚡','🌙','💎','🚀','🎯','🧠','🎪'];
+
+  if (settingsView === 'manageWallet' && managingAcc) return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Manage Account" back="manageAccounts" />
+      <View style={{ alignItems:'center', padding:24 }}>
+        <TouchableOpacity style={{ position:'relative', marginBottom:16 }}>
+          <View style={{ width:80, height:80, borderRadius:40, backgroundColor:C.green, alignItems:'center', justifyContent:'center' }}>
+            <Text style={{ fontSize:36 }}>{managingAcc.avatar||managingAcc.name?.[0]||'A'}</Text>
+          </View>
+          <View style={{ position:'absolute', bottom:0, right:0, width:24, height:24, borderRadius:12, backgroundColor:'#1c2128', alignItems:'center', justifyContent:'center', borderWidth:1, borderColor:C.green }}>
+            <Ionicons name="pencil" size={12} color={C.green} />
+          </View>
+        </TouchableOpacity>
+        <View style={{ flexDirection:'row', alignItems:'center', gap:8, marginBottom:4 }}>
+          <TextInput value={editName} onChangeText={setEditName}
+            style={{ color:C.text, fontSize:18, fontWeight:'bold', textAlign:'center', borderBottomWidth:1, borderBottomColor:C.green, minWidth:120, paddingBottom:4 }}
+            onBlur={() => {
+              const updated = (accounts||[]).map((a:any, i:number) => i === managingAccIdx ? {...a, name: editName} : a);
+              setAccounts(updated);
+              setManagingAcc({...managingAcc, name: editName});
+              AsyncStorage.setItem('accounts', JSON.stringify(updated));
+            }} />
+          <Ionicons name="pencil" size={14} color={C.green} />
+        </View>
+        <Text style={{ color:C.muted, fontSize:12 }}>{(managingAcc.pubkey||'').slice(0,6)+'...'+(managingAcc.pubkey||'').slice(-6)}</Text>
+      </View>
+      <View style={{ flexDirection:'row', flexWrap:'wrap', paddingHorizontal:16, gap:8, marginBottom:24, justifyContent:'center' }}>
+        {AVATARS.map((emoji, i) => (
+          <TouchableOpacity key={i} onPress={() => {
+            const updated = (accounts||[]).map((a:any, idx:number) => idx === managingAccIdx ? {...a, avatar: emoji} : a);
+            setAccounts(updated);
+            setManagingAcc({...managingAcc, avatar: emoji});
+            AsyncStorage.setItem('accounts', JSON.stringify(updated));
+          }} style={{ width:44, height:44, borderRadius:22, backgroundColor: managingAcc.avatar===emoji ? C.green+'33' : '#1c2128', alignItems:'center', justifyContent:'center', borderWidth:1, borderColor: managingAcc.avatar===emoji ? C.green : '#30363d' }}>
+            <Text style={{ fontSize:22 }}>{emoji}</Text>
           </TouchableOpacity>
         ))}
+      </View>
+      <View style={{ marginHorizontal:16, backgroundColor:'#1c2128', borderRadius:14, overflow:'hidden', marginBottom:16 }}>
+        <TouchableOpacity onPress={() => { setShowWarning('key'); }}
+          style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+          <Text style={{ color:C.text, fontSize:15, fontWeight:'500' }}>Show Private Key</Text>
+          <Ionicons name="chevron-forward" size={18} color={C.muted} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => { setShowWarning('seed'); }}
+          style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16 }}>
+          <Text style={{ color:C.text, fontSize:15, fontWeight:'500' }}>Show Recovery Phrase</Text>
+          <Ionicons name="chevron-forward" size={18} color={C.muted} />
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity onPress={() => {
+        Alert.alert('Remove Account', 'Remove this account? This cannot be undone.', [
+          { text:'Cancel', style:'cancel' },
+          { text:'Remove', style:'destructive', onPress: async () => {
+            const updated = (accounts||[]).filter((_:any, i:number) => i !== managingAccIdx);
+            setAccounts(updated);
+            await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+            if(managingAccIdx >= updated.length) switchAccount(Math.max(0, updated.length-1));
+            setSettingsView('manageAccounts');
+          }}
+        ]);
+      }} style={{ marginHorizontal:16, borderRadius:14, borderWidth:1, borderColor:'#ff4444', padding:16, alignItems:'center' }}>
+        <Text style={{ color:'#ff4444', fontWeight:'600' }}>Remove Account</Text>
+      </TouchableOpacity>
+      {showWarning && (
+        <Modal transparent animationType="slide" visible={true}>
+          <View style={{ flex:1, justifyContent:'flex-end', backgroundColor:'rgba(0,0,0,0.5)' }}>
+            <View style={{ backgroundColor:'#1c2128', borderTopLeftRadius:24, borderTopRightRadius:24, padding:24 }}>
+              <View style={{ alignItems:'center', marginBottom:16 }}>
+                <View style={{ width:48, height:48, borderRadius:24, backgroundColor:'#30363d', alignItems:'center', justifyContent:'center', marginBottom:12 }}>
+                  <Ionicons name="warning-outline" size={24} color={C.text} />
+                </View>
+                <Text style={{ color:C.text, fontSize:20, fontWeight:'bold', marginBottom:8 }}>Warning</Text>
+                <Text style={{ color:C.muted, fontSize:14, textAlign:'center', marginBottom:16 }}>Please read the following carefully before viewing your recovery phrase or private key</Text>
+              </View>
+              {[
+                { icon:'wallet-outline', text:'Your recovery phrase or private key is the only way to recover your account' },
+                { icon:'eye-off-outline', text:'View this in a private area and do not let anyone see it' },
+                { icon:'close-circle-outline', text:'Do not share this with anyone' },
+              ].map((item, i) => (
+                <View key={i} style={{ flexDirection:'row', alignItems:'center', gap:12, marginBottom:14 }}>
+                  <View style={{ width:36, height:36, borderRadius:18, backgroundColor:'#30363d', alignItems:'center', justifyContent:'center' }}>
+                    <Ionicons name={item.icon as any} size={18} color={C.text} />
+                  </View>
+                  <Text style={{ color:C.text, fontSize:13, flex:1 }}>{item.text}</Text>
+                </View>
+              ))}
+              <TouchableOpacity onPress={async () => {
+                try {
+                  if (showWarning === 'key') {
+                    const pk = await getPrivateKey(managingAcc.mnemonic);
+                    setRevealData(pk||''); setRevealType('key');
+                  } else {
+                    setRevealData(managingAcc.mnemonic||''); setRevealType('seed');
+                  }
+                  setRevealed(false); setShowWarning(null); setSettingsView('revealSecret');
+                } catch(e) { Alert.alert('Error','Could not retrieve secret'); }
+              }} style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', marginTop:8 }}>
+                <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>
+                  {showWarning === 'key' ? 'Show Private Key' : 'Show Recovery Phrase'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowWarning(null)} style={{ padding:16, alignItems:'center' }}>
+                <Text style={{ color:C.muted }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+    </ScrollView>
+  );
+
+  if (settingsView === 'revealSecret') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="" back="manageWallet" />
+      <View style={{ padding:20 }}>
+        <View style={{ backgroundColor:'#2d1f00', borderRadius:12, padding:14, flexDirection:'row', alignItems:'flex-start', gap:10, marginBottom:20 }}>
+          <Ionicons name="warning-outline" size={16} color="#f0a500" />
+          <Text style={{ color:'#f0a500', fontSize:13, flex:1 }}>Keep this information secure. We will never request your secret phrase, which is securely stored on your device.</Text>
+        </View>
+        <Text style={{ color:C.text, fontSize:24, fontWeight:'bold', marginBottom:6 }}>
+          {revealType === 'key' ? 'Your private key' : 'Your seed phrase'}
+        </Text>
+        <Text style={{ color:C.muted, fontSize:13, marginBottom:20 }}>
+          {revealType === 'key' ? 'Please keep this private key safe and do not share with anyone.' : 'Please write down the following words in correct order. Keep it safe and do not share with anyone.'}
+        </Text>
+        <TouchableOpacity onPress={() => setRevealed(r => !r)}
+          style={{ backgroundColor:'#1c2128', borderRadius:16, padding:20, minHeight:120, alignItems:'center', justifyContent:'center', marginBottom:12 }}>
+          {!revealed ? (
+            <View style={{ alignItems:'center', gap:8 }}>
+              <View style={{ position:'absolute', top:0, left:0, right:0, bottom:0, borderRadius:16, backgroundColor:'rgba(13,17,23,0.7)' }} />
+              <Ionicons name="eye-off-outline" size={28} color={C.text} />
+              <Text style={{ color:C.text, fontWeight:'600' }}>Tap to view the {revealType === 'key' ? 'private key' : 'seed phrase'}</Text>
+              <Text style={{ color:C.muted, fontSize:12 }}>Make sure no one is looking at your screen.</Text>
+            </View>
+          ) : revealType === 'seed' ? (
+            <View style={{ flexDirection:'row', gap:12 }}>
+              <View style={{ flex:1, gap:8 }}>
+                {revealData.split(' ').slice(0, Math.ceil(revealData.split(' ').length/2)).map((w:string, i:number) => (
+                  <View key={i} style={{ flexDirection:'row', gap:6, alignItems:'center' }}>
+                    <Text style={{ color:C.muted, fontSize:11, width:18 }}>{i+1}.</Text>
+                    <Text style={{ color:C.text, fontSize:13 }}>{w}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={{ flex:1, gap:8 }}>
+                {revealData.split(' ').slice(Math.ceil(revealData.split(' ').length/2)).map((w:string, i:number) => (
+                  <View key={i} style={{ flexDirection:'row', gap:6, alignItems:'center' }}>
+                    <Text style={{ color:C.muted, fontSize:11, width:18 }}>{Math.ceil(revealData.split(' ').length/2)+i+1}.</Text>
+                    <Text style={{ color:C.text, fontSize:13 }}>{w}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : (
+            <Text style={{ color:C.text, fontSize:12, fontFamily:'monospace', textAlign:'center', lineHeight:20 }}>{revealData}</Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => { Clipboard.setString(revealData); Alert.alert('Copied','Copied to clipboard'); }}
+          style={{ backgroundColor:'#1c2128', borderRadius:14, padding:14, alignItems:'center', flexDirection:'row', justifyContent:'center', gap:8, marginBottom:16 }}>
+          <Ionicons name="copy-outline" size={16} color={C.text} />
+          <Text style={{ color:C.text, fontWeight:'500' }}>Copy</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setSettingsView('manageWallet')}
+          style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}>
+          <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Done</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
