@@ -8,7 +8,7 @@ import * as ExpoLinking from 'expo-linking';
 import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, signAndSendTransaction, rpcFetch } from './wallet';
+import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, deriveWalletAtIndex, signAndSendTransaction, rpcFetch } from './wallet';
 import nacl from 'tweetnacl';
 import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, signAndSendTx, resolveToken } from './sendMsg';
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices } from './wallet';
@@ -588,6 +588,9 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
   const [watchAddr, setWatchAddr] = React.useState('');
   const [watchName, setWatchName] = React.useState('');
   const [importSeedInput, setImportSeedInput] = React.useState('');
+  const [discoveredAccounts, setDiscoveredAccounts] = React.useState<any[]>([]);
+  const [selectedAccIdxs, setSelectedAccIdxs] = React.useState<number[]>([]);
+  const [discovering, setDiscovering] = React.useState(false);
   const [menuAccIdx, setMenuAccIdx] = React.useState<number|null>(null);
   const [managingAcc, setManagingAcc] = React.useState<any>(null);
   const [managingAccIdx, setManagingAccIdx] = React.useState<number>(-1);
@@ -2128,6 +2131,9 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
   const [watchAddr, setWatchAddr] = React.useState('');
   const [watchName, setWatchName] = React.useState('');
   const [importSeedInput, setImportSeedInput] = React.useState('');
+  const [discoveredAccounts, setDiscoveredAccounts] = React.useState<any[]>([]);
+  const [selectedAccIdxs, setSelectedAccIdxs] = React.useState<number[]>([]);
+  const [discovering, setDiscovering] = React.useState(false);
   const [menuAccIdx, setMenuAccIdx] = React.useState<number|null>(null);
   const [managingAcc, setManagingAcc] = React.useState<any>(null);
   const [managingAccIdx, setManagingAccIdx] = React.useState<number>(-1);
@@ -2565,6 +2571,77 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
     </ScrollView>
   );
 
+  if (settingsView === 'selectImportAccounts') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Select accounts to import" back="importPhrase" />
+      <View style={{ padding:20 }}>
+        <View style={{ alignItems:'center', marginBottom:24 }}>
+          <View style={{ width:64, height:64, borderRadius:32, backgroundColor:'#1c2128', alignItems:'center', justifyContent:'center', marginBottom:12 }}>
+            <Ionicons name="wallet-outline" size={28} color={C.text} />
+          </View>
+          <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', marginBottom:4 }}>
+            We've found {discoveredAccounts.filter((a:any)=>!a.imported).length} wallets with activity
+          </Text>
+          <Text style={{ color:C.muted, fontSize:13 }}>Select which accounts to import</Text>
+        </View>
+        <TouchableOpacity onPress={() => {
+          const nonImported = discoveredAccounts.filter((a:any)=>!a.imported).map((a:any)=>a.index);
+          setSelectedAccIdxs(selectedAccIdxs.length === nonImported.length ? [] : nonImported);
+        }} style={{ alignSelf:'flex-end', marginBottom:8 }}>
+          <Text style={{ color:C.green, fontWeight:'600' }}>
+            {selectedAccIdxs.length === discoveredAccounts.filter((a:any)=>!a.imported).length ? 'Deselect All' : 'Select All'}
+          </Text>
+        </TouchableOpacity>
+        <View style={{ backgroundColor:'#1c2128', borderRadius:16, overflow:'hidden' }}>
+          {discoveredAccounts.map((acc:any) => (
+            <TouchableOpacity key={acc.index} onPress={() => {
+              if(acc.imported) return;
+              setSelectedAccIdxs(prev => prev.includes(acc.index) ? prev.filter(i=>i!==acc.index) : [...prev, acc.index]);
+            }} style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+              <View style={{ width:40, height:40, borderRadius:20, backgroundColor:'#30363d', alignItems:'center', justifyContent:'center', marginRight:12 }}>
+                <Ionicons name="wallet-outline" size={18} color={C.text} />
+              </View>
+              <View style={{ flex:1 }}>
+                <Text style={{ color:C.text, fontWeight:'600', fontSize:14 }}>{acc.name}</Text>
+                <Text style={{ color:C.muted, fontSize:11 }}>{acc.imported ? 'Imported' : acc.balance > 0 ? '$'+acc.balance.toFixed(3) : '$0.00'}</Text>
+              </View>
+              {acc.imported
+                ? <Text style={{ color:C.muted, fontSize:12 }}>Imported</Text>
+                : <View style={{ width:22, height:22, borderRadius:6, borderWidth:2, borderColor: selectedAccIdxs.includes(acc.index) ? C.green : '#30363d', backgroundColor: selectedAccIdxs.includes(acc.index) ? C.green : 'transparent', alignItems:'center', justifyContent:'center' }}>
+                    {selectedAccIdxs.includes(acc.index) && <Ionicons name="checkmark" size={14} color="#0d1117" />}
+                  </View>
+              }
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+      <View style={{ paddingHorizontal:20 }}>
+        <TouchableOpacity onPress={async () => {
+          if(selectedAccIdxs.length === 0){ Alert.alert('Select at least one account'); return; }
+          try {
+            const raw = await AsyncStorage.getItem('accounts');
+            const existing = raw ? JSON.parse(raw) : [];
+            let updated = [...existing];
+            for(const idx of selectedAccIdxs) {
+              const acc = discoveredAccounts.find((a:any)=>a.index===idx);
+              if(!acc) continue;
+              const { publicKey: pk } = deriveWalletAtIndex(importSeedInput.trim(), idx);
+              updated.push({ id: updated.length+1, name: acc.name, mnemonic: importSeedInput.trim(), pubkey: pk, derivationIndex: idx });
+            }
+            await AsyncStorage.setItem('accounts', JSON.stringify(updated));
+            await AsyncStorage.setItem('active_acc', String(updated.length-1));
+            switchAccount(updated.length-1);
+            setImportSeedInput('');
+            setSettingsView('main');
+            Alert.alert('Imported', selectedAccIdxs.length + ' account(s) imported');
+          } catch(e) { Alert.alert('Error','Import failed'); }
+        }} style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', marginTop:16 }}>
+          <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Import</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+
   if (settingsView === 'importPhrase') return (
     <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
       <Header title="Import Recovery Phrase" back="addAccount" />
@@ -2580,21 +2657,29 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
           const words = importSeedInput.trim().split(/\s+/);
           if(words.length !== 12 && words.length !== 24){ Alert.alert('Invalid','Enter a valid 12 or 24 word seed phrase'); return; }
           try {
-            const { publicKey: pk } = deriveWallet(importSeedInput.trim());
+            setDiscovering(true);
             const raw = await AsyncStorage.getItem('accounts');
             const existing = raw ? JSON.parse(raw) : [];
-            const dupIdx = existing.findIndex((a:any) => a.pubkey === pk || a.mnemonic === importSeedInput.trim());
-            if(dupIdx !== -1){ switchAccount(dupIdx); setImportSeedInput(''); setSettingsView('main'); Alert.alert('Already exists','Switched to existing account'); return; }
-            const newAcc = { id: existing.length+1, name:'Account '+(existing.length+1), mnemonic: importSeedInput.trim(), pubkey: pk };
-            const updated = [...existing, newAcc];
-            await AsyncStorage.setItem('accounts', JSON.stringify(updated));
-            await AsyncStorage.setItem('active_acc', String(existing.length));
-            switchAccount(updated.length-1);
-            setImportSeedInput('');
-            setSettingsView('main');
-          } catch { Alert.alert('Error','Invalid seed phrase'); }
-        }} style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center' }}>
-          <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Import</Text>
+            const found: any[] = [];
+            for(let i = 0; i < 20; i++) {
+              try {
+                const { publicKey: pk } = deriveWalletAtIndex(importSeedInput.trim(), i);
+                const alreadyImported = existing.find((a:any) => a.pubkey === pk);
+                let balance = 0;
+                try {
+                  const res = await rpcFetch('getBalance', [pk, {commitment:'confirmed'}]);
+                  balance = (res?.value||0) / 1e9;
+                } catch(e) {}
+                found.push({ index: i, pubkey: pk, balance, name: alreadyImported?.name||('Account '+(i+1)), imported: !!alreadyImported });
+              } catch(e) { break; }
+            }
+            setDiscoveredAccounts(found);
+            setSelectedAccIdxs(found.filter((a:any) => !a.imported && a.balance > 0).map((a:any) => a.index));
+            setDiscovering(false);
+            setSettingsView('selectImportAccounts');
+          } catch { setDiscovering(false); Alert.alert('Error','Invalid seed phrase'); }
+        }} style={{ backgroundColor:C.green, borderRadius:14, padding:16, alignItems:'center', opacity: discovering ? 0.6 : 1 }} disabled={discovering}>
+          {discovering ? <ActivityIndicator color="#0d1117" /> : <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:16 }}>Import</Text>}
         </TouchableOpacity>
       </View>
     </ScrollView>
