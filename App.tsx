@@ -1772,7 +1772,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
       )}
     </View>
   );
-});
+}
 
 export default function App() {
   const [mwaInitUrl, setMwaInitUrl] = React.useState<string|null>(null);
