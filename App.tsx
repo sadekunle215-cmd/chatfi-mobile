@@ -4920,7 +4920,7 @@ https://solscan.io/tx/${sig}` }]);
       />
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
-      {tab !== 'dapp' && <View style={s.header}>
+      {tab !== 'dapp' && tab !== 'settings' && <View style={s.header}>
         <View style={s.logoRow}>
           
           <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />{userName ? <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{userName}</Text> : null}</TouchableOpacity>
