@@ -2153,7 +2153,7 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
   );
 
   if (settingsView === 'main') return (
-    <ScrollView style={s.pad} contentContainerStyle={{ paddingBottom:100 }}>
+    <ScrollView style={[s.pad, {paddingTop:(StatusBar.currentHeight||0)+8}]} contentContainerStyle={{ paddingBottom:100 }}>
       {[
         { label:'General', sub:'Language, currency, network', icon:'settings-outline', onPress: () => setSettingsView('general') },
         { label:'Manage Accounts', sub:'Add, import or watch accounts', icon:'people-outline', onPress: () => setSettingsView('manageAccounts') },
