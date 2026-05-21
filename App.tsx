@@ -2194,7 +2194,7 @@ export default function App() {
         </TouchableOpacity>
       </View>
     );
-  };
+  });
 
   const MigrateEarnCard = React.memo(({card,pubkey,wallet,deriveWallet,requireAuth,rpcFetch,showToast,fetchPortfolio,setMsgs,C,s}:any) => {
     const {migrations=[],allVaults=[]}=card.data||{};
@@ -2280,7 +2280,7 @@ export default function App() {
         )}
       </View>
     );
-  };
+  });
 
   const renderCard = React.useCallback((card: any) => {
     const { type, data, onConfirm, onCancel, status } = card;
