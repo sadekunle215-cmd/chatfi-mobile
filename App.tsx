@@ -198,6 +198,26 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
   const [pairData, setPairData] = React.useState<any>(null);
   const [timeframe, setTimeframe] = React.useState('1D');
   const [insights, setInsights] = React.useState('');
+  const [isFavorite, setIsFavorite] = React.useState(false);
+  const [showShareCard, setShowShareCard] = React.useState(false);
+  const [shareBg, setShareBg] = React.useState<string|null>(null);
+
+  React.useEffect(() => {
+    if (!token) return;
+    AsyncStorage.getItem('favorites').then(raw => {
+      const favs = raw ? JSON.parse(raw) : [];
+      setIsFavorite(favs.some((f:any) => f.mint === token.mint));
+    });
+  }, [token?.mint]);
+
+  const toggleFavorite = async () => {
+    const raw = await AsyncStorage.getItem('favorites');
+    const favs = raw ? JSON.parse(raw) : [];
+    const exists = favs.some((f:any) => f.mint === token.mint);
+    const updated = exists ? favs.filter((f:any) => f.mint !== token.mint) : [...favs, {mint: token.mint, symbol: token.symbol, logoURI: token.logoURI}];
+    await AsyncStorage.setItem('favorites', JSON.stringify(updated));
+    setIsFavorite(!exists);
+  };
 
   React.useEffect(() => {
     if (!token) return;
@@ -219,13 +239,55 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
   const liquidity = pairData?.liquidity?.usd;
   const holders = pairData?.info?.holders;
   const orgScore = pairData?.info?.openGraph?.score ?? 0;
+  const [holderCount, setHolderCount] = React.useState<any>(null);
+  const [topHolders, setTopHolders] = React.useState<any[]>([]);
+  const [activeTab, setActiveTab] = React.useState('Overview');
+  const [liveFeed, setLiveFeed] = React.useState<any[]>([]);
+  const [feedLoading, setFeedLoading] = React.useState(false);
+
+  const fetchTopHolders = async () => {
+    try {
+      const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${token.mint}`);
+      const d = await r.json();
+      const pair = d?.pairs?.[0];
+      if (pair?.info?.holders) setTopHolders(pair.info.holders.slice(0,20));
+    } catch(e) {}
+  };
+
+  const fetchLiveFeed = async () => {
+    setFeedLoading(true);
+    try {
+      const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${token.mint}`);
+      const d = await r.json();
+      const pair = d?.pairs?.[0];
+      if (pair?.txns) {
+        const txns = [...(pair.txns.h1?.buys||[]), ...(pair.txns.h1?.sells||[])];
+        setLiveFeed(txns.slice(0,20));
+      }
+    } catch(e) {}
+    setFeedLoading(false);
+  };
+
+  React.useEffect(() => {
+    if (!token?.mint) return;
+    fetch(`https://api.dexscreener.com/latest/dex/tokens/${token.mint}`)
+      .then(r => r.json())
+      .then(d => {
+        const pair = d?.pairs?.[0];
+        if (pair?.info?.holders) setHolderCount(pair.info.holders);
+      }).catch(() => {});
+    fetch(`https://tokens.jup.ag/token/${token.mint}`)
+      .then(r => r.json())
+      .then(d => { if (d?.holderCount) setHolderCount(d.holderCount); })
+      .catch(() => {});
+  }, [token?.mint]);
   const twitter = pairData?.info?.socials?.find((s:any)=>s.type==='twitter')?.url;
   const website = pairData?.info?.websites?.[0]?.url;
   const positionVal = token.amount * (token.price || 0);
   const positionChange = positionVal - (token.amount * (token.avgBuy || token.price || 0));
   const fmt = (n:number) => n >= 1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n >= 1e3 ? '$'+(n/1e3).toFixed(2)+'K' : '$'+n?.toFixed(2);
   const tfMap: Record<string,string> = {'1H':'15','1D':'60','1W':'240','1M':'1D','YTD':'1W'};
-  const chartUrl = `https://birdeye.so/tv-widget/${token.mint}?chain=solana&viewMode=pair&chartInterval=${tfMap[timeframe]||'60'}&chartType=line&chartTimezone=UTC&chartLeftToolbar=hide&theme=dark`;
+  const chartUrl = `https://www.geckoterminal.com/solana/pools/${pairData?.pairAddress||token.mint}?embed=1&info=0&swaps=0&grayscale=0&light_chart=0`;
 
   return (
     <Modal visible={!!token} animationType="slide" transparent={false} onRequestClose={onClose}>
@@ -246,7 +308,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                 <Text style={{color:C.muted,fontSize:11}}>{token.mint?token.mint.slice(0,8)+'...'+token.mint.slice(-4):''}</Text>
               </View>
               <TouchableOpacity style={{padding:8}}>
-                <Ionicons name="star-outline" size={22} color={C.text}/>
+                <TouchableOpacity onPress={toggleFavorite}><Ionicons name={isFavorite?"star":"star-outline"} size={22} color={isFavorite?C.green:C.text}/></TouchableOpacity>
               </TouchableOpacity>
               <TouchableOpacity style={{padding:8}}>
                 <Ionicons name="ellipsis-horizontal" size={22} color={C.text}/>
@@ -273,7 +335,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               <View style={{width:1,backgroundColor:C.border}}/>
               <View style={{alignItems:'center'}}>
                 <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>HOLDERS</Text>
-                <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{holders||'—'}</Text>
+                <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{holderCount||holders||'—'}</Text>
               </View>
               <View style={{width:1,backgroundColor:C.border}}/>
               <View style={{alignItems:'center'}}>
@@ -306,22 +368,58 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
             </View>
             <View style={{flexDirection:'row',borderBottomWidth:1,borderBottomColor:C.border}}>
               {['Overview','Terminal','Live Feed'].map(tab=>(
-                <TouchableOpacity key={tab} style={{flex:1,paddingVertical:12,alignItems:'center',borderBottomWidth:2,borderBottomColor:tab==='Overview'?C.green:'transparent'}}>
-                  <Text style={{color:tab==='Overview'?C.green:C.muted,fontSize:14,fontWeight:'600'}}>{tab}</Text>
+                <TouchableOpacity key={tab} onPress={()=>{
+                  setActiveTab(tab);
+                  if(tab==='Terminal') fetchTopHolders();
+                  if(tab==='Live Feed') fetchLiveFeed();
+                }} style={{flex:1,paddingVertical:12,alignItems:'center',borderBottomWidth:2,borderBottomColor:tab===activeTab?C.green:'transparent'}}>
+                  <Text style={{color:tab===activeTab?C.green:C.muted,fontSize:14,fontWeight:'600'}}>{tab}</Text>
                 </TouchableOpacity>
               ))}
             </View>
             <ScrollView style={{flex:1}} showsVerticalScrollIndicator={false}>
-              {token.amount > 0 && (
+              {activeTab==='Terminal' && (
+                <View style={{padding:16}}>
+                  <Text style={{color:C.text,fontWeight:'bold',fontSize:16,marginBottom:12}}>Top Holders</Text>
+                  {topHolders.length===0 ? (
+                    <View style={{alignItems:'center',padding:32}}>
+                      <ActivityIndicator color={C.green}/>
+                      <Text style={{color:C.muted,marginTop:8}}>Loading holders...</Text>
+                    </View>
+                  ) : topHolders.map((h:any,i:number)=>(
+                    <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.border}}>
+                      <Text style={{color:C.muted,fontSize:12,width:24}}>{i+1}</Text>
+                      <Text style={{color:C.green,fontSize:12,flex:1,fontFamily:'monospace'}}>{h.address?h.address.slice(0,6)+'...'+h.address.slice(-4):h}</Text>
+                      <Text style={{color:C.text,fontSize:12}}>{h.pct?h.pct.toFixed(2)+'%':''}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {activeTab==='Live Feed' && (
+                <View style={{padding:16}}>
+                  <Text style={{color:C.text,fontWeight:'bold',fontSize:16,marginBottom:12}}>Live Feed</Text>
+                  {feedLoading ? (
+                    <View style={{alignItems:'center',padding:32}}>
+                      <ActivityIndicator color={C.green}/>
+                      <Text style={{color:C.muted,marginTop:8}}>Loading trades...</Text>
+                    </View>
+                  ) : (
+                    <View style={{backgroundColor:C.card,borderRadius:12,padding:16,alignItems:'center'}}>
+                      <Text style={{color:C.muted,textAlign:'center'}}>Live trading data coming soon</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+              {activeTab==='Overview' && token.amount > 0 && (
                 <View style={{margin:16,backgroundColor:C.card,borderRadius:16,padding:16}}>
                   <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                     <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
                       <Ionicons name="bar-chart-outline" size={16} color={C.green}/>
                       <Text style={{color:C.green,fontWeight:'700',fontSize:14}}>Position</Text>
                     </View>
-                    <TouchableOpacity style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                    <TouchableOpacity onPress={()=>setShowShareCard(true)} style={{flexDirection:'row',alignItems:'center',gap:4}}>
                       <Ionicons name="share-outline" size={14} color={C.muted}/>
-                      <Text style={{color:C.muted,fontSize:13}}>Share</Text>
+                      <Text style={{color:C.muted,fontSize:13}} numberOfLines={1}>Share</Text>
                     </TouchableOpacity>
                   </View>
                   <Text style={{color:C.text,fontWeight:'bold',fontSize:22}}>{fmt(positionVal)}</Text>
@@ -337,7 +435,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                     <TouchableOpacity onPress={()=>Linking.openURL(twitter)}
                       style={{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:8}}>
                       <Ionicons name="logo-twitter" size={14} color={C.text}/>
-                      <Text style={{color:C.text,fontSize:13}}>Twitter</Text>
+                      <Text style={{color:C.text,fontSize:13}} numberOfLines={1}>Twitter</Text>
                     </TouchableOpacity>
                   )}
                   {website && (
@@ -355,6 +453,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                   <Text style={{color:C.muted,fontSize:14,lineHeight:22}}>{insights}</Text>
                 </View>
               ) : null}
+              )}
             </ScrollView>
             <View style={{flexDirection:'row',gap:10,padding:16,borderTopWidth:1,borderTopColor:C.border}}>
               <TouchableOpacity onPress={()=>setView('receive')}
@@ -372,6 +471,74 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
             </View>
           </View>
         )}
+        {showShareCard && (
+          <Modal visible={showShareCard} transparent animationType="fade" onRequestClose={()=>setShowShareCard(false)}>
+            <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'center',alignItems:'center',padding:24}}>
+              <View style={{width:'100%',borderRadius:20,overflow:'hidden',marginBottom:16}}>
+                {shareBg ? (
+                  <Image source={{uri:shareBg}} style={{position:'absolute',width:'100%',height:'100%',opacity:0.4}}/>
+                ) : (
+                  <View style={{position:'absolute',width:'100%',height:'100%',backgroundColor:'#1a1a2e'}}/>
+                )}
+                <View style={{padding:24}}>
+                  <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:24}}>
+                    <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
+                      <TokLogo uri={token.logoURI||''} symbol={token.symbol} style={{width:40,height:40,borderRadius:20}} mint={token.mint}/>
+                      <View>
+                        <Text style={{color:'#fff',fontWeight:'bold',fontSize:18}}>{token.symbol}</Text>
+                        <Text style={{color:'rgba(255,255,255,0.6)',fontSize:12}}>{token.mint?.slice(0,4)+'...'+token.mint?.slice(-4)}</Text>
+                      </View>
+                    </View>
+                    <Text style={{color:'rgba(255,255,255,0.6)',fontSize:12}}>{new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</Text>
+                  </View>
+                  <Text style={{color:positionChange>=0?'#4ade80':'#f87171',fontWeight:'bold',fontSize:42,marginBottom:4}}>
+                    {positionChange>=0?'+':'-'}${Math.abs(positionChange).toFixed(3)}
+                  </Text>
+                  <Text style={{color:positionChange>=0?'#4ade80':'#f87171',fontSize:20,marginBottom:24}}>
+                    {positionChange>=0?'+':''}{positionVal>0?((positionChange/positionVal)*100).toFixed(1):0}%
+                  </Text>
+                  <View style={{flexDirection:'row',gap:24,marginBottom:24}}>
+                    <View>
+                      <Text style={{color:'rgba(255,255,255,0.5)',fontSize:12}}>Bought</Text>
+                      <Text style={{color:'#4ade80',fontWeight:'bold',fontSize:16}}>+${positionVal.toFixed(2)}</Text>
+                    </View>
+                    <View>
+                      <Text style={{color:'rgba(255,255,255,0.5)',fontSize:12}}>Mark Price</Text>
+                      <Text style={{color:'#fff',fontWeight:'bold',fontSize:16}}>${Number(price||0).toFixed(Number(price||0)<0.01?6:4)}</Text>
+                    </View>
+                    <View>
+                      <Text style={{color:'rgba(255,255,255,0.5)',fontSize:12}}>Entry Price</Text>
+                      <Text style={{color:'#fff',fontWeight:'bold',fontSize:16}}>${Number(token.avgBuy||price||0).toFixed(Number(token.avgBuy||0)<0.01?6:4)}</Text>
+                    </View>
+                  </View>
+                  <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                    <Text style={{color:'rgba(255,255,255,0.5)',fontSize:12}}>chatfi.pro</Text>
+                    <Text style={{color:'rgba(255,255,255,0.4)',fontSize:11}}>View your PnL on ChatFI today.</Text>
+                  </View>
+                </View>
+              </View>
+              <View style={{flexDirection:'row',gap:12,width:'100%',marginBottom:16}}>
+                <TouchableOpacity onPress={async()=>{
+                  const {launchImageLibraryAsync,MediaTypeOptions} = require('expo-image-picker');
+                  const r = await launchImageLibraryAsync({mediaTypes:MediaTypeOptions.Images,quality:0.8});
+                  if(!r.canceled) setShareBg(r.assets[0].uri);
+                }} style={{width:80,height:80,backgroundColor:C.card,borderRadius:12,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.border}}>
+                  {shareBg ? <Image source={{uri:shareBg}} style={{width:80,height:80,borderRadius:12}}/> : <Ionicons name="add" size={32} color={C.muted}/>}
+                </TouchableOpacity>
+              </View>
+              <View style={{flexDirection:'row',gap:12,width:'100%'}}>
+                <TouchableOpacity onPress={()=>setShowShareCard(false)}
+                  style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:16,alignItems:'center'}}>
+                  <Text style={{color:C.text,fontWeight:'600'}}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{flex:1,backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center'}}>
+                  <Text style={{color:'#0d1117',fontWeight:'bold'}}>Share</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        )}
+
         {view === 'receive' && (
           <ScrollView contentContainerStyle={{padding:16,paddingTop:(StatusBar.currentHeight||0)+16}}>
             <TouchableOpacity onPress={()=>setView('overview')} style={{marginBottom:16}}>
