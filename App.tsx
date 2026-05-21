@@ -2145,8 +2145,8 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
 
   const Header = ({ title, back }: any) => (
     <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
-      <TouchableOpacity onPress={() => setSettingsView(back)} style={{ marginRight:12 }}>
-        <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
+      <TouchableOpacity onPress={() => setSettingsView(back)} style={{ marginRight:12, padding:8, borderRadius:20, backgroundColor:'#1c2128' }}>
+        <Ionicons name="arrow-back" size={22} color={C.text} />
       </TouchableOpacity>
       <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>{title}</Text>
     </View>
