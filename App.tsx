@@ -1772,7 +1772,7 @@ const SwapScreen = React.memo(function SwapScreen({wallet,pubkey,tokenBalances,s
       )}
     </View>
   );
-}
+});
 
 export default function App() {
   const [mwaInitUrl, setMwaInitUrl] = React.useState<string|null>(null);
