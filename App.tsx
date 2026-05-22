@@ -2246,33 +2246,37 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
   );
 
   if (settingsView === 'main') return (
-    <ScrollView style={s.pad} contentContainerStyle={{ paddingBottom:100 }}>
-      <View style={{ flexDirection:'row', alignItems:'center', padding:20, paddingTop:(StatusBar.currentHeight||0)+16, borderBottomWidth:1, borderBottomColor:'#30363d', marginBottom:8 }}>
-        <Text style={{ color:C.text, fontSize:22, fontWeight:'bold', flex:1 }}>Settings</Text>
-        <Ionicons name="settings-outline" size={22} color={C.green} />
+    <ScrollView style={{ flex:1, backgroundColor:C.bg }} contentContainerStyle={{ paddingBottom:100 }}>
+      <View style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:20, paddingTop:(StatusBar.currentHeight||0)+16, paddingBottom:20 }}>
+        <View style={{ width:44, height:44, borderRadius:22, backgroundColor:'#1c2128', alignItems:'center', justifyContent:'center' }}>
+          {(accounts||[])[activeAccIdx]?.avatar
+            ? <Text style={{fontSize:22}}>{(accounts||[])[activeAccIdx].avatar}</Text>
+            : <Text style={{color:C.text,fontWeight:'bold',fontSize:16}}>{((accounts||[])[activeAccIdx]?.name||'U')[0].toUpperCase()}</Text>
+          }
+        </View>
+        <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1, textAlign:'center' }}>Settings</Text>
+        <View style={{ width:44 }} />
       </View>
       {[
-        { label:'General', sub:'Language, currency, network', icon:'settings-outline', onPress: () => setSettingsView('general') },
+        { label:'General', sub:'Edit language and currency', icon:'options-outline', onPress: () => setSettingsView('general') },
         { label:'Manage Accounts', sub:'Add, import or watch accounts', icon:'people-outline', onPress: () => setSettingsView('manageAccounts') },
-        { label:'Notifications', sub:'Alerts and updates', icon:'notifications-outline', onPress: () => setSettingsView('notifications') },
-        { label:'Security & Privacy', sub:'Passcode, terms, privacy', icon:'shield-outline', onPress: () => setSettingsView('security') },
-        { label:'Support', sub:'Contact our support', icon:'help-circle-outline', onPress: () => {} },
-      ].map((item, i, arr) => (
+        { label:'Notifications', sub:'Get important updates', icon:'notifications-outline', onPress: () => setSettingsView('notifications') },
+        { label:'Security & Privacy', sub:'Manage apps and more', icon:'shield-outline', onPress: () => setSettingsView('security') },
+        { label:'Support', sub:'Contact our customer support', icon:'help-circle-outline', onPress: () => {} },
+      ].map((item, i) => (
         <TouchableOpacity key={i} onPress={item.onPress}
-          style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:16, paddingVertical:16,
-            borderBottomWidth: i < arr.length-1 ? 1 : 0, borderBottomColor:'#30363d',
-            backgroundColor:'#1c2128', marginBottom: i === arr.length-1 ? 0 : 1 }}>
-          <View style={{ width:36, height:36, borderRadius:18, backgroundColor:'#0d1117', alignItems:'center', justifyContent:'center', marginRight:14 }}>
-            <Ionicons name={item.icon as any} size={18} color={C.green} />
+          style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:20, paddingVertical:18 }}>
+          <View style={{ width:36, height:36, alignItems:'center', justifyContent:'center', marginRight:16 }}>
+            <Ionicons name={item.icon as any} size={22} color={C.text} />
           </View>
           <View style={{ flex:1 }}>
-            <Text style={{ color:C.text, fontSize:15 }}>{item.label}</Text>
-            <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{item.sub}</Text>
+            <Text style={{ color:C.text, fontSize:16, fontWeight:'600' }}>{item.label}</Text>
+            <Text style={{ color:C.muted, fontSize:13, marginTop:2 }}>{item.sub}</Text>
           </View>
-          <Text style={{ color:C.muted, fontSize:18 }}>›</Text>
+          <Ionicons name="chevron-forward" size={18} color={C.muted} />
         </TouchableOpacity>
       ))}
-      <Text style={{ color:C.muted, fontSize:11, textAlign:'center', marginTop:24 }}>Version 1.0.0</Text>
+      <Text style={{ color:C.muted, fontSize:12, textAlign:'center', marginTop:32 }}>Version 1.0.0</Text>
     </ScrollView>
   );
 
