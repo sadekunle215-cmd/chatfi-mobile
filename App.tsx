@@ -652,17 +652,23 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
 
               {/* Accounts */}
               <Text style={{ color:C.muted, fontSize:11, fontWeight:'600', paddingHorizontal:16, marginBottom:8, letterSpacing:1, paddingRight: 2 }}>YOUR ACCOUNTS</Text>
-              <View style={{ marginHorizontal:16, backgroundColor:'#1c2128', borderRadius:14, marginBottom:16 }}>
-                <View style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
-                  <View style={{ width:40, height:40, borderRadius:20, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-                    <Text style={{ color:'#0d1117', fontWeight:'bold' }}>CF</Text>
-                  </View>
-                  <View style={{ flex:1 }}>
-                    <Text style={{ color:C.text, fontWeight:'600' }}>Account 1</Text>
-                    <Text style={{ color:C.muted, fontSize:12 }}>{short}</Text>
-                  </View>
-                  <Text style={{ color:C.green, fontSize:16 }}>✓</Text>
-                </View>
+              <View style={{ marginHorizontal:16, backgroundColor:'#1c2128', borderRadius:14, marginBottom:16, overflow:'hidden' }}>
+                {(accounts||[]).map((acc:any, idx:number) => (
+                  <TouchableOpacity key={idx} onPress={() => { switchAccount(idx); onClose(); }}
+                    style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth: idx < (accounts||[]).length-1 ? 1 : 0, borderBottomColor:'#30363d' }}>
+                    <View style={{ width:40, height:40, borderRadius:20, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
+                      {acc.avatar
+                        ? <Text style={{fontSize:22}}>{acc.avatar}</Text>
+                        : <Text style={{ color:'#0d1117', fontWeight:'bold' }}>{acc.name?.[0]||'A'}</Text>
+                      }
+                    </View>
+                    <View style={{ flex:1 }}>
+                      <Text style={{ color:C.text, fontWeight:'600' }}>{acc.name}</Text>
+                      <Text style={{ color:C.muted, fontSize:12 }}>{(acc.pubkey||'').slice(0,6)+'...'+(acc.pubkey||'').slice(-4)}</Text>
+                    </View>
+                    {idx === activeAccIdx && <Text style={{ color:C.green, fontSize:16 }}>✓</Text>}
+                  </TouchableOpacity>
+                ))}
               </View>
             </ScrollView>
           )}
