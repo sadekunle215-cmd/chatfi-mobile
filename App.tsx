@@ -5557,7 +5557,9 @@ https://solscan.io/tx/${sig}` }]);
           nacl={nacl}
           deriveWallet={deriveWallet}
           executeSwapTx={async (quote:any, fromTok:any, toTok:any, amt:number) => {
-            const { publicKey: pk2, secretKey: sk2 } = deriveWallet(wallet!);
+            const _acc = accounts[activeAccIdx];
+            if (!_acc || _acc.watchOnly) throw new Error('Watch-only account cannot swap');
+            const { publicKey: pk2, secretKey: sk2 } = deriveWallet(_acc.mnemonic || wallet!);
             return executeSwapTx(fromTok.mint, toTok.mint, amt, fromTok.decimals||6, pk2, sk2, 'https://api.mainnet-beta.solana.com');
           }}
           fetchPortfolio={fetchPortfolio}
@@ -5651,7 +5653,17 @@ https://solscan.io/tx/${sig}` }]);
 
             {/* DAPP BROWSER */}
         <View style={{flex:1, display: tab === 'dapp' ? 'flex' : 'none'}}>
-          <DappBrowser walletAddress={pubkey} secretKey={wallet ? deriveWallet(wallet).secretKey : null} wallet={wallet} mwaInitUrl={mwaInitUrl} onMwaHandled={() => setMwaInitUrl(null)} />
+          <DappBrowser
+          walletAddress={accounts[activeAccIdx]?.pubkey || pubkey}
+          secretKey={(() => {
+            const _a = accounts[activeAccIdx];
+            if (!_a || _a.watchOnly) return null;
+            try { return deriveWallet(_a.mnemonic || wallet || '').secretKey; } catch { return null; }
+          })()}
+          wallet={accounts[activeAccIdx]?.mnemonic || wallet}
+          mwaInitUrl={mwaInitUrl}
+          onMwaHandled={() => setMwaInitUrl(null)}
+        />
         </View>
         {/* SETTINGS */}
       {tab === 'settings' && (
