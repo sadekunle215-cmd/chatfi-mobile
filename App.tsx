@@ -2832,6 +2832,14 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
             const raw = await AsyncStorage.getItem('accounts');
             const existing = raw ? JSON.parse(raw) : [];
             const found: any[] = [];
+            // Always include first account regardless of activity
+            try {
+              const { publicKey: pk0 } = deriveWalletAtIndex(importSeedInput.trim(), 0);
+              const alreadyImported0 = existing.find((a:any) => a.pubkey === pk0);
+              const balRes0 = await rpcFetch('getBalance', [pk0, {commitment:'confirmed'}]).catch(()=>null);
+              const balance0 = (balRes0?.value||0) / 1e9;
+              found.push({ index: 0, pubkey: pk0, balance: balance0, name: alreadyImported0?.name||'Account 1', imported: !!alreadyImported0 });
+            } catch(e) {}
             let emptyStreak = 0;
             for(let i = 0; i < 20; i++) {
               try {
@@ -2849,7 +2857,7 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
                   emptyStreak = 0;
                 } else {
                   emptyStreak++;
-                  if(emptyStreak >= 2) break;
+                  if(emptyStreak >= 5) break;
                 }
               } catch(e) { break; }
             }
