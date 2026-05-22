@@ -3278,34 +3278,23 @@ export default function App() {
           amount: t.amount,
           logoURI: t.logoURI || 'https://img.jup.ag/tokens/'+t.mint,
           price: t.price || 0,
-          isVerified: t.isVerified || verifiedMints.has(t.mint) || false,
+          isVerified: t.isVerified || false,
         }));
         const sol = tokens.find((t:any) => t.symbol === 'SOL');
         setSolBalance(sol?.amount || 0);
         setSolPrice(sol?.price || 0);
         setTokenBalances(tokens);
-        // Fetch logos for tokens missing them
-        const missingLogo = tokens.filter((t:any) => !t.logoURI || t.logoURI.includes('img.jup.ag/tokens/'+t.mint));
-        if (missingLogo.length > 0) {
-          missingLogo.forEach(async (t:any) => {
-            try {
-              const r = await fetch('https://api.jup.ag/tokens/v1/token/'+t.mint);
-              const d = await r.json();
-              if (d.logoURI) {
-                setTokenBalances(prev => prev.map(tok => tok.mint === t.mint ? {...tok, logoURI: d.logoURI} : tok));
-              }
-            } catch(e) {}
-          });
-        }
+        setTotalUSD(tokens.reduce((s:number,t:any)=>s+(Number(t.amount)||0)*(Number(t.price)||0),0));
+        await AsyncStorage.setItem(cacheKey, JSON.stringify({ tokens, ts: Date.now() }));
       }
-      try {
-        const mints=data.tokens.map((t:any)=>t.mint).filter(Boolean).join(",");
-        const pr=await fetch('https://lite-api.jup.ag/price/v3?ids='+mints);
+      if(false){
+        const mints='';
+        const pr=await fetch('');
         const pd=await pr.json();
         if(pd){
-          const solMint="So11111111111111111111111111111111111111112";
-          setSolPrice(pd[solMint]?.usdPrice||0);
-          const updated=data.tokens.map((t:any)=>({...t,price:pd[t.mint]?.usdPrice||t.price||0}));
+          const solMint="";
+          setSolPrice(0);
+          const updated=data.tokens;
           setTokenBalances(updated);
           setTotalUSD(updated.reduce((s:number,t:any)=>s+(Number(t.amount)||0)*(Number(t.price)||0),0));
         }
