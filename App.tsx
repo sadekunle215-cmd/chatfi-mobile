@@ -5335,7 +5335,7 @@ https://solscan.io/tx/${sig}` }]);
         </TouchableOpacity>
       </View>}
 
-      <KeyboardAvoidingView style={s.content} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
+      <KeyboardAvoidingView style={s.content} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
 
         {/* CHAT */}
         <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:9999,display:showChat?'flex':'none',backgroundColor:C.bg}}>
