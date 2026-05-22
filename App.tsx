@@ -2164,7 +2164,7 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
   );
 
   if (settingsView === 'main') return (
-    <ScrollView style={s.pad} contentContainerStyle={{ paddingBottom:100 }}>
+    <ScrollView style={s.pad} contentContainerStyle={{ paddingBottom:100, paddingTop:(StatusBar.currentHeight||0)+8 }}>
       {[
         { label:'General', sub:'Language, currency, network', icon:'settings-outline', onPress: () => setSettingsView('general') },
         { label:'Manage Accounts', sub:'Add, import or watch accounts', icon:'people-outline', onPress: () => setSettingsView('manageAccounts') },
@@ -2383,8 +2383,8 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
   if (settingsView === 'manageAccounts') return (
     <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
       <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
-        <TouchableOpacity onPress={() => setSettingsView('main')} style={{ marginRight:12 }}>
-          <Text style={{ color:C.text, fontSize:20 }}>‹</Text>
+        <TouchableOpacity onPress={() => setSettingsView('main')} style={{ marginRight:12, padding:8, borderRadius:20, backgroundColor:'#1c2128' }}>
+          <Ionicons name="arrow-back" size={22} color={C.text} />
         </TouchableOpacity>
         <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', flex:1 }}>Manage Accounts</Text>
         <TouchableOpacity onPress={() => setSettingsView('addAccount')}
