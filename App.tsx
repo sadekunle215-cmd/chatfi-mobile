@@ -2801,10 +2801,19 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
         <TouchableOpacity onPress={async () => {
           if(!privKeyInput.trim()){ Alert.alert('Error','Enter a private key'); return; }
           try {
-            const keyBytes = Uint8Array.from(JSON.parse(privKeyInput.trim()));
-            const kp = nacl.sign.keyPair.fromSecretKey(keyBytes);
             const ALPHA='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
             const bs58=(b:Uint8Array)=>{const d:number[]=[],carry=0;let c=carry;for(let i=0;i<b.length;i++){c=b[i];for(let j=0;j<d.length;j++){c+=d[j]<<8;d[j]=c%58;c=Math.floor(c/58);}while(c>0){d.push(c%58);c=Math.floor(c/58);}}return b.slice(0,b.findIndex((x:number)=>x!==0)).map(()=>'1').join('')+d.reverse().map((x:number)=>ALPHA[x]).join('');};
+            const decodeBase58=(s:string)=>{const d=new Uint8Array(64);let i,j,c;let carry=0;const out=[];for(i=0;i<s.length;i++){c=ALPHA.indexOf(s[i]);if(c<0)throw new Error('bad char');carry=c;for(j=out.length-1;j>=0;j--){carry+=58*out[j];out[j]=carry&0xff;carry>>=8;}while(carry>0){out.unshift(carry&0xff);carry>>=8;}}for(i=0;i<s.length&&s[i]==='1';i++)out.unshift(0);return new Uint8Array(out);};
+            let keyBytes: Uint8Array;
+            const raw = privKeyInput.trim();
+            if(raw.startsWith('[')){
+              keyBytes = Uint8Array.from(JSON.parse(raw));
+            } else {
+              // base58 encoded private key
+              const decoded = decodeBase58(raw);
+              keyBytes = decoded.length === 64 ? decoded : decoded.slice(0, 64);
+            }
+            const kp = nacl.sign.keyPair.fromSecretKey(keyBytes);
             const pk = bs58(kp.publicKey);
             const raw = await AsyncStorage.getItem('accounts');
             const existing = raw ? JSON.parse(raw) : [];
