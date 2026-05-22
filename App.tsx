@@ -3064,7 +3064,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (pubkey && tab === 'portfolio') { if (!lastFetch.current || Date.now() - lastFetch.current > 30000) { fetchPortfolio(); fetchTxHistory(); } }
+    if (pubkey && tab === 'portfolio') { if (!lastFetch.current || Date.now() - lastFetch.current > 120000) { fetchPortfolio(); fetchTxHistory(); } }
   }, [pubkey, tab]);
 
   const addAccount = async () => {
@@ -3113,7 +3113,7 @@ export default function App() {
         const cached = await AsyncStorage.getItem(cacheKey);
         if (cached) {
           const { tokens: ct, ts } = JSON.parse(cached);
-          if (ct && Date.now() - ts < 300000) {
+          if (ct && Date.now() - ts < 600000) {
             const sol = ct.find((t:any) => t.symbol === 'SOL');
             setSolBalance(sol?.amount || 0);
             setSolPrice(sol?.price || 0);
@@ -3127,11 +3127,20 @@ export default function App() {
     try {
       let verifiedMints = new Set<string>();
       try {
-        const vr = await fetch('https://tokens.jup.ag/tokens?tags=verified');
-        const vd = await vr.json();
-        verifiedMints = new Set(
-          Array.isArray(vd) ? vd.map((x: any) => typeof x === 'string' ? x : (x.address || x.mint)).filter(Boolean) : []
-        );
+        const cachedV = await AsyncStorage.getItem('verified_mints_cache');
+        if (cachedV) {
+          const { mints, ts } = JSON.parse(cachedV);
+          if (Date.now() - ts < 3600000) {
+            verifiedMints = new Set(mints);
+          }
+        }
+        if (verifiedMints.size === 0) {
+          const vr = await fetch('https://tokens.jup.ag/tokens?tags=verified');
+          const vd = await vr.json();
+          const mints = Array.isArray(vd) ? vd.map((x: any) => typeof x === 'string' ? x : (x.address || x.mint)).filter(Boolean) : [];
+          verifiedMints = new Set(mints);
+          AsyncStorage.setItem('verified_mints_cache', JSON.stringify({ mints, ts: Date.now() }));
+        }
       } catch(e) {}
       const res = await fetch('https://chatfi.pro/api/portfolio?wallet=' + pubkey);
       const data = await res.json();
