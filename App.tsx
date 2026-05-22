@@ -3199,6 +3199,25 @@ export default function App() {
     await AsyncStorage.setItem('active_acc', String(idx));
     if(acc.mnemonic) await AsyncStorage.setItem('wallet_mnemonic', acc.mnemonic);
   };
+
+  // Always derive keys from active account directly — avoids stale React state
+  const getActiveKey = (): { secretKey: Uint8Array; pk: string } | null => {
+    const acc = accounts[activeAccIdx];
+    if (!acc) return null;
+    if (acc.watchOnly) return null;
+    if (acc.mnemonic) {
+      const { secretKey, publicKey: pk } = deriveWallet(acc.mnemonic);
+      return { secretKey, pk };
+    }
+    if (acc.privkey) {
+      try {
+        const keyBytes = Uint8Array.from(JSON.parse(acc.privkey));
+        const kp = nacl.sign.keyPair.fromSecretKey(keyBytes);
+        return { secretKey: kp.secretKey, pk: acc.pubkey };
+      } catch { return null; }
+    }
+    return null;
+  };
   const fetchPortfolio = async (silent = false) => {
     lastFetch.current = Date.now();
     if (!pubkey) return;
@@ -3384,7 +3403,8 @@ export default function App() {
         if(txData.error)throw new Error(typeof txData.error==="string"?txData.error:JSON.stringify(txData.error));
         const txB64=txData.transaction||txData.tx||txData.data;
         if(!txB64)throw new Error("No transaction returned");
-        const {secretKey:sk}=deriveWallet(wallet);
+        const activeKey=deriveWallet(accounts[activeAccIdx]?.mnemonic||wallet);
+        const {secretKey:sk}=activeKey;
         const {VersionedTransaction,Keypair}=require("@solana/web3.js");
         const tx=VersionedTransaction.deserialize(Buffer.from(txB64,"base64"));
         tx.sign([Keypair.fromSecretKey(sk)]);
@@ -3424,7 +3444,7 @@ export default function App() {
       const authed=await requireAuth(); if(!authed)return;
       setLoading(true);
       try{
-        const {secretKey:sk,publicKey:pk}=deriveWallet(wallet);
+        const {secretKey:sk,publicKey:pk}=deriveWallet(accounts[activeAccIdx]?.mnemonic||wallet);
         const {VersionedTransaction,Keypair}=require("@solana/web3.js");
         // Step 1: Withdraw from current vault
         showToast("⬆ Withdrawing "+m.humanAmt+" "+m.pos.sym+"...","info");
@@ -5089,7 +5109,9 @@ https://solscan.io/tx/${sig}` }]);
     if (!authed) return;
     setSendLoading(true);
     try {
-      const { secretKey, publicKey: pk } = deriveWallet(wallet);
+      const _activeAcc = accounts[activeAccIdx];
+      if (!_activeAcc || _activeAcc.watchOnly) { showToast('Watch-only account cannot send','error'); setSendLoading(false); return; }
+      const { secretKey, publicKey: pk } = deriveWallet(_activeAcc.mnemonic || wallet);
       const tokenInfo = tokenBalances.find(t => t.symbol === sendToken);
       const mint = tokenInfo?.mint || TOKENS[sendToken] || TOKENS['SOL'];
       const decimals = DECIMALS[sendToken] ?? tokenInfo?.decimals ?? 9;
@@ -5388,8 +5410,26 @@ https://solscan.io/tx/${sig}` }]);
       </Modal>
       {selectedToken && <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
   onSend={async (mint, recipient, amount, symbol, decimals) => {
-    if (!wallet) { Alert.alert('Error', 'This is a watch-only account'); return; }
-    const { secretKey, publicKey: pk } = deriveWallet(wallet);
+    // Always use the active account directly — avoids stale React state
+    const activeAcc = accounts[activeAccIdx];
+    if (!activeAcc) { Alert.alert('Error', 'No active account'); return; }
+    if (activeAcc.watchOnly) { Alert.alert('Error', 'This is a watch-only account'); return; }
+    let secretKey: Uint8Array;
+    let pk: string;
+    if (activeAcc.mnemonic) {
+      const derived = deriveWallet(activeAcc.mnemonic);
+      secretKey = derived.secretKey;
+      pk = derived.publicKey;
+    } else if (activeAcc.privkey) {
+      try {
+        const keyBytes = Uint8Array.from(JSON.parse(activeAcc.privkey));
+        const kp = nacl.sign.keyPair.fromSecretKey(keyBytes);
+        secretKey = kp.secretKey;
+        pk = activeAcc.pubkey;
+      } catch { Alert.alert('Error', 'Invalid private key'); return; }
+    } else {
+      Alert.alert('Error', 'No signing key for this account'); return;
+    }
     const amountNum = Math.round(parseFloat(amount) * Math.pow(10, decimals));
     if (symbol === 'SOL') {
       await _sendSOL(pk, secretKey, recipient, amountNum);
