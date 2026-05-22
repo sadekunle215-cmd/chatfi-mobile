@@ -5381,6 +5381,7 @@ https://solscan.io/tx/${sig}` }]);
         </View>
         {/* SETTINGS */}
       {tab === 'settings' && (
+        <View style={{flex:1, paddingTop: StatusBar.currentHeight||0}}>
         <SettingsTab
           accounts={accounts}
           activeAccIdx={activeAccIdx}
@@ -5405,6 +5406,7 @@ https://solscan.io/tx/${sig}` }]);
           C={C}
           s={s}
         />
+        </View>
       )}
       </KeyboardAvoidingView>
 
