@@ -2848,19 +2848,28 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
                 } catch(e) { break; }
               }
               if(batch.length === 0) break;
+              const proxyRpc = async (method: string, params: any[]) => {
+                const r = await fetch('https://chatfi.pro/api/jupiter', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ url: 'SOLANA_RPC', method: 'POST', body: { jsonrpc:'2.0', id:1, method, params } })
+                });
+                return r.json();
+              };
               const results = await Promise.all(batch.map(async ({index, pubkey: pk}) => {
                 const alreadyImported = existing.find((a:any) => a.pubkey === pk);
                 const [balRes, txRes] = await Promise.all([
-                  rpcFetch('getBalance', [pk, {commitment:'confirmed'}]).catch(()=>null),
-                  rpcFetch('getSignaturesForAddress', [pk, {limit:1}]).catch(()=>null),
+                  proxyRpc('getBalance', [pk, {commitment:'confirmed'}]).catch(()=>null),
+                  proxyRpc('getSignaturesForAddress', [pk, {limit:1}]).catch(()=>null),
                 ]);
                 const balance = (balRes?.result?.value||0) / 1e9;
                 const hasTx = Array.isArray(txRes?.result) && txRes.result.length > 0;
-                return { index, pubkey: pk, balance, hasTx, imported: !!alreadyImported, name: alreadyImported?.name||('Account '+(index+1)) };
+                // Show account if it has balance, tx history, or is index 0 (always show first)
+                const hasActivity = balance > 0 || hasTx || index === 0;
+                return { index, pubkey: pk, balance, hasTx, hasActivity, imported: !!alreadyImported, name: alreadyImported?.name||('Account '+(index+1)) };
               }));
               let batchHasActive = false;
               for(const r of results) {
-                if(r.balance > 0 || r.hasTx || r.imported) {
+                if(r.hasActivity || r.imported) {
                   found.push(r);
                   batchHasActive = true;
                   emptyStreak = 0;
@@ -2872,7 +2881,7 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
               if(emptyStreak >= 5) break;
             }
             setDiscoveredAccounts(found);
-            setSelectedAccIdxs(found.filter((a:any) => !a.imported && a.balance > 0).map((a:any) => a.index));
+            setSelectedAccIdxs(found.filter((a:any) => !a.imported).map((a:any) => a.index));
             setDiscovering(false);
             setSettingsView('selectImportAccounts');
           } catch { setDiscovering(false); Alert.alert('Error','Invalid seed phrase'); }
