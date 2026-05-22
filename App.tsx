@@ -3287,18 +3287,6 @@ export default function App() {
         setTotalUSD(tokens.reduce((s:number,t:any)=>s+(Number(t.amount)||0)*(Number(t.price)||0),0));
         await AsyncStorage.setItem(cacheKey, JSON.stringify({ tokens, ts: Date.now() }));
       }
-      if(false){
-        const mints='';
-        const pr=await fetch('');
-        const pd=await pr.json();
-        if(pd){
-          const solMint="";
-          setSolPrice(0);
-          const updated=data.tokens;
-          setTokenBalances(updated);
-          setTotalUSD(updated.reduce((s:number,t:any)=>s+(Number(t.amount)||0)*(Number(t.price)||0),0));
-        }
-      } catch(e){}
   } catch(e){console.log("Portfolio error",e);}
     setPortfolioLoading(false);
     setPortfolioRefreshing(false);
