@@ -5532,15 +5532,16 @@ Try:
                   {/* Quick actions */}
                   <View style={{flexDirection:'row',flexWrap:'wrap',gap:10,justifyContent:'center',marginBottom:32}}>
                     {[
-                      {label:'💱 Swap tokens', q:'swap 1 SOL to USDC'},
-                      {label:'📊 My portfolio', q:'show my portfolio'},
-                      {label:'🔥 Trending', q:'show trending tokens'},
-                      {label:'💰 SOL price', q:'price of SOL'},
-                      {label:'📈 Earn yield', q:'show earn markets'},
-                      {label:'🎯 Limit order', q:'buy SOL at $100'},
+                      {label:'Swap tokens', icon:'swap-horizontal-outline', q:'swap 1 SOL to USDC'},
+                      {label:'My portfolio', icon:'wallet-outline', q:'show my portfolio'},
+                      {label:'Trending', icon:'flame-outline', q:'show trending tokens'},
+                      {label:'SOL price', icon:'cash-outline', q:'price of SOL'},
+                      {label:'Earn yield', icon:'trending-up-outline', q:'show earn markets'},
+                      {label:'Limit order', icon:'options-outline', q:'buy SOL at $100'},
                     ].map((item,i)=>(
                       <TouchableOpacity key={i} onPress={()=>sendMsg(item.q)}
-                        style={{backgroundColor:C.card,borderRadius:20,paddingHorizontal:16,paddingVertical:10,borderWidth:1,borderColor:C.border}}>
+                        style={{backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:10,borderWidth:1,borderColor:C.border,flexDirection:'row',alignItems:'center',gap:6}}>
+                        <Ionicons name={item.icon as any} size={15} color={C.green}/>
                         <Text style={{color:C.text,fontSize:14}}>{item.label}</Text>
                       </TouchableOpacity>
                     ))}
