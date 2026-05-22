@@ -2703,7 +2703,7 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
                 <Text style={{ color:C.muted, fontSize:11 }}>{acc.imported ? 'Imported' : acc.balance > 0 ? '$'+acc.balance.toFixed(3) : '$0.00'}</Text>
               </View>
               {acc.imported
-                ? <Text style={{ color:C.muted, fontSize:12, minWidth:80, textAlign:'right' }}>Imported</Text>
+                ? <Text style={{ color:C.green, fontSize:12, minWidth:80, textAlign:'right' }}>✓ {acc.balance > 0 ? '$'+acc.balance.toFixed(3) : '$0.00'}</Text>
                 : <View style={{ width:22, height:22, borderRadius:6, borderWidth:2, borderColor: selectedAccIdxs.includes(acc.index) ? C.green : '#30363d', backgroundColor: selectedAccIdxs.includes(acc.index) ? C.green : 'transparent', alignItems:'center', justifyContent:'center' }}>
                     {selectedAccIdxs.includes(acc.index) && <Ionicons name="checkmark" size={14} color="#0d1117" />}
                   </View>
