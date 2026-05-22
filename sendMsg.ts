@@ -310,9 +310,11 @@ export const getTokenBalances = async (publicKey: string) => {
 export const askAI = async (
   question: string,
   walletAddress: string | null,
-  conversationHistory: Array<{role: string, content: string}> = []
+  conversationHistory: Array<{role: string, content: string}> = [],
+  language: string = 'English'
 ): Promise<AIResponse> => {
   const SYSTEM = `You are ChatFi — a sharp AI trading assistant on Solana/Jupiter DEX. Tone: direct, warm.
+Always respond in ${language}. All your text responses must be in ${language}.
 
 ALWAYS respond with valid JSON only:
 {"action":"ACTION_TYPE","actionData":{},"text":"your message"}

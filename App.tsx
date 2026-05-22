@@ -72,6 +72,12 @@ async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amou
   return r.result;
 }
 
+const CURRENCY_SYMBOLS: Record<string,string> = {
+  USD:'$', EUR:'€', GBP:'£', NGN:'₦', JPY:'¥', CNY:'¥', KRW:'₩', INR:'₹',
+  BRL:'R$', CAD:'C$', AUD:'A$', CHF:'Fr', MXN:'MX$', ZAR:'R', TRY:'₺',
+  AED:'د.إ', SGD:'S$', HKD:'HK$', SEK:'kr', NOK:'kr'
+};
+
 const TABS = [
   { id: 'swap', label: 'Trade', icon: 'swap-horizontal-outline', iconActive: 'swap-horizontal' },
   { id: 'portfolio', label: 'Assets', icon: 'wallet-outline', iconActive: 'wallet' },
@@ -273,7 +279,12 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
   const website = pairData?.info?.websites?.[0]?.url;
   const positionVal = token.amount * (token.price || 0);
   const positionChange = positionVal - (token.amount * (token.avgBuy || token.price || 0));
-  const fmt = (n:number) => n >= 1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n >= 1e3 ? '$'+(n/1e3).toFixed(2)+'K' : '$'+n?.toFixed(2);
+  const fmt = (n:number) => {
+    const rate = exchangeRates[appCurrency]||1;
+    const sym = currencySymbol;
+    const v = (n||0)*rate;
+    return v >= 1e6 ? sym+(v/1e6).toFixed(2)+'M' : v >= 1e3 ? sym+(v/1e3).toFixed(2)+'K' : sym+v?.toFixed(2);
+  };
   const tfMap: Record<string,string> = {'1H':'15','1D':'60','1W':'240','1M':'1D','YTD':'1W'};
   const chartUrl = pairData?.pairAddress ? `https://www.geckoterminal.com/solana/pools/${pairData.pairAddress}?embed=1&info=0&swaps=0&grayscale=0&light_chart=0` : '';
 
@@ -2121,7 +2132,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
   );
 }
 
-function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAccounts, wallet, pubkey, requireAuth, setSeedPhrase, setShowSeedModal, setPrivKey, setShowPrivKeyModal, setWallet, setPubkey, setSolBalance, securityEnabled, setChangingPasscode, deriveWallet, getPrivateKey, nacl, C, s }: any) {
+function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAccounts, wallet, pubkey, requireAuth, setSeedPhrase, setShowSeedModal, setPrivKey, setShowPrivKeyModal, setWallet, setPubkey, setSolBalance, securityEnabled, setChangingPasscode, deriveWallet, getPrivateKey, nacl, C, s, appLanguage, setAppLanguage, appCurrency, setAppCurrency, appNetwork, setAppNetwork, exchangeRates, currencySymbol, setCurrencySymbol }: any) {
   const [settingsView, setSettingsView] = React.useState('main');
   const [notifEnabled, setNotifEnabled] = React.useState(false);
   const [notifSettings, setNotifSettings] = React.useState<any>({ receivedTokens:true, receivedCollectibles:true, sentTokens:false, sentCollectibles:false, priceAlerts:true });
@@ -2179,24 +2190,98 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
     </ScrollView>
   );
 
+  const LANGUAGES = ['English','Spanish','French','Portuguese','Chinese','Arabic','Hindi','Russian','Japanese','Korean','German','Italian','Turkish','Dutch','Polish','Swedish','Indonesian','Thai','Vietnamese','Swahili'];
+  const CURRENCIES = ['USD','EUR','GBP','NGN','JPY','CNY','KRW','INR','BRL','CAD','AUD','CHF','MXN','ZAR','TRY','AED','SGD','HKD','SEK','NOK'];
+  const NETWORKS = [{id:'mainnet',label:'Mainnet Beta',sub:'Main Solana network'},{id:'devnet',label:'Devnet',sub:'For testing only'}];
+
   if (settingsView === 'general') return (
     <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
       <Header title="General" back="main" />
-      {[
-        { label:'Language', sub:'English (EN)' },
-        { label:'Currency', sub:'US Dollar' },
-        { label:'Network', sub:'Mainnet' },
-      ].map((item, i, arr) => (
-        <TouchableOpacity key={i}
-          style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:20, paddingVertical:16,
-            borderBottomWidth: i < arr.length-1 ? 1 : 0, borderBottomColor:'#30363d' }}>
+      <View style={{ margin:16, backgroundColor:'#1c2128', borderRadius:14, overflow:'hidden' }}>
+        <TouchableOpacity onPress={() => setSettingsView('selectLanguage')}
+          style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
           <View style={{ flex:1 }}>
-            <Text style={{ color:C.text, fontSize:15 }}>{item.label}</Text>
-            <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{item.sub}</Text>
+            <Text style={{ color:C.text, fontSize:15 }}>Language</Text>
+            <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{appLanguage}</Text>
           </View>
-          <Text style={{ color:C.muted, fontSize:18 }}>›</Text>
+          <Ionicons name="chevron-forward" size={18} color={C.muted} />
         </TouchableOpacity>
-      ))}
+        <TouchableOpacity onPress={() => setSettingsView('selectCurrency')}
+          style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
+          <View style={{ flex:1 }}>
+            <Text style={{ color:C.text, fontSize:15 }}>Currency</Text>
+            <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{appCurrency}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={C.muted} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setSettingsView('selectNetwork')}
+          style={{ flexDirection:'row', alignItems:'center', padding:16 }}>
+          <View style={{ flex:1 }}>
+            <Text style={{ color:C.text, fontSize:15 }}>Network</Text>
+            <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{appNetwork === 'mainnet' ? 'Mainnet Beta' : 'Devnet'}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={C.muted} />
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+
+  if (settingsView === 'selectLanguage') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Language" back="general" />
+      <View style={{ margin:16, backgroundColor:'#1c2128', borderRadius:14, overflow:'hidden' }}>
+        {LANGUAGES.map((lang, i) => (
+          <TouchableOpacity key={i} onPress={async () => {
+            setAppLanguage(lang);
+            await AsyncStorage.setItem('app_language', lang);
+            setSettingsView('general');
+          }} style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth: i < LANGUAGES.length-1 ? 1 : 0, borderBottomColor:'#30363d' }}>
+            <Text style={{ color:C.text, fontSize:15, flex:1 }}>{lang}</Text>
+            {appLanguage === lang && <Ionicons name="checkmark" size={20} color={C.green} />}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  );
+
+  if (settingsView === 'selectCurrency') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Currency" back="general" />
+      <View style={{ margin:16, backgroundColor:'#1c2128', borderRadius:14, overflow:'hidden' }}>
+        {CURRENCIES.map((cur, i) => (
+          <TouchableOpacity key={i} onPress={async () => {
+            setAppCurrency(cur);
+            setCurrencySymbol(CURRENCY_SYMBOLS[cur]||cur+' ');
+            await AsyncStorage.setItem('app_currency', cur);
+            setSettingsView('general');
+          }} style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth: i < CURRENCIES.length-1 ? 1 : 0, borderBottomColor:'#30363d' }}>
+            <Text style={{ color:C.muted, fontSize:14, width:50 }}>{CURRENCY_SYMBOLS[cur]||cur}</Text>
+            <Text style={{ color:C.text, fontSize:15, flex:1 }}>{cur}</Text>
+            {appCurrency === cur && <Ionicons name="checkmark" size={20} color={C.green} />}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  );
+
+  if (settingsView === 'selectNetwork') return (
+    <ScrollView contentContainerStyle={{ paddingBottom:100 }}>
+      <Header title="Network" back="general" />
+      <View style={{ margin:16, backgroundColor:'#1c2128', borderRadius:14, overflow:'hidden' }}>
+        {NETWORKS.map((net, i) => (
+          <TouchableOpacity key={i} onPress={async () => {
+            setAppNetwork(net.id);
+            await AsyncStorage.setItem('app_network', net.id);
+            setSettingsView('general');
+          }} style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth: i < NETWORKS.length-1 ? 1 : 0, borderBottomColor:'#30363d' }}>
+            <View style={{ flex:1 }}>
+              <Text style={{ color:C.text, fontSize:15 }}>{net.label}</Text>
+              <Text style={{ color:C.muted, fontSize:12, marginTop:2 }}>{net.sub}</Text>
+            </View>
+            {appNetwork === net.id && <Ionicons name="checkmark" size={20} color={C.green} />}
+          </TouchableOpacity>
+        ))}
+      </View>
     </ScrollView>
   );
 
@@ -2824,9 +2909,28 @@ export default function App() {
   const [privKey, setPrivKey] = useState('');
   const [showSendModal, setShowSendModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+
+  React.useEffect(() => {
+    // Load saved settings
+    (async () => {
+      const lang = await AsyncStorage.getItem('app_language'); if(lang) setAppLanguage(lang);
+      const cur = await AsyncStorage.getItem('app_currency'); if(cur) { setAppCurrency(cur); setCurrencySymbol(CURRENCY_SYMBOLS[cur]||cur); }
+      const net = await AsyncStorage.getItem('app_network'); if(net) setAppNetwork(net);
+    })();
+    // Fetch exchange rates
+    fetch('https://open.er-api.com/v6/latest/USD')
+      .then(r=>r.json())
+      .then(d=>{ if(d?.rates) setExchangeRates(d.rates); })
+      .catch(()=>{});
+  }, []);
   const [showAccDropdown, setShowAccDropdown] = useState(false);
   const [selectedToken, setSelectedToken] = useState<any>(null);
   const [userName, setUserName] = useState('');
+  const [appLanguage, setAppLanguage] = React.useState('English');
+  const [appCurrency, setAppCurrency] = React.useState('USD');
+  const [appNetwork, setAppNetwork] = React.useState('mainnet');
+  const [exchangeRates, setExchangeRates] = React.useState<any>({USD:1});
+  const [currencySymbol, setCurrencySymbol] = React.useState('$');
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [accountView, setAccountView] = useState('main');
   const [showReceiveModal, setShowReceiveModal] = useState(false);
@@ -3921,7 +4025,7 @@ export default function App() {
         role: m.from === 'user' ? 'user' : 'assistant',
         content: m.text
       }));
-      const response = await askAI(q, pubkey, history);
+      const response = await askAI(q, pubkey, history, appLanguage);
       setMsgs(p => [...p, { id: Date.now() + 1, text: response.text, from: 'bot' }]);
       await dispatchAction(response.action, response.actionData);
     } catch (e) {
@@ -5405,6 +5509,15 @@ https://solscan.io/tx/${sig}` }]);
           nacl={nacl}
           C={C}
           s={s}
+          appLanguage={appLanguage}
+          setAppLanguage={setAppLanguage}
+          appCurrency={appCurrency}
+          setAppCurrency={setAppCurrency}
+          appNetwork={appNetwork}
+          setAppNetwork={setAppNetwork}
+          exchangeRates={exchangeRates}
+          currencySymbol={currencySymbol}
+          setCurrencySymbol={setCurrencySymbol}
         />
         </View>
       )}
