@@ -5505,20 +5505,66 @@ https://solscan.io/tx/${sig}` }]);
         {/* CHAT */}
         <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:9999,display:showChat?'flex':'none',backgroundColor:C.bg}}>
           <View style={s.flex}>
+            {/* Header */}
+            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:16,paddingTop:(StatusBar.currentHeight||0)+12,paddingBottom:12,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <TouchableOpacity onPress={()=>{setMsgs([{id:1,text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.
 
-                <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }}>
-              {msgs.map(m => (
-                <View key={m.id} style={m.from === 'user' ? [s.bubble, s.userBubble] : {marginBottom:8}}>
-                  {m.from === 'bot' && !m.card && (
-                    <View style={[s.bubble, s.botBubble]}>
-                      <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-                      <Text style={s.bubbleTxt}>{m.text}</Text>
-                    </View>
-                  )}
-                  {m.from === 'user' && <Text style={s.bubbleTxt}>{m.text}</Text>}
-                  {m.card && renderCard(m.card)}
+Try:
+• "swap 1 SOL to USDC"
+• "price of JUP"
+• "what is yield farming?"',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
+                <Ionicons name="time-outline" size={20} color={C.text}/>
+              </TouchableOpacity>
+              <Text style={{color:C.text,fontSize:17,fontWeight:'700',letterSpacing:0.3}}>ChatFi AI</Text>
+              <TouchableOpacity onPress={()=>{setMsgs([{id:Date.now(),text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.
+
+Try:
+• "swap 1 SOL to USDC"
+• "price of JUP"
+• "what is yield farming?"',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
+                <Ionicons name="create-outline" size={20} color={C.text}/>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }} ref={(r)=>{if(r&&msgs.length>1)r.scrollToEnd({animated:true});}}>
+              {msgs.length <= 1 ? (
+                <View style={{paddingTop:32}}>
+                  <Text style={{color:C.text,fontSize:22,fontWeight:'bold',textAlign:'center',marginBottom:32}}>Ask ChatFi anything</Text>
+                  {/* Quick actions */}
+                  <View style={{flexDirection:'row',flexWrap:'wrap',gap:10,justifyContent:'center',marginBottom:32}}>
+                    {[
+                      {label:'💱 Swap tokens', q:'swap 1 SOL to USDC'},
+                      {label:'📊 My portfolio', q:'show my portfolio'},
+                      {label:'🔥 Trending', q:'show trending tokens'},
+                      {label:'💰 SOL price', q:'price of SOL'},
+                      {label:'📈 Earn yield', q:'show earn markets'},
+                      {label:'🎯 Limit order', q:'buy SOL at $100'},
+                    ].map((item,i)=>(
+                      <TouchableOpacity key={i} onPress={()=>sendMsg(item.q)}
+                        style={{backgroundColor:C.card,borderRadius:20,paddingHorizontal:16,paddingVertical:10,borderWidth:1,borderColor:C.border}}>
+                        <Text style={{color:C.text,fontSize:14}}>{item.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {/* First bot message */}
+                  <View style={[s.bubble, s.botBubble]}>
+                    <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+                    <Text style={s.bubbleTxt}>{msgs[0].text}</Text>
+                  </View>
                 </View>
-              ))}
+              ) : (
+                msgs.map(m => (
+                  <View key={m.id} style={m.from === 'user' ? [s.bubble, s.userBubble] : {marginBottom:8}}>
+                    {m.from === 'bot' && !m.card && (
+                      <View style={[s.bubble, s.botBubble]}>
+                        <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+                        <Text style={s.bubbleTxt}>{m.text}</Text>
+                      </View>
+                    )}
+                    {m.from === 'user' && <Text style={s.bubbleTxt}>{m.text}</Text>}
+                    {m.card && renderCard(m.card)}
+                  </View>
+                ))
+              )}
               {aiLoading && (
                 <View style={[s.botBubble, s.bubble]}>
                   <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
