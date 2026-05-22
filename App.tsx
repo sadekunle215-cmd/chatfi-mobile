@@ -3098,9 +3098,11 @@ export default function App() {
   const switchAccount = async (idx:number) => {
     const acc = accounts[idx];
     if(acc.name) setUserName(acc.name);
-    setActiveAccIdx(idx); setWallet(acc.mnemonic); setPubkey(acc.pubkey);
+    setActiveAccIdx(idx);
+    setWallet(acc.mnemonic || acc.privkey || null);
+    setPubkey(acc.pubkey);
     await AsyncStorage.setItem('active_acc', String(idx));
-    await AsyncStorage.setItem('wallet_mnemonic', acc.mnemonic);
+    if(acc.mnemonic) await AsyncStorage.setItem('wallet_mnemonic', acc.mnemonic);
   };
   const fetchPortfolio = async (silent = false) => {
     lastFetch.current = Date.now();
