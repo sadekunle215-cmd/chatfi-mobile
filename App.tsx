@@ -2667,7 +2667,7 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
           <Text style={{ color:C.text, fontSize:18, fontWeight:'bold', marginBottom:4 }}>
             We've found {discoveredAccounts.filter((a:any)=>!a.imported).length} wallets with activity
           </Text>
-          <Text style={{ color:C.muted, fontSize:13 }}>Select which accounts to import</Text>
+          <Text style={{ color:C.muted, fontSize:13, textAlign:'center' }}>Select which accounts to import</Text>
         </View>
         <TouchableOpacity onPress={() => {
           const nonImported = discoveredAccounts.filter((a:any)=>!a.imported).map((a:any)=>a.index);
@@ -2691,7 +2691,7 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
                 <Text style={{ color:C.muted, fontSize:11 }}>{acc.imported ? 'Imported' : acc.balance > 0 ? '$'+acc.balance.toFixed(3) : '$0.00'}</Text>
               </View>
               {acc.imported
-                ? <Text style={{ color:C.muted, fontSize:12 }}>Imported</Text>
+                ? <Text style={{ color:C.muted, fontSize:12, minWidth:80, textAlign:'right' }}>Imported</Text>
                 : <View style={{ width:22, height:22, borderRadius:6, borderWidth:2, borderColor: selectedAccIdxs.includes(acc.index) ? C.green : '#30363d', backgroundColor: selectedAccIdxs.includes(acc.index) ? C.green : 'transparent', alignItems:'center', justifyContent:'center' }}>
                     {selectedAccIdxs.includes(acc.index) && <Ionicons name="checkmark" size={14} color="#0d1117" />}
                   </View>
