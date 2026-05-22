@@ -291,7 +291,11 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
 
   if (!token) return null;
 
-  const price = pairData?.priceUsd || (token.price ? String(token.price) : null);
+  // For native SOL, DexScreener returns pool price (wrong) — use the passed-in price directly
+  const isNativeSOL = token.mint === 'So11111111111111111111111111111111111111112';
+  const price = isNativeSOL
+    ? (token.price ? String(token.price) : null)
+    : (pairData?.priceUsd || (token.price ? String(token.price) : null));
   const priceChange = pairData?.priceChange?.h24;
   const mktCap = pairData?.marketCap;
   const liquidity = pairData?.liquidity?.usd;
