@@ -2919,6 +2919,12 @@ export default function App() {
   const [showSendModal, setShowSendModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
 
+  // Sync header name+avatar when active account changes
+  React.useEffect(() => {
+    const acc = (accounts||[])[activeAccIdx];
+    if(acc?.name) setUserName(acc.name);
+  }, [accounts, activeAccIdx]);
+
   React.useEffect(() => {
     // Load saved settings
     (async () => {
@@ -5333,7 +5339,15 @@ https://solscan.io/tx/${sig}` }]);
       {tab !== 'dapp' && tab !== 'settings' && <View style={s.header}>
         <View style={s.logoRow}>
           
-          <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green}} />{userName ? <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{userName}</Text> : null}</TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowAccountModal(true)} style={{flexDirection:'row',alignItems:'center',gap:8}}>
+  <View style={{width:36,height:36,borderRadius:18,backgroundColor:C.green,alignItems:'center',justifyContent:'center'}}>
+    {(accounts||[])[activeAccIdx]?.avatar
+      ? <Text style={{fontSize:20}}>{(accounts||[])[activeAccIdx].avatar}</Text>
+      : <Text style={{color:'#0d1117',fontWeight:'bold',fontSize:16}}>{userName?.[0]?.toUpperCase()||'C'}</Text>
+    }
+  </View>
+  {userName ? <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{userName}</Text> : null}
+</TouchableOpacity>
         </View>
         <TouchableOpacity
           onPress={() => setShowChat(v => !v)}
