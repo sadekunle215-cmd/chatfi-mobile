@@ -622,7 +622,10 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
               {/* Header */}
               <View style={{ flexDirection:'row', alignItems:'center', padding:20, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                 <View style={{ width:48, height:48, borderRadius:24, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-                  <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:18 }}>{userName ? userName[0].toUpperCase() : 'CF'}</Text>
+                  {(accounts||[])[activeAccIdx]?.avatar
+                    ? <Text style={{fontSize:22}}>{(accounts||[])[activeAccIdx].avatar}</Text>
+                    : <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:18 }}>{userName ? userName[0].toUpperCase() : 'CF'}</Text>
+                  }
                 </View>
                 <View style={{ flex:1 }}>
                   <Text style={{ color:C.text, fontWeight:'bold', fontSize:16 }}>{userName || 'ChatFi Wallet'}</Text>
@@ -740,7 +743,10 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                   <TouchableOpacity key={acc.id} onPress={() => switchAccount(idx)}
                     style={{ flexDirection:'row', alignItems:'center', padding:16, borderBottomWidth:1, borderBottomColor:'#30363d' }}>
                     <View style={{ width:36, height:36, borderRadius:18, backgroundColor:C.green, alignItems:'center', justifyContent:'center', marginRight:12 }}>
-                      <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:14 }}>{acc.name?acc.name[0]:'A'}</Text>
+                      {acc.avatar
+                        ? <Text style={{fontSize:20}}>{acc.avatar}</Text>
+                        : <Text style={{ color:'#0d1117', fontWeight:'bold', fontSize:14 }}>{acc.name?acc.name[0]:'A'}</Text>
+                      }
                     </View>
                     <View style={{ flex:1 }}>
                       <Text style={{ color:C.text, fontSize:15, fontWeight:'600' }}>{acc.name}</Text>
