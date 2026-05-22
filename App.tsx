@@ -2836,34 +2836,40 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
             const raw = await AsyncStorage.getItem('accounts');
             const existing = raw ? JSON.parse(raw) : [];
             const found: any[] = [];
-            // Always include first account regardless of activity
-            try {
-              const { publicKey: pk0 } = deriveWalletAtIndex(importSeedInput.trim(), 0);
-              const alreadyImported0 = existing.find((a:any) => a.pubkey === pk0);
-              const balRes0 = await rpcFetch('getBalance', [pk0, {commitment:'confirmed'}]).catch(()=>null);
-              const balance0 = (balRes0?.value||0) / 1e9;
-              found.push({ index: 0, pubkey: pk0, balance: balance0, name: alreadyImported0?.name||'Account 1', imported: !!alreadyImported0 });
-            } catch(e) {}
+            // Derive first 20 accounts and check balance/tx in parallel batches
+            const batchSize = 5;
             let emptyStreak = 0;
-            for(let i = 0; i < 20; i++) {
-              try {
-                const { publicKey: pk } = deriveWalletAtIndex(importSeedInput.trim(), i);
+            for(let i = 0; i < 20; i += batchSize) {
+              const batch = [];
+              for(let j = i; j < Math.min(i + batchSize, 20); j++) {
+                try {
+                  const { publicKey: pk } = deriveWalletAtIndex(importSeedInput.trim(), j);
+                  batch.push({ index: j, pubkey: pk });
+                } catch(e) { break; }
+              }
+              if(batch.length === 0) break;
+              const results = await Promise.all(batch.map(async ({index, pubkey: pk}) => {
                 const alreadyImported = existing.find((a:any) => a.pubkey === pk);
                 const [balRes, txRes] = await Promise.all([
                   rpcFetch('getBalance', [pk, {commitment:'confirmed'}]).catch(()=>null),
                   rpcFetch('getSignaturesForAddress', [pk, {limit:1}]).catch(()=>null),
                 ]);
-                const balance = (balRes?.value||0) / 1e9;
-                const hasTx = Array.isArray(txRes) && txRes.length > 0;
-                const active = balance > 0 || hasTx || !!alreadyImported;
-                if(active) {
-                  found.push({ index: i, pubkey: pk, balance, name: alreadyImported?.name||('Account '+(i+1)), imported: !!alreadyImported });
+                const balance = (balRes?.result?.value||0) / 1e9;
+                const hasTx = Array.isArray(txRes?.result) && txRes.result.length > 0;
+                return { index, pubkey: pk, balance, hasTx, imported: !!alreadyImported, name: alreadyImported?.name||('Account '+(index+1)) };
+              }));
+              let batchHasActive = false;
+              for(const r of results) {
+                if(r.balance > 0 || r.hasTx || r.imported) {
+                  found.push(r);
+                  batchHasActive = true;
                   emptyStreak = 0;
                 } else {
                   emptyStreak++;
-                  if(emptyStreak >= 5) break;
                 }
-              } catch(e) { break; }
+              }
+              if(!batchHasActive) emptyStreak += batchSize;
+              if(emptyStreak >= 5) break;
             }
             setDiscoveredAccounts(found);
             setSelectedAccIdxs(found.filter((a:any) => !a.imported && a.balance > 0).map((a:any) => a.index));
