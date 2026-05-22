@@ -225,21 +225,12 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
       .then(r => r.json())
       .then(d => { if (d?.extensions?.description) setInsights(d.extensions.description); })
       .catch(() => {});
-    // Fetch holder count on load via getTokenLargestAccounts
-    fetch('https://chatfi.pro/api/jupiter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: 'SOLANA_RPC',
-        method: 'POST',
-        body: { jsonrpc: '2.0', id: 1, method: 'getTokenLargestAccounts', params: [token.mint] }
-      })
+    // Fetch holder count from Birdeye
+    fetch('https://public-api.birdeye.so/defi/token_overview?address=' + token.mint, {
+      headers: { 'X-Chain': 'solana' }
     }).then(r => r.json()).then(d => {
-      const accounts = d?.result?.value || [];
-      if (accounts.length > 0) {
-        setTopHolders(accounts.slice(0, 20));
-        setHolderCount(accounts.length);
-      }
+      const count = d?.data?.holder;
+      if (count) setHolderCount(count);
     }).catch(() => {});
   }, [token?.mint]);
 
@@ -409,49 +400,54 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               ))}
             </View>
             <ScrollView style={{flex:1}} showsVerticalScrollIndicator={false}>
-              {token.amount > 0 && (
-                <View style={{margin:16,backgroundColor:C.card,borderRadius:16,padding:16}}>
-                  <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                    <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
-                      <Ionicons name="bar-chart-outline" size={16} color={C.green}/>
-                      <Text style={{color:C.green,fontWeight:'700',fontSize:14}}>Position</Text>
+              {/* Overview Tab content */}
+              {activeTab === 'Overview' && (
+                <View>
+                  {token.amount > 0 && (
+                    <View style={{margin:16,backgroundColor:C.card,borderRadius:16,padding:16}}>
+                      <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                        <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                          <Ionicons name="bar-chart-outline" size={16} color={C.green}/>
+                          <Text style={{color:C.green,fontWeight:'700',fontSize:14}}>Position</Text>
+                        </View>
+                        <TouchableOpacity onPress={()=>setShowShareCard(true)} style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                          <Ionicons name="share-outline" size={14} color={C.muted}/>
+                          <Text style={{color:C.muted,fontSize:13}}>Share</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={{color:C.text,fontWeight:'bold',fontSize:22}}>{fmt(positionVal)}</Text>
+                      <Text style={{color:C.muted,fontSize:13}}>{token.amount.toFixed(4)} {token.symbol}</Text>
+                      <Text style={{color:positionChange>=0?C.green:'#ff4444',fontSize:14,marginTop:4}}>
+                        {positionChange>=0?'+':''}{fmt(Math.abs(positionChange))}
+                      </Text>
                     </View>
-                    <TouchableOpacity onPress={()=>setShowShareCard(true)} style={{flexDirection:'row',alignItems:'center',gap:4}}>
-                      <Ionicons name="share-outline" size={14} color={C.muted}/>
-                      <Text style={{color:C.muted,fontSize:13}}>Share</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={{color:C.text,fontWeight:'bold',fontSize:22}}>{fmt(positionVal)}</Text>
-                  <Text style={{color:C.muted,fontSize:13}}>{token.amount.toFixed(4)} {token.symbol}</Text>
-                  <Text style={{color:positionChange>=0?C.green:'#ff4444',fontSize:14,marginTop:4}}>
-                    {positionChange>=0?'+':''}{fmt(Math.abs(positionChange))}
-                  </Text>
+                  )}
+                  {(twitter || website) && (
+                    <View style={{flexDirection:'row',paddingHorizontal:16,gap:8,marginBottom:16,flexWrap:'wrap'}}>
+                      {twitter && (
+                        <TouchableOpacity onPress={()=>Linking.openURL(twitter)}
+                          style={{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:8}}>
+                          <Ionicons name="logo-twitter" size={14} color={C.text}/>
+                          <Text style={{color:C.text,fontSize:13}}>Twitter</Text>
+                        </TouchableOpacity>
+                      )}
+                      {website && (
+                        <TouchableOpacity onPress={()=>Linking.openURL(website)}
+                          style={{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:8}}>
+                          <Ionicons name="globe-outline" size={14} color={C.text}/>
+                          <Text style={{color:C.text,fontSize:13}}>Website</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                  {insights ? (
+                    <View style={{paddingHorizontal:16,marginBottom:24}}>
+                      <Text style={{color:C.text,fontWeight:'bold',fontSize:16,marginBottom:8}}>Token Insights</Text>
+                      <Text style={{color:C.muted,fontSize:14,lineHeight:22}}>{insights}</Text>
+                    </View>
+                  ) : null}
                 </View>
               )}
-              {(twitter || website) && (
-                <View style={{flexDirection:'row',paddingHorizontal:16,gap:8,marginBottom:16,flexWrap:'wrap'}}>
-                  {twitter && (
-                    <TouchableOpacity onPress={()=>Linking.openURL(twitter)}
-                      style={{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:8}}>
-                      <Ionicons name="logo-twitter" size={14} color={C.text}/>
-                      <Text style={{color:C.text,fontSize:13}}>Twitter</Text>
-                    </TouchableOpacity>
-                  )}
-                  {website && (
-                    <TouchableOpacity onPress={()=>Linking.openURL(website)}
-                      style={{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:8}}>
-                      <Ionicons name="globe-outline" size={14} color={C.text}/>
-                      <Text style={{color:C.text,fontSize:13}}>Website</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-              {insights ? (
-                <View style={{paddingHorizontal:16,marginBottom:24}}>
-                  <Text style={{color:C.text,fontWeight:'bold',fontSize:16,marginBottom:8}}>Token Insights</Text>
-                  <Text style={{color:C.muted,fontSize:14,lineHeight:22}}>{insights}</Text>
-                </View>
-              ) : null}
               {/* Terminal Tab — Top 20 Holders */}
               {activeTab === 'Terminal' && (
                 <View style={{padding:16}}>
