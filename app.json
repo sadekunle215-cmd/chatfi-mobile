@@ -58,12 +58,12 @@
     },
     "extra": {
       "eas": {
-        "projectId": "67771314-fae1-42bf-82ed-7ba97fbe780d"
+        "projectId": "0e783ad5-d040-485a-8974-da86d6fa8e37"
       }
     },
-    "owner": "gbavido",
+    "owner": "kafido",
     "eas": {
-      "projectId": "67771314-fae1-42bf-82ed-7ba97fbe780d"
+      "projectId": "0e783ad5-d040-485a-8974-da86d6fa8e37"
     },
     "runtimeVersion": "1.0.0",
     "scheme": "chatfi"
