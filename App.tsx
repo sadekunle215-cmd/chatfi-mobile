@@ -3145,7 +3145,7 @@ export default function App() {
         }
       } catch(e) {}
     }
-    setPortfolioLoading(true);
+    if(tokenBalances.length === 0) setPortfolioLoading(true);
     try {
       let verifiedMints = new Set<string>();
       try {
@@ -5469,7 +5469,7 @@ https://solscan.io/tx/${sig}` }]);
               <View style={{alignItems:'center',paddingTop:16,paddingBottom:8}}>
                 <TouchableOpacity onPress={()=>setPrivacyMode(p=>!p)}>
                 <Text style={s.pfBalanceAmt}>
-                  {portfolioLoading ? '...' : privacyMode ? '****' : '$'+((tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(2)}
+                  {portfolioLoading && tokenBalances.length===0 ? '...' : privacyMode ? '****' : '$'+((tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').reduce((sum,t) => sum + (t.amount||0)*(t.price||0), 0)) + (solBalance||0)*(solPrice||0)).toFixed(2)}
                 </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={copyAddress} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:4}}>
@@ -5506,7 +5506,7 @@ https://solscan.io/tx/${sig}` }]);
               {tokenBalances.length===0&&!portfolioLoading&&(
                 <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
               )}
-              {portfolioLoading&&<ActivityIndicator color={C.green} style={{marginTop:20}} />}
+              {portfolioLoading && tokenBalances.length===0 && <ActivityIndicator color={C.green} style={{marginTop:20}} />}
               {/* SOL Row */}
               {solBalance !== null && solBalance > 0 && (
                 <TouchableOpacity style={s.pfTokenRow} onPress={()=>setSelectedToken({symbol:'SOL',mint:'So11111111111111111111111111111111111111112',amount:solBalance||0,logoURI:'https://img.jup.ag/tokens/So11111111111111111111111111111111111111112',price:solPrice||0,isVerified:true})}>
