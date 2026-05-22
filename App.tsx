@@ -2827,8 +2827,8 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
             }
             const kp = nacl.sign.keyPair.fromSecretKey(keyBytes);
             const pk = bs58(kp.publicKey);
-            const raw = await AsyncStorage.getItem('accounts');
-            const existing = raw ? JSON.parse(raw) : [];
+            const accRaw = await AsyncStorage.getItem('accounts');
+            const existing = accRaw ? JSON.parse(accRaw) : [];
             const dupIdx = existing.findIndex((a:any) => a.pubkey === pk || a.privkey === privKeyInput.trim());
             if(dupIdx !== -1){ switchAccount(dupIdx); setPrivKeyInput(''); setPrivKeyName(''); setSettingsView('main'); Alert.alert('Already exists','Switched to existing account'); return; }
             const name = privKeyName.trim() || 'Account '+(existing.length+1);
