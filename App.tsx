@@ -5312,8 +5312,9 @@ https://solscan.io/tx/${sig}` }]);
           </View>
         </View>
       </Modal>
-      <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
+      {selectedToken && <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
   onSend={async (mint, recipient, amount, symbol, decimals) => {
+    if (!wallet) { Alert.alert('Error', 'This is a watch-only account'); return; }
     const { secretKey, publicKey: pk } = deriveWallet(wallet);
     const amountNum = Math.round(parseFloat(amount) * Math.pow(10, decimals));
     if (symbol === 'SOL') {
@@ -5325,7 +5326,7 @@ https://solscan.io/tx/${sig}` }]);
     setSelectedToken(null);
     fetchPortfolio();
   }}
-/>
+/>}
       <AccountModal
         visible={showAccountModal}
         onClose={() => setShowAccountModal(false)}
