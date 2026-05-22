@@ -2171,7 +2171,11 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
   );
 
   if (settingsView === 'main') return (
-    <ScrollView style={s.pad} contentContainerStyle={{ paddingBottom:100, paddingTop:(StatusBar.currentHeight||0)+8 }}>
+    <ScrollView style={s.pad} contentContainerStyle={{ paddingBottom:100 }}>
+      <View style={{ flexDirection:'row', alignItems:'center', padding:20, paddingTop:(StatusBar.currentHeight||0)+16, borderBottomWidth:1, borderBottomColor:'#30363d', marginBottom:8 }}>
+        <Text style={{ color:C.text, fontSize:22, fontWeight:'bold', flex:1 }}>Settings</Text>
+        <Ionicons name="settings-outline" size={22} color={C.green} />
+      </View>
       {[
         { label:'General', sub:'Language, currency, network', icon:'settings-outline', onPress: () => setSettingsView('general') },
         { label:'Manage Accounts', sub:'Add, import or watch accounts', icon:'people-outline', onPress: () => setSettingsView('manageAccounts') },
