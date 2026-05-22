@@ -197,7 +197,6 @@ function NativeChart({ mint }: { mint: string }) {
 }
 
 function TokenModal({ token, pubkey, onClose, onSend }) {
-  const fmt = (n:number) => n >= 1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n >= 1e3 ? '$'+(n/1e3).toFixed(2)+'K' : '$'+n?.toFixed(2);
   const [view, setView] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
@@ -280,12 +279,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
   const website = pairData?.info?.websites?.[0]?.url;
   const positionVal = token.amount * (token.price || 0);
   const positionChange = positionVal - (token.amount * (token.avgBuy || token.price || 0));
-  const fmt = (n:number) => {
-    const rate = exchangeRates[appCurrency]||1;
-    const sym = currencySymbol;
-    const v = (n||0)*rate;
-    return v >= 1e6 ? sym+(v/1e6).toFixed(2)+'M' : v >= 1e3 ? sym+(v/1e3).toFixed(2)+'K' : sym+v?.toFixed(2);
-  };
+  const fmt = (n:number) => n >= 1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n >= 1e3 ? '$'+(n/1e3).toFixed(2)+'K' : '$'+n?.toFixed(2);
   const tfMap: Record<string,string> = {'1H':'15','1D':'60','1W':'240','1M':'1D','YTD':'1W'};
   const chartUrl = pairData?.pairAddress ? `https://www.geckoterminal.com/solana/pools/${pairData.pairAddress}?embed=1&info=0&swaps=0&grayscale=0&light_chart=0` : '';
 
