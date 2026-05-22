@@ -2746,16 +2746,25 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
             const raw = await AsyncStorage.getItem('accounts');
             const existing = raw ? JSON.parse(raw) : [];
             const found: any[] = [];
+            let emptyStreak = 0;
             for(let i = 0; i < 20; i++) {
               try {
                 const { publicKey: pk } = deriveWalletAtIndex(importSeedInput.trim(), i);
                 const alreadyImported = existing.find((a:any) => a.pubkey === pk);
-                let balance = 0;
-                try {
-                  const res = await rpcFetch('getBalance', [pk, {commitment:'confirmed'}]);
-                  balance = (res?.value||0) / 1e9;
-                } catch(e) {}
-                found.push({ index: i, pubkey: pk, balance, name: alreadyImported?.name||('Account '+(i+1)), imported: !!alreadyImported });
+                const [balRes, txRes] = await Promise.all([
+                  rpcFetch('getBalance', [pk, {commitment:'confirmed'}]).catch(()=>null),
+                  rpcFetch('getSignaturesForAddress', [pk, {limit:1}]).catch(()=>null),
+                ]);
+                const balance = (balRes?.value||0) / 1e9;
+                const hasTx = Array.isArray(txRes) && txRes.length > 0;
+                const active = balance > 0 || hasTx || !!alreadyImported;
+                if(active) {
+                  found.push({ index: i, pubkey: pk, balance, name: alreadyImported?.name||('Account '+(i+1)), imported: !!alreadyImported });
+                  emptyStreak = 0;
+                } else {
+                  emptyStreak++;
+                  if(emptyStreak >= 2) break;
+                }
               } catch(e) { break; }
             }
             setDiscoveredAccounts(found);
