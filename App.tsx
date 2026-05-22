@@ -225,24 +225,41 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
       .then(r => r.json())
       .then(d => { if (d?.extensions?.description) setInsights(d.extensions.description); })
       .catch(() => {});
+    // Fetch holder count on load via getTokenLargestAccounts
     fetch('https://chatfi.pro/api/jupiter', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ url:`https://api.helius.xyz/v0/token-metadata?api-key=demo`, method:'POST', body:{mintAccounts:[token.mint]} })
-    }).then(r=>r.json()).then(d=>{ if(d?.[0]?.onChainAccountInfo?.accountInfo?.data?.parsed?.info?.supply) {} }).catch(()=>{});
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: 'SOLANA_RPC',
+        method: 'POST',
+        body: { jsonrpc: '2.0', id: 1, method: 'getTokenLargestAccounts', params: [token.mint] }
+      })
+    }).then(r => r.json()).then(d => {
+      const accounts = d?.result?.value || [];
+      if (accounts.length > 0) {
+        setTopHolders(accounts.slice(0, 20));
+        setHolderCount(accounts.length);
+      }
+    }).catch(() => {});
   }, [token?.mint]);
 
   const fetchHolders = async () => {
     if (!token?.mint || holdersLoading) return;
     setHoldersLoading(true);
     try {
+      // Use Helius getTokenLargestAccounts via chatfi proxy
       const r = await fetch('https://chatfi.pro/api/jupiter', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ url:`https://mainnet.helius-rpc.com/?api-key=demo`, method:'POST',
-          body:{ jsonrpc:'2.0', id:1, method:'getTokenLargestAccounts', params:[token.mint] } })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: 'SOLANA_RPC',
+          method: 'POST',
+          body: { jsonrpc: '2.0', id: 1, method: 'getTokenLargestAccounts', params: [token.mint] }
+        })
       });
       const d = await r.json();
       const accounts = d?.result?.value || [];
-      setTopHolders(accounts.slice(0,20));
+      setTopHolders(accounts.slice(0, 20));
       setHolderCount(accounts.length);
     } catch(e) {}
     setHoldersLoading(false);
@@ -252,17 +269,22 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
     if (!token?.mint || tradesLoading) return;
     setTradesLoading(true);
     try {
-      const r = await fetch('https://api.dexscreener.com/latest/dex/tokens/' + token.mint);
+      // Fetch recent transactions from Birdeye public API
+      const r = await fetch(
+        'https://public-api.birdeye.so/defi/txs/token?address=' + token.mint + '&offset=0&limit=50&tx_type=swap',
+        { headers: { 'X-Chain': 'solana' } }
+      );
       const d = await r.json();
-      const pair = d?.pairs?.[0];
-      if (pair?.pairAddress) {
-        const r2 = await fetch('https://api.dexscreener.com/latest/dex/pairs/solana/' + pair.pairAddress);
-        const d2 = await r2.json();
-        setTrades(d2?.pairs?.[0]?.txns ? [
-          { type:'Buy', vol: d2.pairs[0].volume?.h1||0, count: d2.pairs[0].txns?.h1?.buys||0, time:'1h' },
-          { type:'Sell', vol: d2.pairs[0].volume?.h1||0, count: d2.pairs[0].txns?.h1?.sells||0, time:'1h' },
-        ] : []);
-      }
+      const items = d?.data?.items || [];
+      const mapped = items.map((tx: any) => ({
+        time: tx.blockUnixTime ? Math.round((Date.now()/1000 - tx.blockUnixTime) / 60) : null,
+        type: tx.side === 'buy' ? 'B' : 'S',
+        price: tx.price || 0,
+        volumeUsd: tx.volumeUSD || 0,
+        tokenAmount: tx.side === 'buy' ? (tx.to?.amount || 0) : (tx.from?.amount || 0),
+        trader: tx.owner || tx.source || '',
+      }));
+      setTrades(mapped);
     } catch(e) {}
     setTradesLoading(false);
   };
@@ -274,14 +296,20 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
   const mktCap = pairData?.marketCap;
   const liquidity = pairData?.liquidity?.usd;
   const holders = holderCount ?? pairData?.info?.holders ?? null;
-  const orgScore = pairData?.info?.openGraph?.score ?? pairData?.fdv ? Math.min(10, Math.round((pairData?.liquidity?.usd||0)/10000)) : 0;
+  // Organic score: ratio of organic buys to total txns (0-10 scale)
+  const rawBuys = pairData?.txns?.h24?.buys || 0;
+  const rawSells = pairData?.txns?.h24?.sells || 0;
+  const totalTxns = rawBuys + rawSells;
+  const orgScore = totalTxns > 0 ? Math.min(10, Math.round((rawBuys / totalTxns) * 10)) : null;
   const twitter = pairData?.info?.socials?.find((s:any)=>s.type==='twitter')?.url;
   const website = pairData?.info?.websites?.[0]?.url;
   const positionVal = token.amount * (token.price || 0);
   const positionChange = positionVal - (token.amount * (token.avgBuy || token.price || 0));
   const fmt = (n:number) => n >= 1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n >= 1e3 ? '$'+(n/1e3).toFixed(2)+'K' : '$'+n?.toFixed(2);
   const tfMap: Record<string,string> = {'1H':'15','1D':'60','1W':'240','1M':'1D','YTD':'1W'};
-  const chartUrl = pairData?.pairAddress ? `https://www.geckoterminal.com/solana/pools/${pairData.pairAddress}?embed=1&info=0&swaps=0&grayscale=0&light_chart=0` : '';
+  const chartUrl = pairData?.pairAddress
+    ? 'https://dexscreener.com/solana/' + pairData.pairAddress + '?embed=1&theme=dark&trades=0&info=0'
+    : '';
 
   return (
     <Modal visible={!!token} animationType="slide" transparent={false} onRequestClose={onClose}>
@@ -333,8 +361,10 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               </View>
               <View style={{width:1,backgroundColor:C.border}}/>
               <View style={{alignItems:'center'}}>
-                <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>ORG SCORE</Text>
-                <Text style={{color:orgScore>0?C.green:'#ff4444',fontSize:12,fontWeight:'700'}}>{orgScore}</Text>
+                <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>ORG</Text>
+                <Text style={{color:orgScore!=null&&orgScore>=5?C.green:'#ff4444',fontSize:12,fontWeight:'700'}}>
+                  {orgScore != null ? orgScore + '/10' : '—'}
+                </Text>
               </View>
             </View>
             <View style={{flexDirection:'row',paddingHorizontal:16,marginBottom:4,gap:4}}>
@@ -418,48 +448,93 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                   <Text style={{color:C.muted,fontSize:14,lineHeight:22}}>{insights}</Text>
                 </View>
               ) : null}
-              {/* Terminal Tab */}
+              {/* Terminal Tab — Top 20 Holders */}
               {activeTab === 'Terminal' && (
                 <View style={{padding:16}}>
                   <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Top Holders</Text>
                   {holdersLoading && <ActivityIndicator color={C.green} style={{marginTop:20}}/>}
                   {!holdersLoading && topHolders.length === 0 && (
-                    <Text style={{color:C.muted,textAlign:'center',marginTop:20}}>No holder data available</Text>
+                    <Text style={{color:C.muted,textAlign:'center',marginTop:20,fontSize:13}}>No holder data available</Text>
                   )}
-                  {topHolders.map((h:any,i:number)=>(
-                    <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.border}}>
-                      <Text style={{color:C.muted,fontSize:13,width:28}}>#{i+1}</Text>
-                      <Text style={{color:C.green,fontSize:13,flex:1,fontFamily:'monospace'}} numberOfLines={1}>
-                        {h.address ? h.address.slice(0,8)+'...'+h.address.slice(-4) : '—'}
-                      </Text>
-                      <Text style={{color:C.text,fontSize:13,fontWeight:'600'}}>
-                        {h.uiAmount ? Number(h.uiAmount).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}
-                      </Text>
+                  {!holdersLoading && topHolders.length > 0 && (
+                    <View>
+                      {/* Header */}
+                      <View style={{flexDirection:'row',paddingVertical:8,borderBottomWidth:1,borderBottomColor:C.border,marginBottom:4}}>
+                        <Text style={{color:C.muted,fontSize:11,width:32}}>#</Text>
+                        <Text style={{color:C.muted,fontSize:11,flex:1}}>ADDRESS</Text>
+                        <Text style={{color:C.muted,fontSize:11,textAlign:'right'}}>AMOUNT</Text>
+                      </View>
+                      {topHolders.map((h:any, i:number) => (
+                        <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.border}}>
+                          <Text style={{color:C.muted,fontSize:13,width:32}}>#{i+1}</Text>
+                          <Text style={{color:C.green,fontSize:12,flex:1,fontFamily:'monospace'}} numberOfLines={1}>
+                            {h.address ? h.address.slice(0,6)+'...'+h.address.slice(-4) : '—'}
+                          </Text>
+                          <Text style={{color:C.text,fontSize:13,fontWeight:'600',textAlign:'right'}}>
+                            {h.uiAmount ? Number(h.uiAmount).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}
+                          </Text>
+                        </View>
+                      ))}
                     </View>
-                  ))}
+                  )}
                 </View>
               )}
 
-              {/* Live Feed Tab */}
+              {/* Live Feed Tab — real onchain trades */}
               {activeTab === 'Live Feed' && (
                 <View style={{padding:16}}>
-                  <Text style={{color:C.text,fontWeight:'700',fontSize:16,marginBottom:12}}>Trading Activity</Text>
+                  <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                    <Text style={{color:C.text,fontWeight:'700',fontSize:16}}>Live Feed</Text>
+                    <TouchableOpacity onPress={fetchTrades}
+                      style={{backgroundColor:C.card,borderRadius:8,paddingHorizontal:12,paddingVertical:6}}>
+                      <Text style={{color:C.green,fontSize:12,fontWeight:'600'}}>↻ Refresh</Text>
+                    </TouchableOpacity>
+                  </View>
                   {tradesLoading && <ActivityIndicator color={C.green} style={{marginTop:20}}/>}
                   {!tradesLoading && trades.length === 0 && (
-                    <Text style={{color:C.muted,textAlign:'center',marginTop:20}}>No trading data available</Text>
+                    <Text style={{color:C.muted,textAlign:'center',marginTop:20,fontSize:13}}>No trading data available</Text>
                   )}
-                  {pairData && (
-                    <View style={{gap:10}}>
-                      {[{label:'5m Buys',val:pairData.txns?.m5?.buys,color:C.green},{label:'5m Sells',val:pairData.txns?.m5?.sells,color:'#ff4444'},
-                        {label:'1h Buys',val:pairData.txns?.h1?.buys,color:C.green},{label:'1h Sells',val:pairData.txns?.h1?.sells,color:'#ff4444'},
-                        {label:'24h Buys',val:pairData.txns?.h24?.buys,color:C.green},{label:'24h Sells',val:pairData.txns?.h24?.sells,color:'#ff4444'},
-                        {label:'24h Vol',val:pairData.volume?.h24,color:C.text,prefix:'$'},{label:'6h Vol',val:pairData.volume?.h6,color:C.text,prefix:'$'},
-                      ].map((item:any,i:number)=>(
-                        <View key={i} style={{flexDirection:'row',justifyContent:'space-between',backgroundColor:C.card,borderRadius:10,padding:12}}>
-                          <Text style={{color:C.muted,fontSize:14}}>{item.label}</Text>
-                          <Text style={{color:item.color,fontSize:14,fontWeight:'700'}}>{item.prefix||''}{item.val!=null?Number(item.val).toLocaleString():'—'}</Text>
-                        </View>
-                      ))}
+                  {!tradesLoading && trades.length > 0 && (
+                    <View>
+                      {/* Column headers */}
+                      <View style={{flexDirection:'row',paddingVertical:8,borderBottomWidth:1,borderBottomColor:C.border,marginBottom:4}}>
+                        <Text style={{color:C.muted,fontSize:10,width:40}}>TIME</Text>
+                        <Text style={{color:C.muted,fontSize:10,width:24}}/>
+                        <Text style={{color:C.muted,fontSize:10,flex:1}}>PRICE</Text>
+                        <Text style={{color:C.muted,fontSize:10,flex:1,textAlign:'right'}}>VOL</Text>
+                        <Text style={{color:C.muted,fontSize:10,flex:1,textAlign:'right'}}>{token.symbol}</Text>
+                        <Text style={{color:C.muted,fontSize:10,width:70,textAlign:'right'}}>TRADER</Text>
+                      </View>
+                      {trades.map((tx:any, i:number) => {
+                        const isBuy = tx.type === 'B';
+                        const timeLabel = tx.time != null
+                          ? tx.time < 60 ? tx.time + 'm' : Math.round(tx.time/60/24) + 'd'
+                          : '—';
+                        const priceStr = tx.price > 0
+                          ? '$' + (tx.price < 0.0001 ? tx.price.toExponential(2) : tx.price < 0.01 ? tx.price.toFixed(6) : tx.price.toFixed(4))
+                          : '—';
+                        const volStr = tx.volumeUsd > 0
+                          ? tx.volumeUsd >= 1000 ? '$' + (tx.volumeUsd/1000).toFixed(2) + 'K' : '$' + tx.volumeUsd.toFixed(2)
+                          : '—';
+                        const amtStr = tx.tokenAmount > 0
+                          ? tx.tokenAmount >= 1000 ? (tx.tokenAmount/1000).toFixed(1) + 'K' : tx.tokenAmount.toFixed(0)
+                          : '—';
+                        const traderStr = tx.trader ? tx.trader.slice(0,4)+'...'+tx.trader.slice(-4) : '—';
+                        return (
+                          <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:9,borderBottomWidth:1,borderBottomColor:C.border}}>
+                            <Text style={{color:C.muted,fontSize:11,width:40}}>{timeLabel}</Text>
+                            <View style={{width:24,alignItems:'center'}}>
+                              <View style={{backgroundColor:isBuy?'rgba(57,255,20,0.15)':'rgba(255,68,68,0.15)',borderRadius:4,paddingHorizontal:3,paddingVertical:1}}>
+                                <Text style={{color:isBuy?C.green:'#ff4444',fontSize:10,fontWeight:'700'}}>{tx.type}</Text>
+                              </View>
+                            </View>
+                            <Text style={{color:C.text,fontSize:12,flex:1}}>{priceStr}</Text>
+                            <Text style={{color:isBuy?C.green:'#ff4444',fontSize:12,flex:1,textAlign:'right'}}>{volStr}</Text>
+                            <Text style={{color:C.text,fontSize:12,flex:1,textAlign:'right'}}>{amtStr}</Text>
+                            <Text style={{color:C.muted,fontSize:11,width:70,textAlign:'right',fontFamily:'monospace'}}>{traderStr}</Text>
+                          </View>
+                        );
+                      })}
                     </View>
                   )}
                 </View>
