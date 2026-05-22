@@ -72,64 +72,6 @@ async function _sendSPL(pubkey:string,secretKey:Uint8Array,recipient:string,amou
   return r.result;
 }
 
-const AuroraBackground = ({ C }: any) => {
-  const anim1 = React.useRef(new Animated.Value(0)).current;
-  const anim2 = React.useRef(new Animated.Value(0)).current;
-  const anim3 = React.useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    const loop = (anim: any, duration: number, delay: number) => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(anim, { toValue: 1, duration, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration, useNativeDriver: true }),
-        ])
-      ).start();
-    };
-    loop(anim1, 8000, 0);
-    loop(anim2, 11000, 2000);
-    loop(anim3, 9000, 4000);
-  }, []);
-
-  const opacity1 = anim1.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.06, 0.13, 0.06] });
-  const opacity2 = anim2.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.04, 0.09, 0.04] });
-  const opacity3 = anim3.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.03, 0.07, 0.03] });
-
-  const scale1 = anim1.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.15, 1] });
-  const scale2 = anim2.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1.1, 0.95, 1.1] });
-  const scale3 = anim3.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.9, 1.1, 0.9] });
-
-  return (
-    <View style={{ position:'absolute', top:0, left:0, right:0, bottom:0, overflow:'hidden', pointerEvents:'none' }}>
-      {/* Top-left green aurora */}
-      <Animated.View style={{
-        position:'absolute', top:-120, left:-80,
-        width:320, height:320, borderRadius:160,
-        backgroundColor:'#39ff14',
-        opacity: opacity1,
-        transform: [{ scale: scale1 }],
-      }} />
-      {/* Bottom-right teal aurora */}
-      <Animated.View style={{
-        position:'absolute', bottom:-100, right:-60,
-        width:280, height:280, borderRadius:140,
-        backgroundColor:'#00e5cc',
-        opacity: opacity2,
-        transform: [{ scale: scale2 }],
-      }} />
-      {/* Center-right emerald aurora */}
-      <Animated.View style={{
-        position:'absolute', top:'40%', right:-100,
-        width:240, height:240, borderRadius:120,
-        backgroundColor:'#00ff88',
-        opacity: opacity3,
-        transform: [{ scale: scale3 }],
-      }} />
-    </View>
-  );
-};
-
 const CURRENCY_SYMBOLS: Record<string,string> = {
   USD:'$', EUR:'€', GBP:'£', NGN:'₦', JPY:'¥', CNY:'¥', KRW:'₩', INR:'₹',
   BRL:'R$', CAD:'C$', AUD:'A$', CHF:'Fr', MXN:'MX$', ZAR:'R', TRY:'₺',
@@ -255,6 +197,7 @@ function NativeChart({ mint }: { mint: string }) {
 }
 
 function TokenModal({ token, pubkey, onClose, onSend }) {
+  const fmt = (n:number) => n >= 1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n >= 1e3 ? '$'+(n/1e3).toFixed(2)+'K' : '$'+n?.toFixed(2);
   const [view, setView] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
@@ -5311,7 +5254,6 @@ https://solscan.io/tx/${sig}` }]);
 
   return (
     <SafeAreaView style={s.root}>
-      <AuroraBackground C={C} />
       <Modal visible={showTxModal} animationType="slide" transparent onRequestClose={()=>setShowTxModal(false)}>
         <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.7)",justifyContent:"flex-end"}}>
           <View style={{backgroundColor:C.modal,borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:"80%",paddingBottom:72}}>
