@@ -5507,21 +5507,11 @@ https://solscan.io/tx/${sig}` }]);
           <View style={s.flex}>
             {/* Header */}
             <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:16,paddingTop:(StatusBar.currentHeight||0)+12,paddingBottom:12,borderBottomWidth:1,borderBottomColor:C.border}}>
-              <TouchableOpacity onPress={()=>{setMsgs([{id:1,text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.
-
-Try:
-• "swap 1 SOL to USDC"
-• "price of JUP"
-• "what is yield farming?"',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
+              <TouchableOpacity onPress={()=>{setMsgs([{id:1,text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
                 <Ionicons name="time-outline" size={20} color={C.text}/>
               </TouchableOpacity>
               <Text style={{color:C.text,fontSize:17,fontWeight:'700',letterSpacing:0.3}}>ChatFi AI</Text>
-              <TouchableOpacity onPress={()=>{setMsgs([{id:Date.now(),text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.
-
-Try:
-• "swap 1 SOL to USDC"
-• "price of JUP"
-• "what is yield farming?"',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
+              <TouchableOpacity onPress={()=>{setMsgs([{id:Date.now(),text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
                 <Ionicons name="create-outline" size={20} color={C.text}/>
               </TouchableOpacity>
             </View>
