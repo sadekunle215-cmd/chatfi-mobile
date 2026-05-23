@@ -113,6 +113,19 @@ const POPULAR_DAPPS = [
 
 
 
+function SkeletonBox({ width, height, borderRadius=8, style={} }: any) {
+  const anim = React.useRef(new Animated.Value(0.3)).current;
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0.3, duration: 700, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#1C2936', opacity: anim }, style]} />;
+}
+
 export default function App() {
   const [mwaInitUrl, setMwaInitUrl] = React.useState<string|null>(null);
   React.useEffect(() => {
