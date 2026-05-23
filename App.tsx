@@ -4176,7 +4176,11 @@ export default function App() {
         content: m.text
       }));
       const response = await askAI(q, pubkey, history, appLanguage);
-      setMsgs(p => [...p, { id: Date.now() + 1, text: response.text, from: 'bot' }]);
+      setMsgs(p => {
+        const updated = [...p, { id: Date.now() + 1, text: response.text, from: 'bot' }];
+        saveMsgs(updated);
+        return updated;
+      });
       await dispatchAction(response.action, response.actionData);
     } catch (e) {
       setMsgs(p => [...p, { id: Date.now() + 1, text: 'Error: ' + e.message, from: 'bot' }]);
