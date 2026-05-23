@@ -290,6 +290,10 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
   const [recentAddresses, setRecentAddresses] = React.useState<any[]>([]);
   const [estimatedFee, setEstimatedFee] = React.useState<number|null>(null);
   const [feeLoading, setFeeLoading] = React.useState(false);
+  const [showTokenPicker, setShowTokenPicker] = React.useState(false);
+  const [showSendQR, setShowSendQR] = React.useState(false);
+  const [sendToken, setSendToken] = React.useState<any>(null);
+  const [allTokens, setAllTokens] = React.useState<any[]>([]);
   const [sending, setSending] = React.useState(false);
   const [pairData, setPairData] = React.useState<any>(null);
   const [timeframe, setTimeframe] = React.useState('1D');
@@ -693,35 +697,32 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
               <TouchableOpacity onPress={()=>setView('overview')} style={{marginRight:12}}>
                 <Ionicons name="arrow-back" size={22} color={C.text}/>
               </TouchableOpacity>
-              <View style={{flex:1,flexDirection:'row',justifyContent:'center',gap:16}}>
-                <TouchableOpacity style={{paddingBottom:4,borderBottomWidth:2,borderBottomColor:C.green}}>
-                  <Text style={{color:C.text,fontWeight:'700',fontSize:15}}>Address</Text>
-                </TouchableOpacity>
-                <TouchableOpacity>
-                  <Text style={{color:C.muted,fontSize:15}}>Magic Link</Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity style={{padding:8}}>
+              <Text style={{color:C.text,fontWeight:'700',fontSize:17,flex:1,textAlign:'center'}}>Send {(sendToken||token)?.symbol}</Text>
+              <TouchableOpacity onPress={async()=>{
+                // Show tx history — placeholder for now
+                Alert.alert('Transaction History','Coming soon');
+              }} style={{padding:8}}>
                 <Ionicons name="time-outline" size={20} color={C.text}/>
               </TouchableOpacity>
             </View>
 
             {/* Amount display */}
             <View style={{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
-              <TouchableOpacity style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:C.card,borderRadius:24,paddingHorizontal:16,paddingVertical:10,marginBottom:24}}>
-                <TokLogo uri={token.logoURI||''} symbol={token.symbol} style={{width:28,height:28,borderRadius:14}} mint={token.mint}/>
-                <Text style={{color:C.text,fontWeight:'700',fontSize:16}}>{token.symbol}</Text>
+              <TouchableOpacity onPress={()=>setShowTokenPicker(true)}
+                style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:C.card,borderRadius:24,paddingHorizontal:16,paddingVertical:10,marginBottom:24}}>
+                <TokLogo uri={(sendToken||token).logoURI||''} symbol={(sendToken||token).symbol} style={{width:28,height:28,borderRadius:14}} mint={(sendToken||token).mint}/>
+                <Text style={{color:C.text,fontWeight:'700',fontSize:16}}>{(sendToken||token).symbol}</Text>
                 <Ionicons name="chevron-down" size={16} color={C.muted}/>
               </TouchableOpacity>
               <Text style={{color:C.text,fontSize:64,fontWeight:'300',letterSpacing:-2}}>
                 {sendAmt || '0'}
               </Text>
               <Text style={{color:C.muted,fontSize:16,marginTop:4}}>
-                ${sendAmt && token.price ? (parseFloat(sendAmt||'0') * (token.price||0)).toFixed(2) : '0.00'}
+                ${(parseFloat(sendAmt||'0') * ((sendToken||token)?.price||0)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:6})}
               </Text>
-              <TouchableOpacity onPress={()=>setSendAmt(String(token.amount||0))}
+              <TouchableOpacity onPress={()=>setSendAmt(String((sendToken||token).amount||0))}
                 style={{marginTop:16,backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:6}}>
-                <Text style={{color:C.muted,fontSize:13}}>Balance: {token.amount?.toFixed(4)} {token.symbol}</Text>
+                <Text style={{color:C.muted,fontSize:13}}>Balance: {(sendToken||token).amount?.toFixed(4)} {(sendToken||token).symbol}</Text>
               </TouchableOpacity>
             </View>
 
@@ -729,7 +730,7 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
             <TouchableOpacity
               onPress={async()=>{
                 if(!sendAmt||isNaN(parseFloat(sendAmt))||parseFloat(sendAmt)<=0){Alert.alert('Error','Enter an amount');return;}
-                if(parseFloat(sendAmt)>token.amount){Alert.alert('Error','Insufficient balance');return;}
+                if(parseFloat(sendAmt)>(sendToken||token).amount){Alert.alert('Error','Insufficient balance');return;}
                 // Load recent addresses
                 try {
                   const raw = await AsyncStorage.getItem('recent_addresses');
@@ -788,7 +789,11 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
               <TouchableOpacity onPress={async()=>{ const t=await Clipboard.getString(); setSendAddr(t); }}>
                 <Text style={{color:C.green,fontWeight:'700',fontSize:14}}>Paste</Text>
               </TouchableOpacity>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={async()=>{
+                const {status} = await requestCameraPermission();
+                if(status!=='granted'){Alert.alert('Permission','Camera permission required');return;}
+                setShowSendQR(true);
+              }}>
                 <Ionicons name="scan-outline" size={20} color={C.muted}/>
               </TouchableOpacity>
             </View>
@@ -839,6 +844,49 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
           </View>
         )}
 
+        {/* Token picker modal */}
+        {showTokenPicker && (
+          <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:200,backgroundColor:C.bg}}>
+            <View style={{flexDirection:'row',alignItems:'center',padding:16,borderBottomWidth:1,borderBottomColor:C.border,paddingTop:(StatusBar.currentHeight||0)+12}}>
+              <TouchableOpacity onPress={()=>setShowTokenPicker(false)} style={{marginRight:12}}>
+                <Ionicons name="arrow-back" size={22} color={C.text}/>
+              </TouchableOpacity>
+              <Text style={{color:C.text,fontSize:17,fontWeight:'700'}}>Select Token</Text>
+            </View>
+            <ScrollView>
+              {(onGetTokens?.() || []).concat(token).filter((t:any,i:number,a:any[])=>a.findIndex((x:any)=>x.mint===t.mint)===i).map((t:any,i:number)=>(
+                <TouchableOpacity key={i} onPress={()=>{ setSendToken(t); setSendAmt(''); setShowTokenPicker(false); }}
+                  style={{flexDirection:'row',alignItems:'center',padding:16,borderBottomWidth:1,borderBottomColor:C.border}}>
+                  <TokLogo uri={t.logoURI||''} symbol={t.symbol} style={{width:40,height:40,borderRadius:20,marginRight:12}} mint={t.mint}/>
+                  <View style={{flex:1}}>
+                    <Text style={{color:C.text,fontWeight:'600',fontSize:15}}>{t.symbol}</Text>
+                    <Text style={{color:C.muted,fontSize:12}}>Balance: {t.amount?.toFixed(4)}</Text>
+                  </View>
+                  {(sendToken||token)?.mint===t.mint && <Ionicons name="checkmark-circle" size={20} color={C.green}/>}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* QR Scanner for send */}
+        {showSendQR && (
+          <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:200,backgroundColor:'#000'}}>
+            <CameraView style={{flex:1}} facing="back"
+              onBarcodeScanned={({data})=>{
+                const addr = data.startsWith('solana:') ? data.replace('solana:','').split('?')[0] : data;
+                setSendAddr(addr);
+                setShowSendQR(false);
+              }}
+            />
+            <TouchableOpacity onPress={()=>setShowSendQR(false)}
+              style={{position:'absolute',top:50,right:20,backgroundColor:'rgba(0,0,0,0.6)',borderRadius:20,padding:10}}>
+              <Text style={{color:'#fff',fontSize:18}}>✕</Text>
+            </TouchableOpacity>
+            <Text style={{position:'absolute',bottom:60,alignSelf:'center',color:'#fff',fontSize:14}}>Point at a Solana wallet QR code</Text>
+          </View>
+        )}
+
         {view === 'send' && sendStep === 'summary' && (
           <View style={{flex:1,backgroundColor:C.bg}}>
             <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingTop:(StatusBar.currentHeight||0)+12,paddingBottom:12,borderBottomWidth:1,borderBottomColor:C.border}}>
@@ -858,7 +906,7 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
               </View>
               <Text style={{color:C.text,fontSize:40,fontWeight:'700'}}>{sendAmt} {token.symbol}</Text>
               <Text style={{color:C.muted,fontSize:16,marginTop:4}}>
-                ~ ${(parseFloat(sendAmt||'0')*(token.price||0)).toFixed(token.price&&token.price<0.001?7:2)}
+                ~ ${(parseFloat(sendAmt||'0')*((sendToken||token)?.price||0)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:6})}
               </Text>
             </View>
 
@@ -870,12 +918,12 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
               </View>
               <View style={{flexDirection:'row',justifyContent:'space-between',padding:16,borderBottomWidth:1,borderBottomColor:C.border}}>
                 <Text style={{color:C.muted,fontSize:14}}>Rate</Text>
-                <Text style={{color:C.text,fontSize:14}}>1 {token.symbol} ≈ ${token.price?.toFixed(token.price<0.001?7:4)||'—'}</Text>
+                <Text style={{color:C.text,fontSize:14}}>1 {(sendToken||token).symbol} ≈ ${((sendToken||token).price||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:8})}</Text>
               </View>
               <View style={{flexDirection:'row',justifyContent:'space-between',padding:16}}>
                 <Text style={{color:C.muted,fontSize:14}}>Fees</Text>
                 <Text style={{color:C.text,fontSize:14}}>
-                  {feeLoading ? '...' : estimatedFee ? `~${(estimatedFee*((token.symbol==='SOL'?token.price:0.001)||0.17)).toFixed(3)} (${estimatedFee} SOL)` : '~0.000005 SOL'}
+                  {feeLoading ? '...' : `~${estimatedFee||0.000005} SOL`}
                 </Text>
               </View>
             </View>
@@ -886,7 +934,8 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
               onPress={async()=>{
                 setSending(true);
                 try{
-                  await onSend(token.mint,sendAddr.trim(),sendAmt,token.symbol,token.decimals??6);
+                  const st = sendToken||token;
+                  await onSend(st.mint,sendAddr.trim(),sendAmt,st.symbol,st.decimals??6);
                   // Save to recent addresses
                   try {
                     const raw = await AsyncStorage.getItem('recent_addresses');
@@ -899,9 +948,7 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
                 }catch(e:any){Alert.alert('Send failed',e.message||'Unknown error');}
                 finally{setSending(false);}
               }}>
-              {sending?<ActivityIndicator color="#0d1117"/>:<Text style={{color:'#0d1117',fontWeight:'700',fontSize:16}}>
-                {estimatedFee===0.002?'Insufficient SOL for fees':'Confirm Send'}
-              </Text>}
+              {sending?<ActivityIndicator color="#0d1117"/>:<Text style={{color:'#0d1117',fontWeight:'700',fontSize:16}}>Confirm Send</Text>}
             </TouchableOpacity>
           </View>
         )}
