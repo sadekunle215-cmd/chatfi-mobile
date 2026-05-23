@@ -1729,7 +1729,7 @@ const StudioLaunchCard = ({ card, wallet, deriveWallet, setMsgs, C, s }: any) =>
 
       // Step 4: sign tx
       const { VersionedTransaction, Keypair } = require('@solana/web3.js');
-      const { secretKey: sk2 } = deriveWallet(wallet);
+      const { secretKey: sk2 } = getKeypair(wallet);
       const keypair = Keypair.fromSecretKey(sk2);
       const tx = VersionedTransaction.deserialize(Buffer.from(txB64,'base64'));
       tx.sign([keypair]);
@@ -1948,7 +1948,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
     if (authed === false) return;
     setLimitLoading(true);
     try {
-      const {publicKey:pk,secretKey} = deriveWallet(wallet);
+      const {publicKey:pk,secretKey} = getKeypair(wallet);
       const inDec = fromToken2?.decimals||6;
       const outDec = toToken2?.decimals||6;
       const amtRaw = Math.round(parseFloat(amount)*Math.pow(10,inDec));
@@ -1969,7 +1969,7 @@ function SwapScreen({wallet,pubkey,tokenBalances,solBalance,fromToken2,setFromTo
     if (authed === false) return;
     setRecurLoading(true);
     try {
-      const {publicKey:pk,secretKey} = deriveWallet(wallet);
+      const {publicKey:pk,secretKey} = getKeypair(wallet);
       const unitSecs = recurUnit==='minute'?60:recurUnit==='hour'?3600:recurUnit==='week'?604800:86400;
       const interval = parseInt(recurEvery||'1')*unitSecs;
       const orders = parseInt(recurOrders||'7');
