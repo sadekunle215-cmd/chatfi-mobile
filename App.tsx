@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import Svg, { Line as SvgLine, Rect as SvgRect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import * as ExpoLinking from 'expo-linking';
-import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking } from 'react-native';
+import { Image, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, StatusBar, SafeAreaView, Modal, Alert, ActivityIndicator, Clipboard, RefreshControl, KeyboardAvoidingView, Platform, Animated, AppState, Linking, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, deriveWalletAtIndex, signAndSendTransaction, rpcFetch } from './wallet';
@@ -5957,7 +5957,7 @@ https://solscan.io/tx/${sig}` }]);
       {/* CHAT — fullscreen overlay covers tab bar */}
       {showChat && (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}
-          style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:99999,backgroundColor:C.bg}}>
+          style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:99999,backgroundColor:C.bg,elevation:99999}}>
         {/* CHAT */}
           <View style={s.flex}>
             {/* Header */}
@@ -6045,7 +6045,7 @@ https://solscan.io/tx/${sig}` }]);
                         <Text style={s.bubbleTxt}>{m.text}</Text>
                       </View>
                     )}
-                    {m.from === 'user' && <Text style={s.bubbleTxt}>{m.text}</Text>}
+                    {m.from === 'user' && <Text style={[s.bubbleTxt,{flexShrink:0,flexWrap:'wrap'}]}>{m.text}</Text>}
                     {m.card && renderCard(m.card)}
                   </View>
                 ))
@@ -6058,8 +6058,8 @@ https://solscan.io/tx/${sig}` }]);
               )}
             </ScrollView>
             <View style={[s.inputRow, {paddingBottom: 80}]}>
-              <TextInput style={s.input} value={input} onChangeText={(t)=>{setInput(t);inputRef.current=t;}} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current||input)} editable={!aiLoading} autoCorrect={false} autoCapitalize="none" blurOnSubmit={false} />
-              <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current||input)} disabled={aiLoading}>
+              <TextInput style={s.input} value={input} onChangeText={(t)=>{setInput(t);inputRef.current=t;}} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => { Keyboard.dismiss(); sendMsg(inputRef.current||input); }} editable={!aiLoading} autoCorrect={false} autoCapitalize="none" blurOnSubmit={false} />
+              <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => { Keyboard.dismiss(); sendMsg(inputRef.current||input); }} disabled={aiLoading}>
                 <Ionicons name="send" size={20} color="#0d1117" />
               </TouchableOpacity>
             </View>
