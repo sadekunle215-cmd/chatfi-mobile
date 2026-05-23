@@ -351,11 +351,6 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
               </View>
               <View style={{width:1,backgroundColor:C.border}}/>
               <View style={{alignItems:'center'}}>
-                <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>HOLDERS</Text>
-                <Text style={{color:C.text,fontSize:12,fontWeight:'700'}}>{holders||'—'}</Text>
-              </View>
-              <View style={{width:1,backgroundColor:C.border}}/>
-              <View style={{alignItems:'center'}}>
                 <Text style={{color:C.muted,fontSize:10,letterSpacing:0.5}}>ORG</Text>
                 <Text style={{color:orgScore!=null&&orgScore>=5?C.green:'#ff4444',fontSize:12,fontWeight:'700'}}>
                   {orgScore != null ? orgScore + '/10' : '—'}
