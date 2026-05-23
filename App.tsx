@@ -3214,6 +3214,10 @@ export default function App() {
           setShowLockScreen(true);
         }
       }
+      if (state === 'active') {
+        // Refresh portfolio silently when app resumes
+        if (pubkey) fetchPortfolio(true);
+      }
     });
     return () => sub.remove();
   }, []);
