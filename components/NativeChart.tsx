@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { WebView } from 'react-native-webview';
 import Svg, { Line as SvgLine, Rect as SvgRect } from 'react-native-svg';
 import { C } from '../theme';

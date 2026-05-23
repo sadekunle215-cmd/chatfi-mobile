@@ -11,6 +11,9 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { generateWallet, getPublicKey, getPrivateKey, importWallet as deriveWallet, deriveWalletAtIndex, signAndSendTransaction, rpcFetch } from './wallet';
 import nacl from 'tweetnacl';
 import SwapScreen from './components/SwapScreen';
+import TokLogo from './components/TokLogo';
+import TokenModal from './components/TokenModal';
+import AccountModal from './components/AccountModal';
 import DappBrowser from './components/DappBrowser';
 import { askAI, getJupiterQuote, executeSwap as executeSwapTx, getTokenPrice, createTriggerOrder, createRecurringOrder, signAndSendTx, resolveToken } from './sendMsg';
 import { TOKENS, DECIMALS, getWalletBalances, getTokenPrices } from './wallet';
@@ -1200,7 +1203,7 @@ export default function App() {
       return <MigrateEarnCard card={card} pubkey={pubkey} wallet={wallet} deriveWallet={deriveWallet} requireAuth={requireAuth} rpcFetch={rpcFetch} showToast={showToast} fetchPortfolio={fetchPortfolio} setMsgs={setMsgs} C={C} s={s} />;
     }
 
-    if (type === 'studio_launch') { return <StudioLaunchCard card={card} wallet={wallet} deriveWallet={deriveWallet} setMsgs={setMsgs} C={C} s={s} />; }
+    if (type === 'studio_launch') { return <StudioCard card={card} wallet={wallet} deriveWallet={deriveWallet} setMsgs={setMsgs} C={C} s={s} />; }
 
     if (type === 'lock') {
       return (
@@ -2812,7 +2815,7 @@ https://solscan.io/tx/${sig}` }]);
         {/* SETTINGS */}
       {tab === 'settings' && (
         <View style={{flex:1, paddingTop: StatusBar.currentHeight||0}}>
-        <SettingsTab
+        {/* SettingsTab */}<View
           accounts={accounts}
           activeAccIdx={activeAccIdx}
           switchAccount={switchAccount}

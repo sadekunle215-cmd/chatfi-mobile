@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, Linking, ScrollView, Image } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, Linking, ScrollView, Image, StatusBar, Modal } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as ExpoLinking from 'expo-linking';
 import nacl from 'tweetnacl';
 import { rpcFetch } from '../wallet';
+import { C, POPULAR_DAPPS } from '../theme';
 
 function DappBrowser({ walletAddress, secretKey, wallet, mwaInitUrl, onMwaHandled }:any) {
   const [tabs, setTabs] = React.useState([{ id: 1, url: 'https://chatfi.pro', title: 'ChatFi' }]);
