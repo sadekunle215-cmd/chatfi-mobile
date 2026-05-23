@@ -2997,6 +2997,8 @@ export default function App() {
   }, []);
   const [tab, setTab] = useState('portfolio');
   const [showChat, setShowChat] = useState(false);
+  const [showChatHistory, setShowChatHistory] = useState(false);
+  const [chatSessions, setChatSessions] = React.useState<any[]>([]);
   React.useEffect(()=>{AsyncStorage.getItem('active_tab').then(t=>{if(t && t !== 'chat')setTab(t);});},[]);
   const setTabPersist = React.useCallback((t:string)=>{setTab(t);AsyncStorage.setItem('active_tab',t);},[]);
   const [splashDone, setSplashDone] = useState(false);
@@ -5940,7 +5942,7 @@ https://solscan.io/tx/${sig}` }]);
           <View style={s.flex}>
             {/* Header */}
             <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:16,paddingTop:(StatusBar.currentHeight||0)+12,paddingBottom:12,borderBottomWidth:1,borderBottomColor:C.border}}>
-              <TouchableOpacity onPress={()=>{setMsgs([{id:1,text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
+              <TouchableOpacity onPress={()=>setShowChatHistory(true)} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
                 <Ionicons name="time-outline" size={20} color={C.text}/>
               </TouchableOpacity>
               <Text style={{color:C.text,fontSize:17,fontWeight:'700',letterSpacing:0.3}}>ChatFi AI</Text>
