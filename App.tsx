@@ -782,8 +782,6 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade, tokenBalances: al
               <TouchableOpacity onPress={()=>{fetchTxHistory();setShowTxModal(true);}} style={{padding:8}}>
                 <Ionicons name="time-outline" size={20} color={C.text}/>
               </TouchableOpacity>
-                <Ionicons name="time-outline" size={20} color={C.text}/>
-              </TouchableOpacity>
             </View>
 
             {/* Amount display */}
