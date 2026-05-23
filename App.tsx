@@ -2992,6 +2992,21 @@ export default function App() {
   const [showChat, setShowChat] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [chatSessions, setChatSessions] = React.useState<any[]>([]);
+
+  // Load persisted chat messages
+  React.useEffect(() => {
+    AsyncStorage.getItem('chat_msgs').then(raw => {
+      if (raw) {
+        try {
+          const saved = JSON.parse(raw);
+          if (Array.isArray(saved) && saved.length > 1) setMsgs(saved);
+        } catch(e) {}
+      }
+    });
+    AsyncStorage.getItem('chat_sessions').then(raw => {
+      if (raw) { try { setChatSessions(JSON.parse(raw)); } catch(e) {} }
+    });
+  }, []);
   React.useEffect(()=>{AsyncStorage.getItem('active_tab').then(t=>{if(t && t !== 'chat')setTab(t);});},[]);
   const setTabPersist = React.useCallback((t:string)=>{setTab(t);AsyncStorage.setItem('active_tab',t);},[]);
   const [splashDone, setSplashDone] = useState(false);
@@ -3059,6 +3074,10 @@ export default function App() {
   const [scanResult, setScanResult] = useState('');
   const [seedPhrase, setSeedPhrase] = useState('');
   const [importSeed, setImportSeed] = useState('');
+  const saveMsgs = React.useCallback((newMsgs: any[]) => {
+    AsyncStorage.setItem('chat_msgs', JSON.stringify(newMsgs)).catch(()=>{});
+  }, []);
+
   const [msgs, setMsgs] = useState([
     { id: 1, text: 'Welcome to ChatFi! Your AI DeFi assistant on Solana.\n\nTry:\n• "swap 1 SOL to USDC"\n• "price of JUP"\n• "what is yield farming?"', from: 'bot' }
   ]);
@@ -5958,7 +5977,7 @@ https://solscan.io/tx/${sig}` }]);
             {/* Chat History Panel */}
             {showChatHistory && (
               <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:100,backgroundColor:C.bg}}>
-                <View style={{flexDirection:'row',alignItems:'center',padding:16,borderBottomWidth:1,borderBottomColor:C.border}}>
+                <View style={{flexDirection:'row',alignItems:'center',padding:16,paddingTop:(StatusBar.currentHeight||0)+16,borderBottomWidth:1,borderBottomColor:C.border}}>
                   <TouchableOpacity onPress={()=>setShowChatHistory(false)} style={{marginRight:12}}>
                     <Ionicons name="arrow-back" size={22} color={C.text}/>
                   </TouchableOpacity>
@@ -6034,7 +6053,7 @@ https://solscan.io/tx/${sig}` }]);
                 </View>
               )}
             </ScrollView>
-            <View style={s.inputRow}>
+            <View style={[s.inputRow, {paddingBottom: 80}]}>
               <TextInput style={s.input} value={input} onChangeText={(t)=>{setInput(t);inputRef.current=t;}} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current||input)} editable={!aiLoading} autoCorrect={false} autoCapitalize="none" blurOnSubmit={false} />
               <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current||input)} disabled={aiLoading}>
                 <Ionicons name="send" size={20} color="#0d1117" />
