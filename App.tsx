@@ -373,7 +373,7 @@ function NativePriceChart({ mint, C, avgBuy }: any) {
   );
 }
 
-function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
+function TokenModal({ token, pubkey, onClose, onSend, onTrade, tokenBalances: allTokens }: any) {
   const [view, setView] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
@@ -935,7 +935,7 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
               <Text style={{color:C.text,fontSize:17,fontWeight:'700'}}>Select Token</Text>
             </View>
             <ScrollView>
-              {(onGetTokens?.() || []).concat(token).filter((t:any,i:number,a:any[])=>a.findIndex((x:any)=>x.mint===t.mint)===i).map((t:any,i:number)=>(
+              {(allTokens||[token]).filter((t:any)=>t?.mint).filter((t:any,i:number,a:any[])=>a.findIndex((x:any)=>x?.mint===t.mint)===i).map((t:any,i:number)=>(
                 <TouchableOpacity key={i} onPress={()=>{ setSendToken(t); setSendAmt(''); setShowTokenPicker(false); }}
                   style={{flexDirection:'row',alignItems:'center',padding:16,borderBottomWidth:1,borderBottomColor:C.border}}>
                   <TokLogo uri={t.logoURI||''} symbol={t.symbol} style={{width:40,height:40,borderRadius:20,marginRight:12}} mint={t.mint}/>
@@ -5816,7 +5816,7 @@ https://solscan.io/tx/${sig}` }]);
           </View>
         </View>
       </Modal>
-      {selectedToken && <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
+      {selectedToken && <TokenModal token={selectedToken} pubkey={pubkey} tokenBalances={tokenBalances} onClose={() => setSelectedToken(null)}
   onTrade={(tok:any) => {
     setFromToken2({ symbol:tok.symbol, mint:tok.mint, logoURI:tok.logoURI, decimals:tok.decimals||6, amount:tok.amount });
     setTab('swap');
