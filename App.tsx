@@ -196,6 +196,92 @@ function NativeChart({ mint }: { mint: string }) {
   );
 }
 
+function NativePriceChart({ mint, C }: any) {
+  const [chartData, setChartData] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [range, setRange] = React.useState('1D');
+
+  React.useEffect(() => {
+    if (!mint) { setLoading(false); return; }
+    setLoading(true); setChartData([]);
+    const gtCfg: any = {
+      '1D': { gran:'hour', agg:1, lim:24 },
+      '1W': { gran:'hour', agg:4, lim:42 },
+      '1M': { gran:'day',  agg:1, lim:30 },
+    }[range] || { gran:'hour', agg:1, lim:24 };
+
+    fetch(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}/ohlcv/${gtCfg.gran}?aggregate=${gtCfg.agg}&limit=${gtCfg.lim}`)
+      .then(r => r.json())
+      .then(d => {
+        const list = d?.data?.attributes?.ohlcv_list;
+        if (list?.length) {
+          setChartData(list.map(([ts,,,,close]: any) => ({ t: ts*1000, p: parseFloat(close) })).filter((d:any) => d.p > 0));
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [mint, range]);
+
+  const W = 320; const H = 180; const PAD = 8;
+  const prices = chartData.map((d:any) => d.p);
+  const min = prices.length ? Math.min(...prices) : 0;
+  const max = prices.length ? Math.max(...prices) : 1;
+  const range_ = (max - min) || min * 0.001 || 1;
+  const px = (i:number) => PAD + (i / (prices.length - 1)) * (W - PAD*2);
+  const py = (p:number) => H - PAD - ((p - min) / range_) * (H - PAD*2);
+  const isUp = prices.length > 1 ? prices[prices.length-1] >= prices[0] : true;
+  const color = isUp ? C.green : '#ff4444';
+  const pct = prices.length > 1 && prices[0] > 0 ? ((prices[prices.length-1] - prices[0]) / prices[0] * 100) : 0;
+  const linePts = prices.map((p:number, i:number) => `${px(i).toFixed(1)},${py(p).toFixed(1)}`).join(' ');
+  const areaPts = prices.length > 1 ? `${PAD},${H} ${linePts} ${(W-PAD).toFixed(1)},${H}` : '';
+
+  return (
+    <View style={{ marginHorizontal:16, marginBottom:8, backgroundColor:C.card, borderRadius:14, padding:12, borderWidth:1, borderColor:C.border }}>
+      <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+        <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
+          <Text style={{ color:C.muted, fontSize:10, letterSpacing:0.8 }}>PRICE CHART</Text>
+          {prices.length > 1 && (
+            <View style={{ backgroundColor:color+'22', borderRadius:6, paddingHorizontal:6, paddingVertical:2 }}>
+              <Text style={{ color, fontSize:10, fontWeight:'700' }}>{pct >= 0 ? '+' : ''}{pct.toFixed(2)}%</Text>
+            </View>
+          )}
+        </View>
+        <View style={{ flexDirection:'row', gap:4 }}>
+          {['1D','1W','1M'].map(r => (
+            <TouchableOpacity key={r} onPress={() => setRange(r)}
+              style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:6, borderWidth:1,
+                borderColor: range === r ? color : C.border,
+                backgroundColor: range === r ? color+'22' : 'transparent' }}>
+              <Text style={{ color: range === r ? color : C.muted, fontSize:10, fontWeight:'600' }}>{r}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+      {loading ? (
+        <View style={{ height:H, alignItems:'center', justifyContent:'center' }}>
+          <ActivityIndicator color={C.green} size="small"/>
+        </View>
+      ) : prices.length < 2 ? (
+        <View style={{ height:H, alignItems:'center', justifyContent:'center' }}>
+          <Text style={{ color:C.muted, fontSize:12 }}>No chart data</Text>
+        </View>
+      ) : (
+        <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`}>
+          <Defs>
+            <LinearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={color} stopOpacity="0.3"/>
+              <Stop offset="100%" stopColor={color} stopOpacity="0.02"/>
+            </LinearGradient>
+          </Defs>
+          <SvgPolygon points={areaPts} fill="url(#chartGrad)"/>
+          <SvgPolyline points={linePts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
+          <SvgCircle cx={px(prices.length-1)} cy={py(prices[prices.length-1])} r="4" fill={color}/>
+        </Svg>
+      )}
+    </View>
+  );
+}
+
 function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
   const [view, setView] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
@@ -365,21 +451,10 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
                 </TouchableOpacity>
               ))}
             </View>
-            <View style={{height:220}}>
-              {chartUrl ? (
-              <WebView
-                source={{uri: chartUrl}}
-                style={{flex:1,backgroundColor:C.bg}}
-                javaScriptEnabled={true}
-                domStorageEnabled={true}
-                startInLoadingState={true}
-                renderLoading={()=>(
-                  <View style={{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:C.bg}}>
-                    <ActivityIndicator color={C.green}/>
-                    <Text style={{color:C.muted,fontSize:12,marginTop:8}}>Loading chart...</Text>
-                  </View>
-                )}
-              />
+            <NativePriceChart mint={token?.mint} C={C} />
+            <View style={{height:0}}>
+              {false ? (
+              <View/>
               ) : (
               <View style={{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:C.bg}}>
                 <ActivityIndicator color={C.green}/>
