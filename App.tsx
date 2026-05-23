@@ -373,7 +373,7 @@ function NativePriceChart({ mint, C, avgBuy }: any) {
   );
 }
 
-function TokenModal({ token, pubkey, onClose, onSend, onTrade, tokenBalances: allTokens, requestCameraPermission }: any) {
+function TokenModal({ token, pubkey, onClose, onSend, onTrade, tokenBalances: modalTokens, requestCameraPermission }: any) {
   const [view, setView] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
@@ -932,7 +932,7 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade, tokenBalances: al
               <Text style={{color:C.text,fontSize:17,fontWeight:'700'}}>Select Token</Text>
             </View>
             <ScrollView>
-              {(allTokens||[token]).filter((t:any)=>t?.mint).filter((t:any,i:number,a:any[])=>a.findIndex((x:any)=>x?.mint===t.mint)===i).map((t:any,i:number)=>(
+              {(modalTokens||[token]).filter((t:any)=>t?.mint).filter((t:any,i:number,a:any[])=>a.findIndex((x:any)=>x?.mint===t.mint)===i).map((t:any,i:number)=>(
                 <TouchableOpacity key={i} onPress={()=>{ setSendToken({...t, price: t.price||0}); setSendAmt(''); setShowTokenPicker(false); }}
                   style={{flexDirection:'row',alignItems:'center',padding:16,borderBottomWidth:1,borderBottomColor:C.border}}>
                   <TokLogo uri={t.logoURI||''} symbol={t.symbol} style={{width:40,height:40,borderRadius:20,marginRight:12}} mint={t.mint}/>
