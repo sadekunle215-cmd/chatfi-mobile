@@ -5498,75 +5498,7 @@ https://solscan.io/tx/${sig}` }]);
 
       <KeyboardAvoidingView style={s.content} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
 
-        {/* CHAT */}
-        <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:9999,display:showChat?'flex':'none',backgroundColor:C.bg}}>
-          <View style={s.flex}>
-            {/* Header */}
-            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:16,paddingTop:(StatusBar.currentHeight||0)+12,paddingBottom:12,borderBottomWidth:1,borderBottomColor:C.border}}>
-              <TouchableOpacity onPress={()=>{setMsgs([{id:1,text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
-                <Ionicons name="time-outline" size={20} color={C.text}/>
-              </TouchableOpacity>
-              <Text style={{color:C.text,fontSize:17,fontWeight:'700',letterSpacing:0.3}}>ChatFi AI</Text>
-              <TouchableOpacity onPress={()=>{setMsgs([{id:Date.now(),text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
-                <Ionicons name="create-outline" size={20} color={C.text}/>
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }} ref={(r)=>{if(r&&msgs.length>1)r.scrollToEnd({animated:true});}}>
-              {msgs.length <= 1 ? (
-                <View style={{paddingTop:32}}>
-                  <Text style={{color:C.text,fontSize:22,fontWeight:'bold',textAlign:'center',marginBottom:32}}>Ask ChatFi anything</Text>
-                  {/* Quick actions */}
-                  <View style={{flexDirection:'row',flexWrap:'wrap',gap:10,justifyContent:'center',marginBottom:32}}>
-                    {[
-                      {label:'Swap tokens', icon:'swap-horizontal-outline', q:'swap 1 SOL to USDC'},
-                      {label:'My portfolio', icon:'wallet-outline', q:'show my portfolio'},
-                      {label:'Trending', icon:'flame-outline', q:'show trending tokens'},
-                      {label:'SOL price', icon:'cash-outline', q:'price of SOL'},
-                      {label:'Earn yield', icon:'trending-up-outline', q:'show earn markets'},
-                      {label:'Limit order', icon:'options-outline', q:'buy SOL at $100'},
-                    ].map((item,i)=>(
-                      <TouchableOpacity key={i} onPress={()=>sendMsg(item.q)}
-                        style={{backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:10,borderWidth:1,borderColor:C.border,flexDirection:'row',alignItems:'center',gap:6}}>
-                        <Ionicons name={item.icon as any} size={15} color={C.green}/>
-                        <Text style={{color:C.text,fontSize:14}}>{item.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  {/* First bot message */}
-                  <View style={[s.bubble, s.botBubble]}>
-                    <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-                    <Text style={s.bubbleTxt}>{msgs[0].text}</Text>
-                  </View>
-                </View>
-              ) : (
-                msgs.map(m => (
-                  <View key={m.id} style={m.from === 'user' ? [s.bubble, s.userBubble] : {marginBottom:8}}>
-                    {m.from === 'bot' && !m.card && (
-                      <View style={[s.bubble, s.botBubble]}>
-                        <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-                        <Text style={s.bubbleTxt}>{m.text}</Text>
-                      </View>
-                    )}
-                    {m.from === 'user' && <Text style={s.bubbleTxt}>{m.text}</Text>}
-                    {m.card && renderCard(m.card)}
-                  </View>
-                ))
-              )}
-              {aiLoading && (
-                <View style={[s.botBubble, s.bubble]}>
-                  <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
-                  <ActivityIndicator color={C.green} size="small" />
-                </View>
-              )}
-            </ScrollView>
-            <View style={s.inputRow}>
-              <TextInput style={s.input} value={input} onChangeText={(t)=>{setInput(t);inputRef.current=t;}} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current||input)} editable={!aiLoading} autoCorrect={false} autoCapitalize="none" blurOnSubmit={false} />
-              <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current||input)} disabled={aiLoading}>
-                <Ionicons name="send" size={20} color="#0d1117" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        {/* CHAT moved outside KeyboardAvoidingView — see below tab bar */}
 
         {/* SWAP */}
       <View style={{flex:1, display: !showChat && tab === 'swap' ? 'flex' : 'none'}}>
@@ -5998,6 +5930,80 @@ https://solscan.io/tx/${sig}` }]);
           <Ionicons name={toast.type==='success'?'checkmark-circle':toast.type==='error'?'close-circle':'information-circle'} size={20} color={toast.type==='success'?'#39ff14':toast.type==='error'?'#ff4444':'#4488ff'} />
           <Text style={{color:'#fff',flex:1,fontSize:14}}>{toast.msg}</Text>
         </View>
+      )}
+
+      {/* CHAT — fullscreen overlay covers tab bar */}
+      {showChat && (
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}
+          style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:99999,backgroundColor:C.bg}}>
+        {/* CHAT */}
+          <View style={s.flex}>
+            {/* Header */}
+            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:16,paddingTop:(StatusBar.currentHeight||0)+12,paddingBottom:12,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <TouchableOpacity onPress={()=>{setMsgs([{id:1,text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
+                <Ionicons name="time-outline" size={20} color={C.text}/>
+              </TouchableOpacity>
+              <Text style={{color:C.text,fontSize:17,fontWeight:'700',letterSpacing:0.3}}>ChatFi AI</Text>
+              <TouchableOpacity onPress={()=>{setMsgs([{id:Date.now(),text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
+                <Ionicons name="create-outline" size={20} color={C.text}/>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }} ref={(r)=>{if(r&&msgs.length>1)r.scrollToEnd({animated:true});}}>
+              {msgs.length <= 1 ? (
+                <View style={{paddingTop:32}}>
+                  <Text style={{color:C.text,fontSize:22,fontWeight:'bold',textAlign:'center',marginBottom:32}}>Ask ChatFi anything</Text>
+                  {/* Quick actions */}
+                  <View style={{flexDirection:'row',flexWrap:'wrap',gap:10,justifyContent:'center',marginBottom:32}}>
+                    {[
+                      {label:'Swap tokens', icon:'swap-horizontal-outline', q:'swap 1 SOL to USDC'},
+                      {label:'My portfolio', icon:'wallet-outline', q:'show my portfolio'},
+                      {label:'Trending', icon:'flame-outline', q:'show trending tokens'},
+                      {label:'SOL price', icon:'cash-outline', q:'price of SOL'},
+                      {label:'Earn yield', icon:'trending-up-outline', q:'show earn markets'},
+                      {label:'Limit order', icon:'options-outline', q:'buy SOL at $100'},
+                    ].map((item,i)=>(
+                      <TouchableOpacity key={i} onPress={()=>sendMsg(item.q)}
+                        style={{backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:10,borderWidth:1,borderColor:C.border,flexDirection:'row',alignItems:'center',gap:6}}>
+                        <Ionicons name={item.icon as any} size={15} color={C.green}/>
+                        <Text style={{color:C.text,fontSize:14}}>{item.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {/* First bot message */}
+                  <View style={[s.bubble, s.botBubble]}>
+                    <View style={s.botTag}><View style={s.botDot}/><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+                    <Text style={s.bubbleTxt}>{msgs[0].text}</Text>
+                  </View>
+                </View>
+              ) : (
+                msgs.map(m => (
+                  <View key={m.id} style={m.from === 'user' ? [s.bubble, s.userBubble] : {marginBottom:8}}>
+                    {m.from === 'bot' && !m.card && (
+                      <View style={[s.bubble, s.botBubble]}>
+                        <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+                        <Text style={s.bubbleTxt}>{m.text}</Text>
+                      </View>
+                    )}
+                    {m.from === 'user' && <Text style={s.bubbleTxt}>{m.text}</Text>}
+                    {m.card && renderCard(m.card)}
+                  </View>
+                ))
+              )}
+              {aiLoading && (
+                <View style={[s.botBubble, s.bubble]}>
+                  <View style={s.botTag}><View style={s.botDot} /><Text style={s.botTagTxt}>ChatFi AI</Text></View>
+                  <ActivityIndicator color={C.green} size="small" />
+                </View>
+              )}
+            </ScrollView>
+            <View style={s.inputRow}>
+              <TextInput style={s.input} value={input} onChangeText={(t)=>{setInput(t);inputRef.current=t;}} placeholder="Ask ChatFi anything..." placeholderTextColor={C.muted} onSubmitEditing={() => sendMsg(inputRef.current||input)} editable={!aiLoading} autoCorrect={false} autoCapitalize="none" blurOnSubmit={false} />
+              <TouchableOpacity style={[s.sendBtn, aiLoading && { opacity: 0.5 }]} onPress={() => sendMsg(inputRef.current||input)} disabled={aiLoading}>
+                <Ionicons name="send" size={20} color="#0d1117" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       )}
     </SafeAreaView>
   );
