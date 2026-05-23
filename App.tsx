@@ -2913,6 +2913,7 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
             if(dupIdx !== -1){ switchAccount(dupIdx); setPrivKeyInput(''); setPrivKeyName(''); setSettingsView('main'); Alert.alert('Already exists','Switched to existing account'); return; }
             const name = privKeyName.trim() || 'Account '+(existing.length+1);
             const updated = [...existing, { id:existing.length+1, name, privkey:privKeyInput.trim(), pubkey:pk }];
+            setAccounts(updated);
             await AsyncStorage.setItem('accounts', JSON.stringify(updated));
             await AsyncStorage.setItem('active_acc', String(existing.length));
             switchAccount(updated.length-1);
@@ -3200,12 +3201,16 @@ export default function App() {
 
   const switchAccount = async (idx:number) => {
     const acc = accounts[idx];
+    if(!acc) return;
     if(acc.name) setUserName(acc.name);
     setActiveAccIdx(idx);
     setWallet(acc.mnemonic || acc.privkey || null);
-    setPubkey(acc.pubkey);
+    setPubkey(acc.pubkey || null);
+    setSolBalance(null);
+    setTokenBalances([]);
     await AsyncStorage.setItem('active_acc', String(idx));
     if(acc.mnemonic) await AsyncStorage.setItem('wallet_mnemonic', acc.mnemonic);
+    else if(acc.privkey) await AsyncStorage.setItem('wallet_mnemonic', acc.privkey);
   };
 
   // Always derive keys from active account directly — avoids stale React state
