@@ -2836,36 +2836,28 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
             const raw = await AsyncStorage.getItem('accounts');
             const existing = raw ? JSON.parse(raw) : [];
             const found: any[] = [];
-            // Scan first 10 accounts — all in parallel, no early exit
-            const proxyRpc = async (method: string, params: any[]) => {
-              const r = await fetch('https://chatfi.pro/api/jupiter', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: 'SOLANA_RPC', method: 'POST', body: { jsonrpc:'2.0', id:1, method, params } })
-              });
-              return r.json();
-            };
-            const allAccounts = [];
-            for(let j = 0; j < 100; j++) {
+            // Derive first 10 accounts (fast, no network)
+            const derived: any[] = [];
+            for(let j = 0; j < 10; j++) {
               try {
                 const { publicKey: pk } = deriveWalletAtIndex(importSeedInput.trim(), j);
-                allAccounts.push({ index: j, pubkey: pk });
+                const alreadyImported = existing.find((a:any) => a.pubkey === pk);
+                derived.push({ index: j, pubkey: pk, imported: !!alreadyImported, name: alreadyImported?.name||('Account '+(j+1)) });
               } catch(e) { break; }
             }
-            const results = await Promise.all(allAccounts.map(async ({index, pubkey: pk}) => {
-              const alreadyImported = existing.find((a:any) => a.pubkey === pk);
-              const [balRes, txRes] = await Promise.all([
-                proxyRpc('getBalance', [pk, {commitment:'confirmed'}]).catch(()=>null),
-                proxyRpc('getSignaturesForAddress', [pk, {limit:1}]).catch(()=>null),
-              ]);
-              const balance = (balRes?.result?.value||0) / 1e9;
-              const hasTx = Array.isArray(txRes?.result) && txRes.result.length > 0;
-              // Always show index 0, plus any with balance or tx history
-              const hasActivity = balance > 0 || hasTx || index === 0;
-              return { index, pubkey: pk, balance, hasTx, hasActivity, imported: !!alreadyImported, name: alreadyImported?.name||('Account '+(index+1)) };
-            }));
-            // Show all accounts with activity or already imported
-            for(const r of results) {
-              if(r.hasActivity || r.imported) found.push(r);
+            // Single RPC call for all balances at once
+            try {
+              const pubkeys = derived.map((d:any) => d.pubkey);
+              const balRes = await rpcFetch('getMultipleAccounts', [pubkeys, {commitment:'confirmed'}]);
+              const accs = balRes?.result?.value || [];
+              derived.forEach((d:any, i:number) => {
+                const balance = accs[i] ? (accs[i].lamports||0) / 1e9 : 0;
+                if(balance > 0 || d.imported || d.index === 0) {
+                  found.push({ ...d, balance });
+                }
+              });
+            } catch(e) {
+              derived.forEach((d:any) => found.push({ ...d, balance: 0 }));
             }
             setDiscoveredAccounts(found);
             setSelectedAccIdxs(found.filter((a:any) => !a.imported).map((a:any) => a.index));
