@@ -196,7 +196,7 @@ function NativeChart({ mint }: { mint: string }) {
   );
 }
 
-function TokenModal({ token, pubkey, onClose, onSend }) {
+function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
   const [view, setView] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
@@ -541,7 +541,7 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                 <Ionicons name="arrow-down-outline" size={18} color={C.text}/>
                 <Text style={{color:C.text,fontWeight:'600'}}>Receive</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={onClose} style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:14,alignItems:'center',flexDirection:'row',justifyContent:'center',gap:6}}>
+              <TouchableOpacity onPress={()=>{ onTrade && onTrade(token); onClose(); }} style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:14,alignItems:'center',flexDirection:'row',justifyContent:'center',gap:6}}>
                 <Ionicons name="swap-horizontal-outline" size={18} color={C.green}/>
                 <Text style={{color:C.green,fontWeight:'bold'}}>Trade</Text>
               </TouchableOpacity>
@@ -5422,6 +5422,11 @@ https://solscan.io/tx/${sig}` }]);
         </View>
       </Modal>
       {selectedToken && <TokenModal token={selectedToken} pubkey={pubkey} onClose={() => setSelectedToken(null)}
+  onTrade={(tok:any) => {
+    setFromToken2({ symbol:tok.symbol, mint:tok.mint, logoURI:tok.logoURI, decimals:tok.decimals||6, amount:tok.amount });
+    setTab('swap');
+    setSelectedToken(null);
+  }}
   onSend={async (mint, recipient, amount, symbol, decimals) => {
     // Always use the active account directly — avoids stale React state
     const activeAcc = accounts[activeAccIdx];
