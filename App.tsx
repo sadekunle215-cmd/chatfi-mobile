@@ -6088,7 +6088,7 @@ const s = StyleSheet.create({
   pad: { padding: 16, backgroundColor: C.bg, flex: 1 },
   msgs: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   bubble: { marginBottom: 12, maxWidth: '85%' },
-  userBubble: { alignSelf: 'flex-end', backgroundColor: C.card2, borderRadius: 16, borderBottomRightRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border, maxWidth: '85%', flexShrink: 1 },
+  userBubble: { alignSelf: 'flex-end', backgroundColor: C.card2, borderRadius: 16, borderBottomRightRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border, maxWidth: '85%' },
   botBubble: { alignSelf: 'flex-start', backgroundColor: C.card, borderRadius: 16, borderBottomLeftRadius: 4, padding: 12, borderWidth: 1, borderColor: C.border, maxWidth: '85%', flexShrink: 1 },
   botTag: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
   botDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.green },
