@@ -286,6 +286,10 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
   const [view, setView] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
+  const [sendStep, setSendStep] = React.useState<'amount'|'recipient'|'summary'>('amount');
+  const [recentAddresses, setRecentAddresses] = React.useState<any[]>([]);
+  const [estimatedFee, setEstimatedFee] = React.useState<number|null>(null);
+  const [feeLoading, setFeeLoading] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const [pairData, setPairData] = React.useState<any>(null);
   const [timeframe, setTimeframe] = React.useState('1D');
@@ -620,7 +624,7 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
                 <Ionicons name="swap-horizontal-outline" size={18} color={C.green}/>
                 <Text style={{color:C.green,fontWeight:'bold'}}>Trade</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={()=>setView('send')}
+              <TouchableOpacity onPress={()=>{setSendStep('amount');setView('send');}}
                 style={{flex:1,backgroundColor:C.green,borderRadius:14,padding:14,alignItems:'center',justifyContent:'center'}}>
                 <Text style={{color:'#0d1117',fontWeight:'bold'}}>Send</Text>
               </TouchableOpacity>
@@ -682,36 +686,224 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
             </TouchableOpacity>
           </ScrollView>
         )}
-        {view === 'send' && (
-          <ScrollView contentContainerStyle={{padding:16,paddingTop:(StatusBar.currentHeight||0)+16}}>
-            <TouchableOpacity onPress={()=>setView('overview')} style={{marginBottom:16}}>
-              <Text style={{color:C.text,fontSize:16}}>‹ Back</Text>
+        {view === 'send' && sendStep === 'amount' && (
+          <View style={{flex:1,backgroundColor:C.bg}}>
+            {/* Header */}
+            <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingTop:(StatusBar.currentHeight||0)+12,paddingBottom:12,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <TouchableOpacity onPress={()=>setView('overview')} style={{marginRight:12}}>
+                <Ionicons name="arrow-back" size={22} color={C.text}/>
+              </TouchableOpacity>
+              <View style={{flex:1,flexDirection:'row',justifyContent:'center',gap:16}}>
+                <TouchableOpacity style={{paddingBottom:4,borderBottomWidth:2,borderBottomColor:C.green}}>
+                  <Text style={{color:C.text,fontWeight:'700',fontSize:15}}>Address</Text>
+                </TouchableOpacity>
+                <TouchableOpacity>
+                  <Text style={{color:C.muted,fontSize:15}}>Magic Link</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={{padding:8}}>
+                <Ionicons name="time-outline" size={20} color={C.text}/>
+              </TouchableOpacity>
+            </View>
+
+            {/* Amount display */}
+            <View style={{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
+              <TouchableOpacity style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:C.card,borderRadius:24,paddingHorizontal:16,paddingVertical:10,marginBottom:24}}>
+                <TokLogo uri={token.logoURI||''} symbol={token.symbol} style={{width:28,height:28,borderRadius:14}} mint={token.mint}/>
+                <Text style={{color:C.text,fontWeight:'700',fontSize:16}}>{token.symbol}</Text>
+                <Ionicons name="chevron-down" size={16} color={C.muted}/>
+              </TouchableOpacity>
+              <Text style={{color:C.text,fontSize:64,fontWeight:'300',letterSpacing:-2}}>
+                {sendAmt || '0'}
+              </Text>
+              <Text style={{color:C.muted,fontSize:16,marginTop:4}}>
+                ${sendAmt && token.price ? (parseFloat(sendAmt||'0') * (token.price||0)).toFixed(2) : '0.00'}
+              </Text>
+              <TouchableOpacity onPress={()=>setSendAmt(String(token.amount||0))}
+                style={{marginTop:16,backgroundColor:C.card,borderRadius:20,paddingHorizontal:14,paddingVertical:6}}>
+                <Text style={{color:C.muted,fontSize:13}}>Balance: {token.amount?.toFixed(4)} {token.symbol}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Continue button */}
+            <TouchableOpacity
+              onPress={async()=>{
+                if(!sendAmt||isNaN(parseFloat(sendAmt))||parseFloat(sendAmt)<=0){Alert.alert('Error','Enter an amount');return;}
+                if(parseFloat(sendAmt)>token.amount){Alert.alert('Error','Insufficient balance');return;}
+                // Load recent addresses
+                try {
+                  const raw = await AsyncStorage.getItem('recent_addresses');
+                  setRecentAddresses(raw ? JSON.parse(raw) : []);
+                } catch(e) {}
+                setSendStep('recipient');
+              }}
+              style={{margin:16,backgroundColor:parseFloat(sendAmt||'0')>0?C.green:'#1c2128',borderRadius:16,padding:16,alignItems:'center'}}>
+              <Text style={{color:parseFloat(sendAmt||'0')>0?'#0d1117':C.muted,fontWeight:'700',fontSize:16}}>Enter Amount</Text>
             </TouchableOpacity>
-            <Text style={{color:C.text,fontWeight:'bold',fontSize:16,marginBottom:16}}>Send {token.symbol}</Text>
-            <Text style={{color:C.muted,fontSize:13,marginBottom:6}}>Recipient Address</Text>
-            <TextInput value={sendAddr} onChangeText={setSendAddr}
-              placeholder="Enter Solana address..." placeholderTextColor={C.muted}
-              style={{backgroundColor:C.card,color:C.text,borderRadius:12,padding:14,fontSize:13,marginBottom:16}}
-              autoCapitalize="none"/>
-            <Text style={{color:C.muted,fontSize:13,marginBottom:6}}>Amount ({token.symbol})</Text>
-            <TextInput value={sendAmt} onChangeText={setSendAmt}
-              placeholder="0.00" placeholderTextColor={C.muted} keyboardType="numeric"
-              style={{backgroundColor:C.card,color:C.text,borderRadius:12,padding:14,fontSize:20,fontWeight:'bold',marginBottom:24}}/>
-            <TouchableOpacity style={{backgroundColor:C.green,borderRadius:14,padding:16,alignItems:'center',opacity:sending?0.6:1}}
+
+            {/* Custom numpad */}
+            <View style={{paddingHorizontal:12,paddingBottom:24}}>
+              {[['MAX','1','2','3'],['75%','4','5','6'],['50%','7','8','9'],['CLEAR','.','0','⌫']].map((row,ri)=>(
+                <View key={ri} style={{flexDirection:'row',gap:8,marginBottom:8}}>
+                  {row.map(k=>(
+                    <TouchableOpacity key={k} onPress={()=>{
+                      if(k==='MAX'){setSendAmt(String(token.amount||0));return;}
+                      if(k==='75%'){setSendAmt(String(((token.amount||0)*0.75).toFixed(6)));return;}
+                      if(k==='50%'){setSendAmt(String(((token.amount||0)*0.50).toFixed(6)));return;}
+                      if(k==='CLEAR'){setSendAmt('');return;}
+                      if(k==='⌫'){setSendAmt(p=>p.slice(0,-1));return;}
+                      if(k==='.'&&sendAmt.includes('.')){return;}
+                      setSendAmt(p=>(p==='0'&&k!=='.')?k:p+k);
+                    }}
+                    style={{
+                      flex:1,aspectRatio:k==='MAX'||k==='75%'||k==='50%'||k==='CLEAR'?undefined:1,
+                      height:60,backgroundColor:k==='MAX'||k==='75%'||k==='50%'||k==='CLEAR'?'#1c2128':C.card,
+                      borderRadius:14,alignItems:'center',justifyContent:'center'
+                    }}>
+                      <Text style={{color:k==='MAX'||k==='75%'||k==='50%'?C.green:k==='CLEAR'?'#ff4444':C.text,fontSize:k==='MAX'||k==='75%'||k==='50%'||k==='CLEAR'?13:20,fontWeight:'600'}}>{k}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {view === 'send' && sendStep === 'recipient' && (
+          <View style={{flex:1,backgroundColor:C.bg}}>
+            <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingTop:(StatusBar.currentHeight||0)+12,paddingBottom:12,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <TouchableOpacity onPress={()=>setSendStep('amount')} style={{marginRight:12}}>
+                <Ionicons name="arrow-back" size={22} color={C.text}/>
+              </TouchableOpacity>
+              <Text style={{color:C.text,fontSize:17,fontWeight:'700',flex:1}}>Select Recipient</Text>
+            </View>
+
+            {/* Address input */}
+            <View style={{flexDirection:'row',alignItems:'center',margin:16,backgroundColor:C.card,borderRadius:14,paddingHorizontal:14,paddingVertical:10,gap:10}}>
+              <TextInput
+                value={sendAddr} onChangeText={setSendAddr}
+                placeholder="To: Enter address" placeholderTextColor={C.muted}
+                autoCapitalize="none" style={{flex:1,color:C.text,fontSize:14}}
+              />
+              <TouchableOpacity onPress={async()=>{ const t=await Clipboard.getString(); setSendAddr(t); }}>
+                <Text style={{color:C.green,fontWeight:'700',fontSize:14}}>Paste</Text>
+              </TouchableOpacity>
+              <TouchableOpacity>
+                <Ionicons name="scan-outline" size={20} color={C.muted}/>
+              </TouchableOpacity>
+            </View>
+
+            {/* Recent addresses */}
+            <ScrollView style={{flex:1}}>
+              {recentAddresses.length > 0 && (
+                <>
+                  <Text style={{color:C.muted,fontSize:12,fontWeight:'700',paddingHorizontal:16,marginBottom:8,letterSpacing:0.5}}>RECENT</Text>
+                  {recentAddresses.map((addr:any,i:number)=>(
+                    <TouchableOpacity key={i} onPress={()=>setSendAddr(addr.address)}
+                      style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingVertical:14,borderBottomWidth:1,borderBottomColor:C.border}}>
+                      <View style={{width:40,height:40,borderRadius:20,backgroundColor:C.card,alignItems:'center',justifyContent:'center',marginRight:12}}>
+                        <Ionicons name="wallet-outline" size={18} color={C.muted}/>
+                      </View>
+                      <View style={{flex:1}}>
+                        <Text style={{color:C.text,fontWeight:'600',fontSize:14}}>{addr.name || addr.address.slice(0,8)+'...'+addr.address.slice(-4)}</Text>
+                        <Text style={{color:C.muted,fontSize:12,marginTop:2}}>{addr.address.slice(0,8)+'...'+addr.address.slice(-4)}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
+              {recentAddresses.length === 0 && !sendAddr && (
+                <Text style={{color:C.muted,textAlign:'center',marginTop:40,fontSize:14}}>No recent addresses</Text>
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              onPress={async()=>{
+                if(!sendAddr.trim()||sendAddr.trim().length<32){Alert.alert('Error','Enter a valid Solana address');return;}
+                // Estimate fee
+                setFeeLoading(true);
+                try {
+                  // Check if recipient ATA exists
+                  const r = await fetch('https://chatfi.pro/api/jupiter',{method:'POST',headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({url:'SOLANA_RPC',method:'POST',body:{jsonrpc:'2.0',id:1,method:'getBalance',params:[sendAddr.trim(),{commitment:'confirmed'}]}})});
+                  const d = await r.json();
+                  const exists = (d?.result?.value||0) > 0;
+                  setEstimatedFee(exists ? 0.000005 : 0.002);
+                } catch(e) { setEstimatedFee(0.000005); }
+                setFeeLoading(false);
+                setSendStep('summary');
+              }}
+              style={{margin:16,backgroundColor:sendAddr.trim().length>30?C.green:'#1c2128',borderRadius:16,padding:16,alignItems:'center'}}>
+              <Text style={{color:sendAddr.trim().length>30?'#0d1117':C.muted,fontWeight:'700',fontSize:16}}>Continue</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {view === 'send' && sendStep === 'summary' && (
+          <View style={{flex:1,backgroundColor:C.bg}}>
+            <View style={{flexDirection:'row',alignItems:'center',paddingHorizontal:16,paddingTop:(StatusBar.currentHeight||0)+12,paddingBottom:12,borderBottomWidth:1,borderBottomColor:C.border}}>
+              <TouchableOpacity onPress={()=>setSendStep('recipient')} style={{marginRight:12}}>
+                <Ionicons name="arrow-back" size={22} color={C.text}/>
+              </TouchableOpacity>
+              <Text style={{color:C.text,fontSize:17,fontWeight:'700',flex:1}}>Send Summary</Text>
+            </View>
+
+            {/* Token display */}
+            <View style={{flex:1,alignItems:'center',justifyContent:'center'}}>
+              <View style={{position:'relative',marginBottom:24}}>
+                <TokLogo uri={token.logoURI||''} symbol={token.symbol} style={{width:80,height:80,borderRadius:40}} mint={token.mint}/>
+                <View style={{position:'absolute',bottom:0,right:0,width:28,height:28,borderRadius:14,backgroundColor:'#fff',alignItems:'center',justifyContent:'center'}}>
+                  <Ionicons name="arrow-up" size={16} color="#000"/>
+                </View>
+              </View>
+              <Text style={{color:C.text,fontSize:40,fontWeight:'700'}}>{sendAmt} {token.symbol}</Text>
+              <Text style={{color:C.muted,fontSize:16,marginTop:4}}>
+                ~ ${(parseFloat(sendAmt||'0')*(token.price||0)).toFixed(token.price&&token.price<0.001?7:2)}
+              </Text>
+            </View>
+
+            {/* Summary details */}
+            <View style={{marginHorizontal:16,backgroundColor:C.card,borderRadius:16,marginBottom:16}}>
+              <View style={{flexDirection:'row',justifyContent:'space-between',padding:16,borderBottomWidth:1,borderBottomColor:C.border}}>
+                <Text style={{color:C.muted,fontSize:14}}>To</Text>
+                <Text style={{color:C.text,fontSize:14,fontWeight:'600'}}>{sendAddr.slice(0,8)+'...'+sendAddr.slice(-4)}</Text>
+              </View>
+              <View style={{flexDirection:'row',justifyContent:'space-between',padding:16,borderBottomWidth:1,borderBottomColor:C.border}}>
+                <Text style={{color:C.muted,fontSize:14}}>Rate</Text>
+                <Text style={{color:C.text,fontSize:14}}>1 {token.symbol} ≈ ${token.price?.toFixed(token.price<0.001?7:4)||'—'}</Text>
+              </View>
+              <View style={{flexDirection:'row',justifyContent:'space-between',padding:16}}>
+                <Text style={{color:C.muted,fontSize:14}}>Fees</Text>
+                <Text style={{color:C.text,fontSize:14}}>
+                  {feeLoading ? '...' : estimatedFee ? `~${(estimatedFee*((token.symbol==='SOL'?token.price:0.001)||0.17)).toFixed(3)} (${estimatedFee} SOL)` : '~0.000005 SOL'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={{margin:16,backgroundColor:sending?'#1c2128':C.green,borderRadius:16,padding:16,alignItems:'center',opacity:sending?0.6:1}}
               disabled={sending}
               onPress={async()=>{
-                if(!sendAddr.trim()){Alert.alert('Error','Enter recipient address');return;}
-                if(!sendAmt||isNaN(parseFloat(sendAmt))){Alert.alert('Error','Enter a valid amount');return;}
                 setSending(true);
                 try{
                   await onSend(token.mint,sendAddr.trim(),sendAmt,token.symbol,token.decimals??6);
-                  setSendAddr('');setSendAmt('');setView('overview');
+                  // Save to recent addresses
+                  try {
+                    const raw = await AsyncStorage.getItem('recent_addresses');
+                    const recents = raw ? JSON.parse(raw) : [];
+                    const exists = recents.find((r:any)=>r.address===sendAddr.trim());
+                    if(!exists) recents.unshift({address:sendAddr.trim(),ts:Date.now()});
+                    await AsyncStorage.setItem('recent_addresses', JSON.stringify(recents.slice(0,20)));
+                  } catch(e) {}
+                  setSendAddr('');setSendAmt('');setSendStep('amount');setView('overview');
                 }catch(e:any){Alert.alert('Send failed',e.message||'Unknown error');}
                 finally{setSending(false);}
               }}>
-              {sending?<ActivityIndicator color="#0d1117"/>:<Text style={{color:'#0d1117',fontWeight:'bold',fontSize:16}}>Send {token.symbol}</Text>}
+              {sending?<ActivityIndicator color="#0d1117"/>:<Text style={{color:'#0d1117',fontWeight:'700',fontSize:16}}>
+                {estimatedFee===0.002?'Insufficient SOL for fees':'Confirm Send'}
+              </Text>}
             </TouchableOpacity>
-          </ScrollView>
+          </View>
         )}
       </SafeAreaView>
     </Modal>
