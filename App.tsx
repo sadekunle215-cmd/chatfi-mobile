@@ -373,7 +373,7 @@ function NativePriceChart({ mint, C, avgBuy }: any) {
   );
 }
 
-function TokenModal({ token, pubkey, onClose, onSend, onTrade, tokenBalances: allTokens }: any) {
+function TokenModal({ token, pubkey, onClose, onSend, onTrade, tokenBalances: allTokens, requestCameraPermission }: any) {
   const [view, setView] = React.useState('overview');
   const [sendAddr, setSendAddr] = React.useState('');
   const [sendAmt, setSendAmt] = React.useState('');
@@ -5815,7 +5815,7 @@ https://solscan.io/tx/${sig}` }]);
           </View>
         </View>
       </Modal>
-      {selectedToken && <TokenModal token={selectedToken} pubkey={pubkey} tokenBalances={tokenBalances} onClose={() => setSelectedToken(null)}
+      {selectedToken && <TokenModal token={selectedToken} pubkey={pubkey} tokenBalances={tokenBalances} requestCameraPermission={requestCameraPermission} onClose={() => setSelectedToken(null)}
   onTrade={(tok:any) => {
     setFromToken2({ symbol:tok.symbol, mint:tok.mint, logoURI:tok.logoURI, decimals:tok.decimals||6, amount:tok.amount });
     setTab('swap');
