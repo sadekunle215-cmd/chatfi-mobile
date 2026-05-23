@@ -210,7 +210,10 @@ function NativePriceChart({ mint, C }: any) {
       '1M': { gran:'day',  agg:1, lim:30 },
     }[range] || { gran:'hour', agg:1, lim:24 };
 
-    fetch(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}/ohlcv/${gtCfg.gran}?aggregate=${gtCfg.agg}&limit=${gtCfg.lim}`)
+    fetch('https://chatfi.pro/api/jupiter', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ url: `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}/ohlcv/${gtCfg.gran}?aggregate=${gtCfg.agg}&limit=${gtCfg.lim}`, method:'GET' })
+    })
       .then(r => r.json())
       .then(d => {
         const list = d?.data?.attributes?.ohlcv_list;
@@ -222,7 +225,7 @@ function NativePriceChart({ mint, C }: any) {
       .catch(() => setLoading(false));
   }, [mint, range]);
 
-  const W = 320; const H = 180; const PAD = 8;
+  const W = 380; const H = 200; const PAD = 8;
   const prices = chartData.map((d:any) => d.p);
   const min = prices.length ? Math.min(...prices) : 0;
   const max = prices.length ? Math.max(...prices) : 1;
@@ -236,47 +239,40 @@ function NativePriceChart({ mint, C }: any) {
   const areaPts = prices.length > 1 ? `${PAD},${H} ${linePts} ${(W-PAD).toFixed(1)},${H}` : '';
 
   return (
-    <View style={{ marginHorizontal:16, marginBottom:8, backgroundColor:C.card, borderRadius:14, padding:12, borderWidth:1, borderColor:C.border }}>
-      <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-        <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
-          <Text style={{ color:C.muted, fontSize:10, letterSpacing:0.8 }}>PRICE CHART</Text>
-          {prices.length > 1 && (
-            <View style={{ backgroundColor:color+'22', borderRadius:6, paddingHorizontal:6, paddingVertical:2 }}>
-              <Text style={{ color, fontSize:10, fontWeight:'700' }}>{pct >= 0 ? '+' : ''}{pct.toFixed(2)}%</Text>
-            </View>
-          )}
-        </View>
-        <View style={{ flexDirection:'row', gap:4 }}>
-          {['1D','1W','1M'].map(r => (
-            <TouchableOpacity key={r} onPress={() => setRange(r)}
-              style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:6, borderWidth:1,
-                borderColor: range === r ? color : C.border,
-                backgroundColor: range === r ? color+'22' : 'transparent' }}>
-              <Text style={{ color: range === r ? color : C.muted, fontSize:10, fontWeight:'600' }}>{r}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+    <View style={{ marginBottom:4 }}>
       {loading ? (
         <View style={{ height:H, alignItems:'center', justifyContent:'center' }}>
           <ActivityIndicator color={C.green} size="small"/>
         </View>
       ) : prices.length < 2 ? (
-        <View style={{ height:H, alignItems:'center', justifyContent:'center' }}>
-          <Text style={{ color:C.muted, fontSize:12 }}>No chart data</Text>
+        <View style={{ height:H, alignItems:'center', justifyContent:'center', backgroundColor:C.card, marginHorizontal:16, borderRadius:14 }}>
+          <Text style={{ color:C.muted, fontSize:12 }}>No chart</Text>
         </View>
       ) : (
-        <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`}>
-          <Defs>
-            <LinearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={color} stopOpacity="0.3"/>
-              <Stop offset="100%" stopColor={color} stopOpacity="0.02"/>
-            </LinearGradient>
-          </Defs>
-          <SvgPolygon points={areaPts} fill="url(#chartGrad)"/>
-          <SvgPolyline points={linePts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
-          <SvgCircle cx={px(prices.length-1)} cy={py(prices[prices.length-1])} r="4" fill={color}/>
-        </Svg>
+        <View>
+          <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} style={{display:'flex'}}>
+            <Defs>
+              <LinearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%" stopColor={color} stopOpacity="0.25"/>
+                <Stop offset="100%" stopColor={color} stopOpacity="0.01"/>
+              </LinearGradient>
+            </Defs>
+            <SvgPolygon points={areaPts} fill="url(#chartGrad)"/>
+            <SvgPolyline points={linePts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
+            <SvgCircle cx={px(prices.length-1)} cy={py(prices[prices.length-1])} r="5" fill={color}/>
+          </Svg>
+          {/* Range selector */}
+          <View style={{ flexDirection:'row', paddingHorizontal:16, gap:4, marginTop:4 }}>
+            {['1D','1W','1M'].map(r => (
+              <TouchableOpacity key={r} onPress={() => setRange(r)}
+                style={{ paddingHorizontal:12, paddingVertical:5, borderRadius:8,
+                  backgroundColor: range === r ? color+'22' : 'transparent',
+                  borderWidth:1, borderColor: range === r ? color : 'transparent' }}>
+                <Text style={{ color: range === r ? color : C.muted, fontSize:12, fontWeight:'600' }}>{r}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       )}
     </View>
   );
@@ -460,16 +456,6 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade }: any) {
               ))}
             </View>
             <NativePriceChart mint={token?.mint} C={C} />
-            <View style={{height:0}}>
-              {false ? (
-              <View/>
-              ) : (
-              <View style={{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:C.bg}}>
-                <ActivityIndicator color={C.green}/>
-                <Text style={{color:C.muted,fontSize:12,marginTop:8}}>Fetching pair data...</Text>
-              </View>
-              )}
-            </View>
             <View style={{flexDirection:'row',borderBottomWidth:1,borderBottomColor:C.border}}>
               {['Overview','Terminal','Live Feed'].map(tab=>(
                 <TouchableOpacity key={tab} onPress={()=>{setActiveTab(tab);if(tab==='Terminal')fetchHolders();if(tab==='Live Feed')fetchTrades();}} style={{flex:1,paddingVertical:12,alignItems:'center',borderBottomWidth:2,borderBottomColor:tab===activeTab?C.green:'transparent'}}>
