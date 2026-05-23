@@ -779,10 +779,9 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade, tokenBalances: al
                 <Ionicons name="arrow-back" size={22} color={C.text}/>
               </TouchableOpacity>
               <Text style={{color:C.text,fontWeight:'700',fontSize:17,flex:1,textAlign:'center'}}>Send {(sendToken||token)?.symbol}</Text>
-              <TouchableOpacity onPress={async()=>{
-                // Show tx history — placeholder for now
-                Alert.alert('Transaction History','Coming soon');
-              }} style={{padding:8}}>
+              <TouchableOpacity onPress={()=>{fetchTxHistory();setShowTxModal(true);}} style={{padding:8}}>
+                <Ionicons name="time-outline" size={20} color={C.text}/>
+              </TouchableOpacity>
                 <Ionicons name="time-outline" size={20} color={C.text}/>
               </TouchableOpacity>
             </View>
@@ -5996,9 +5995,6 @@ https://solscan.io/tx/${sig}` }]);
               {/* Token List */}
               <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:4,marginTop:4}}>
                 <Text style={s.pfSectionLbl}>Tokens</Text>
-                <TouchableOpacity onPress={()=>{fetchTxHistory();setShowTxModal(true);}} style={{padding:4}}>
-                  <Ionicons name="time-outline" size={24} color={C.text} />
-                </TouchableOpacity>
               </View>
               {tokenBalances.length===0&&!portfolioLoading&&(
                 <Text style={{color:C.muted,textAlign:'center',marginTop:16}}>No tokens found</Text>
