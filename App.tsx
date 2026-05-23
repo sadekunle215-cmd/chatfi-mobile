@@ -5956,6 +5956,37 @@ https://solscan.io/tx/${sig}` }]);
                 </TouchableOpacity>
               </View>
             </View>
+            {/* Chat History Panel */}
+            {showChatHistory && (
+              <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:100,backgroundColor:C.bg}}>
+                <View style={{flexDirection:'row',alignItems:'center',padding:16,borderBottomWidth:1,borderBottomColor:C.border}}>
+                  <TouchableOpacity onPress={()=>setShowChatHistory(false)} style={{marginRight:12}}>
+                    <Ionicons name="arrow-back" size={22} color={C.text}/>
+                  </TouchableOpacity>
+                  <Text style={{color:C.text,fontSize:17,fontWeight:'700',flex:1}}>Chat History</Text>
+                </View>
+                <ScrollView contentContainerStyle={{paddingBottom:40}}>
+                  {chatSessions.length === 0 && (
+                    <Text style={{color:C.muted,textAlign:'center',marginTop:40,fontSize:14}}>No saved chats yet</Text>
+                  )}
+                  {chatSessions.map((sess:any) => (
+                    <TouchableOpacity key={sess.id} onPress={()=>{ setMsgs(sess.msgs); setShowChatHistory(false); }}
+                      style={{flexDirection:'row',alignItems:'center',padding:16,borderBottomWidth:1,borderBottomColor:C.border}}>
+                      <View style={{width:40,height:40,borderRadius:20,backgroundColor:C.card,alignItems:'center',justifyContent:'center',marginRight:12}}>
+                        <Ionicons name="chatbubble-outline" size={18} color={C.green}/>
+                      </View>
+                      <View style={{flex:1}}>
+                        <Text style={{color:C.text,fontSize:14,fontWeight:'600'}} numberOfLines={1}>{sess.preview}</Text>
+                        <Text style={{color:C.muted,fontSize:11,marginTop:2}}>
+                          {new Date(sess.ts).toLocaleDateString()} · {sess.msgs.length - 1} messages
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={C.muted}/>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
             <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }} ref={(r)=>{if(r&&msgs.length>1)r.scrollToEnd({animated:true});}}>
               {msgs.length <= 1 ? (
                 <View style={{paddingTop:32}}>
