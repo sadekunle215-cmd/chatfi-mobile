@@ -2584,7 +2584,7 @@ https://solscan.io/tx/${sig}` }]);
           </View>
         </View>
       </Modal>
-      {selectedToken && <TokenModal token={selectedToken} pubkey={pubkey} tokenBalances={tokenBalances} requestCameraPermission={requestCameraPermission} onClose={() => setSelectedToken(null)}
+      {selectedToken && <TokenModal token={selectedToken} pubkey={pubkey} tokenBalances={tokenBalances} requestCameraPermission={requestCameraPermission} onClose={() => setSelectedToken(null)} onSend={(tok:any) => { setSelectedToken(null); setShowSendModal(true); }}
   onTrade={(tok:any) => {
     setFromToken2({ symbol:tok.symbol, mint:tok.mint, logoURI:tok.logoURI, decimals:tok.decimals||6, amount:tok.amount });
     setTab('swap');
