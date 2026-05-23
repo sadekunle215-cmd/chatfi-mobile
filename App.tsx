@@ -5934,7 +5934,7 @@ https://solscan.io/tx/${sig}` }]);
 
       {/* CHAT — fullscreen overlay covers tab bar */}
       {showChat && (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}
           style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:99999,backgroundColor:C.bg}}>
         {/* CHAT */}
           <View style={s.flex}>
