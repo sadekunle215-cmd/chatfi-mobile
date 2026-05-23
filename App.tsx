@@ -5944,9 +5944,17 @@ https://solscan.io/tx/${sig}` }]);
                 <Ionicons name="time-outline" size={20} color={C.text}/>
               </TouchableOpacity>
               <Text style={{color:C.text,fontSize:17,fontWeight:'700',letterSpacing:0.3}}>ChatFi AI</Text>
-              <TouchableOpacity onPress={()=>{setMsgs([{id:Date.now(),text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
-                <Ionicons name="create-outline" size={20} color={C.text}/>
-              </TouchableOpacity>
+              <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                <TouchableOpacity onPress={()=>{setMsgs([{id:Date.now(),text:'Welcome to ChatFi! Your AI DeFi assistant on Solana.',from:'bot'}]);}} style={{padding:8,borderRadius:20,backgroundColor:C.card}}>
+                  <Ionicons name="create-outline" size={20} color={C.text}/>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={()=>setShowChat(false)}
+                  style={{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'rgba(163,230,53,0.08)',borderWidth:1,borderColor:C.green,borderRadius:24,paddingHorizontal:12,paddingVertical:6}}>
+                  <Ionicons name="wallet-outline" size={14} color={C.green}/>
+                  <Text style={{color:C.green,fontSize:12,fontWeight:'700'}}>Wallet</Text>
+                  <Ionicons name="arrow-up" size={11} color={C.green}/>
+                </TouchableOpacity>
+              </View>
             </View>
             <ScrollView style={s.msgs} contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 12 }} ref={(r)=>{if(r&&msgs.length>1)r.scrollToEnd({animated:true});}}>
               {msgs.length <= 1 ? (
