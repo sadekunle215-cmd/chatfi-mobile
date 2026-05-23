@@ -541,8 +541,9 @@ function TokenModal({ token, pubkey, onClose, onSend }) {
                 <Ionicons name="arrow-down-outline" size={18} color={C.text}/>
                 <Text style={{color:C.text,fontWeight:'600'}}>Receive</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{flex:1,backgroundColor:'#ff4444',borderRadius:14,padding:14,alignItems:'center',justifyContent:'center'}}>
-                <Text style={{color:'#fff',fontWeight:'bold'}}>Sell</Text>
+              <TouchableOpacity onPress={onClose} style={{flex:1,backgroundColor:C.card,borderRadius:14,padding:14,alignItems:'center',flexDirection:'row',justifyContent:'center',gap:6}}>
+                <Ionicons name="swap-horizontal-outline" size={18} color={C.green}/>
+                <Text style={{color:C.green,fontWeight:'bold'}}>Trade</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={()=>setView('send')}
                 style={{flex:1,backgroundColor:C.green,borderRadius:14,padding:14,alignItems:'center',justifyContent:'center'}}>
