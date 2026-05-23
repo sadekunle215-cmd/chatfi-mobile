@@ -935,7 +935,7 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade, tokenBalances: al
             </View>
             <ScrollView>
               {(allTokens||[token]).filter((t:any)=>t?.mint).filter((t:any,i:number,a:any[])=>a.findIndex((x:any)=>x?.mint===t.mint)===i).map((t:any,i:number)=>(
-                <TouchableOpacity key={i} onPress={()=>{ setSendToken(t); setSendAmt(''); setShowTokenPicker(false); }}
+                <TouchableOpacity key={i} onPress={()=>{ setSendToken({...t, price: t.price||0}); setSendAmt(''); setShowTokenPicker(false); }}
                   style={{flexDirection:'row',alignItems:'center',padding:16,borderBottomWidth:1,borderBottomColor:C.border}}>
                   <TokLogo uri={t.logoURI||''} symbol={t.symbol} style={{width:40,height:40,borderRadius:20,marginRight:12}} mint={t.mint}/>
                   <View style={{flex:1}}>
@@ -998,7 +998,7 @@ function TokenModal({ token, pubkey, onClose, onSend, onTrade, tokenBalances: al
               </View>
               <View style={{flexDirection:'row',justifyContent:'space-between',padding:16,borderBottomWidth:1,borderBottomColor:C.border}}>
                 <Text style={{color:C.muted,fontSize:14}}>Rate</Text>
-                <Text style={{color:C.text,fontSize:14}}>1 {(sendToken||token).symbol} ≈ ${((sendToken||token).price||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:8})}</Text>
+                <Text style={{color:C.text,fontSize:14}}>1 {(sendToken||token).symbol} {(sendToken||token).price>0 ? '≈ $'+((sendToken||token).price).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:8}) : '≈ —'}</Text>
               </View>
               <View style={{flexDirection:'row',justifyContent:'space-between',padding:16}}>
                 <Text style={{color:C.muted,fontSize:14}}>Fees</Text>
@@ -6012,7 +6012,7 @@ https://solscan.io/tx/${sig}` }]);
                 </TouchableOpacity>
               )}
               {tokenBalances.filter(t=>t.mint!=='So11111111111111111111111111111111111111112').map((t,i)=>(
-                <TouchableOpacity key={i} style={s.pfTokenRow} onPress={() => setSelectedToken(t)}>
+                <TouchableOpacity key={i} style={s.pfTokenRow} onPress={() => setSelectedToken({...t, price: t.price||0})}>
                   <TokLogo uri={t.logoURI || 'https://img.jup.ag/tokens/'+t.mint} fallback={'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/assets/mainnet/'+t.mint+'/logo.png'} symbol={t.symbol} style={s.pfTokenLogo} mint={t.mint} />
                   <View style={{flex:1,marginLeft:12}}>
                     <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
