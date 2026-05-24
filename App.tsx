@@ -214,9 +214,8 @@ function NativePriceChart({ mint, C, avgBuy }: any) {
       'YTD':{ gran:'day',    agg:1,  lim:150 },
     }[range] || { gran:'hour', agg:1, lim:24 };
 
-    fetch('https://chatfi.pro/api/jupiter', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ url: `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}/ohlcv/${gtCfg.gran}?aggregate=${gtCfg.agg}&limit=${gtCfg.lim}`, method:'GET' })
+    fetch(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}/ohlcv/${gtCfg.gran}?aggregate=${gtCfg.agg}&limit=${gtCfg.lim}`, {
+      headers: { 'Accept': 'application/json' }
     })
       .then(r => r.json())
       .then(d => {
@@ -1330,6 +1329,7 @@ function AccountModal({ visible, onClose, pubkey, wallet, onRemoveWallet, userNa
                     const existing = raw ? JSON.parse(raw) : [];
                     const newAcc = { id: existing.length+1 as number, name:'Account '+(existing.length+1), mnemonic: importSeedInput.trim(), pubkey: pk };
                     const updated = [...existing, newAcc];
+                    setAccounts(updated);
                     await AsyncStorage.setItem('accounts', JSON.stringify(updated));
                     await AsyncStorage.setItem('active_acc', String(existing.length));
                     switchAccount(updated.length-1);
@@ -3191,6 +3191,7 @@ function SettingsTab({ accounts, activeAccIdx, switchAccount, addAccount, setAcc
               const { publicKey: pk } = deriveWalletAtIndex(importSeedInput.trim(), idx);
               updated.push({ id: updated.length+1, name: acc.name, mnemonic: importSeedInput.trim(), pubkey: pk, derivationIndex: idx });
             }
+            setAccounts(updated);
             await AsyncStorage.setItem('accounts', JSON.stringify(updated));
             await AsyncStorage.setItem('active_acc', String(updated.length-1));
             switchAccount(updated.length-1);
