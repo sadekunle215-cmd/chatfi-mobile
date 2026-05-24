@@ -5949,7 +5949,7 @@ https://solscan.io/tx/${sig}` }]);
           createRecurringOrder={createRecurringOrder}
         />
       </View>
-      {tab === 'portfolio' && React.useMemo(()=>(
+      {tab === 'portfolio' && (
         <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
           {!wallet ? (
             <View style={s.emptyState}>
