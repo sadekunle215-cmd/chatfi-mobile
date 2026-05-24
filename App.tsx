@@ -3396,7 +3396,8 @@ export default function App() {
     });
   }, []);
   React.useEffect(()=>{AsyncStorage.getItem('active_tab').then(t=>{if(t && t !== 'chat')setTab(t);});},[]);
-  const setTabPersist = React.useCallback((t:string)=>{setTab(t);AsyncStorage.setItem('active_tab',t);},[]);
+  const setTabPersist = React.useCallback((t:string)=>{
+    if (t === 'dapp') setDappVisited(true);setTab(t);AsyncStorage.setItem('active_tab',t);},[]);
   const [splashDone, setSplashDone] = useState(false);
   const [onboardStep, setOnboardStep] = useState<'passcode'|'fingerprint'|'wordcount'|'seedphrase'|'username'|null>(null);
   const [passcode, setPasscode] = useState('');
@@ -3471,6 +3472,7 @@ export default function App() {
   ]);
   const [input, setInput] = useState('');
   const inputRef = React.useRef('');
+  const [dappVisited, setDappVisited] = React.useState(false);
   const [aiLoading, setAiLoading] = useState(false);
 
   // Swap state
@@ -5947,7 +5949,7 @@ https://solscan.io/tx/${sig}` }]);
           createRecurringOrder={createRecurringOrder}
         />
       </View>
-      {tab === 'portfolio' && (
+      {tab === 'portfolio' && React.useMemo(()=>(
         <ScrollView style={s.pad} contentContainerStyle={{paddingBottom:100}} refreshControl={<RefreshControl refreshing={portfolioRefreshing} onRefresh={()=>{setPortfolioRefreshing(true);fetchPortfolio();}} tintColor={C.green} />}>
           {!wallet ? (
             <View style={s.emptyState}>
@@ -6028,7 +6030,7 @@ https://solscan.io/tx/${sig}` }]);
       )}
 
             {/* DAPP BROWSER */}
-        <View style={{flex:1, display: tab === 'dapp' ? 'flex' : 'none'}}>
+        {(tab === 'dapp' || dappVisited) && <View style={{flex:1, display: tab === 'dapp' ? 'flex' : 'none'}}>
           <DappBrowser
           walletAddress={accounts[activeAccIdx]?.pubkey || pubkey}
           secretKey={(() => {
@@ -6040,7 +6042,7 @@ https://solscan.io/tx/${sig}` }]);
           mwaInitUrl={mwaInitUrl}
           onMwaHandled={() => setMwaInitUrl(null)}
         />
-        </View>
+        </View>}
         {/* SETTINGS */}
       {tab === 'settings' && (
         <View style={{flex:1, paddingTop: StatusBar.currentHeight||0}}>
